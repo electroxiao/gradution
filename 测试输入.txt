@@ -1,0 +1,238 @@
+public class StringCompareMistake {
+    public static void main(String[] args) {
+        String str1 = "Hello";
+        String str2 = new String("Hello");
+        
+        if (str1 == str2) {
+            System.out.println("字符串相等");
+        } else {
+            System.out.println("字符串不相等");
+        }
+    }
+}
+这段代码的输出结果是"字符串不相等"，但是两个字符串明明都是"Hello"，为什么使用==比较会返回不相等呢？我以为==可以用来比较字符串内容，但实际运行结果和我想的不一样。应该用什么方法来比较两个字符串的内容是否相同呢？
+============================================================
+public class NullPointerDemo {
+    public static void main(String[] args) {
+        String text = null;
+        
+        // 问题：调用null对象的方法
+        int length = text.length(); // 这行会出什么问题？
+        
+        System.out.println("文本长度: " + length);
+    }
+}
+这段代码运行时会在第6行崩溃，报错是NullPointerException。我知道null表示空值，但为什么Java不允许调用空对象的方法呢？在实际编程中，我应该如何避免这种错误？有没有什么办法在调用方法之前先检查对象是否为空？
+============================================================
+请分析这份包含10道题的“Java期末模拟卷”错题数据，帮我找出学生们主要的知识薄弱点，并按知识模块分类：
+
+【第1题】
+String s1 = new String("Java");
+String s2 = new String("Java");
+System.out.println(s1 == s2); 结果是？
+A. true
+B. false
+C. 编译错误
+D. 运行异常
+学生错选：A
+
+【第2题】
+class Animal {}
+class Dog extends Animal { void bark(){} }
+Animal a = new Dog();
+a.bark(); 结果是？
+A. 成功调用 bark
+B. 编译失败，找不到符号
+C. 运行抛出异常
+D. 自动向下转型
+学生错选：A
+
+【第3题】
+int i;
+if (true) { i = 10; }
+System.out.println(i); 结果是？
+A. 10
+B. 0
+C. 编译错误：可能未初始化
+D. null
+学生错选：B
+
+【第4题】
+Integer a = 200;
+Integer b = 200;
+System.out.println(a == b); 结果是？
+A. true
+B. false
+C. 编译错误
+D. 200
+学生错选：A
+
+【第5题】
+int x = 0;
+switch(x) {
+    case 0: System.out.print("0");
+    case 1: System.out.print("1");
+}
+输出结果？
+A. 0
+B. 01
+C. 1
+D. 编译错误
+学生错选：A
+
+【第6题】
+Object obj = new Object();
+String s = (String) obj; 结果是？
+A. 转换成功
+B. 编译错误
+C. ClassCastException
+D. s 变成 null
+学生错选：D
+
+【第7题】
+for(int i=0; i<5; i++);
+{
+    System.out.println("Hello");
+}
+Hello 会打印几次？
+A. 5次
+B. 0次
+C. 1次
+D. 6次
+学生错选：A
+
+【第8题】
+String s = "hello";
+s.toUpperCase();
+System.out.println(s); 结果是？
+A. HELLO
+B. hello
+C. null
+D. 编译错误
+学生错选：A
+
+【第9题】
+class Father { int x = 10; }
+class Son extends Father { int x = 20; }
+Father f = new Son();
+System.out.println(f.x); 结果是？
+A. 10
+B. 20
+C. 30
+D. 编译错误
+学生错选：B
+
+【第10题】
+boolean flag = false;
+if (flag = true) {
+    System.out.println("True");
+} else {
+    System.out.println("False");
+}
+结果是？
+A. True
+B. False
+C. 编译错误
+D. 运行异常
+学生错选：B
+
+========================================================================
+【错题 1】
+try {
+    throw new RuntimeException();
+} catch (Exception e) {
+    System.out.print("Catch");
+} catch (RuntimeException e) {
+    System.out.print("Runtime");
+}
+>> 报错：Unreachable code (RuntimeException has already been caught)
+>> 学生疑惑：RuntimeException 不就是 Exception 吗？为什么不能分开捕获？
+
+【错题 2】
+public int method() {
+    try {
+        return 1;
+    } finally {
+        return 2;
+    }
+}
+>> 运行结果：2
+>> 学生错选：1 (认为 try 里面 return 了，函数就结束了，finally 不会执行或者无法覆盖返回值)
+
+【错题 3】
+void readFile() {
+    FileReader fr = new FileReader("text.txt"); // 这是一个会抛出 FileNotFoundException 的构造器
+}
+>> 编译报错：Unhandled exception: java.io.FileNotFoundException
+>> 学生疑惑：为什么 NullPointerException 不需要写 try-catch，这个就非要写？
+
+【错题 4】
+try {
+    int a = 5 / 0;
+} catch (IOException e) { // 没有任何 IO 操作
+    e.printStackTrace();
+}
+>> 编译报错：Exception 'java.io.IOException' is never thrown in the corresponding try block
+>> 学生疑惑：catch 块不是随便写什么异常都可以吗？
+
+==============================================================================
+【问题 1】
+Thread t = new Thread(() -> System.out.println("Running"));
+t.run();
+>> 现象：代码运行了，但没有开启新线程（打印出的线程名是 main）
+>> 学生疑惑：run() 不就是启动线程吗？为什么要用 start()？
+
+【问题 2】
+int count = 0;
+// 两个线程同时执行 count++ 1000次
+// 结果：count < 2000
+>> 学生疑惑：明明加了 2000 次，为什么结果不对？count++ 不是一步操作吗？
+
+【问题 3】
+synchronized(new Object()) {
+    // 临界区代码
+}
+// 多个线程并发执行时，依然发生了数据竞争
+>> 学生疑惑：我明明加了 synchronized 锁，为什么锁不住？
+>> 原因：每次都 new Object()，锁的是不同对象。
+
+【问题 4】
+t.wait();
+>> 运行报错：IllegalMonitorStateException
+>> 学生疑惑：wait() 是 Object 的方法，为什么直接调用会报错？
+
+===============================================================
+【代码片段 A】
+List<String> list = new ArrayList<>();
+list.add("A");
+list.add("B");
+for (String s : list) {
+    if ("A".equals(s)) {
+        list.remove(s);
+    }
+}
+>> 运行报错：ConcurrentModificationException
+>> 学生疑惑：我只是在遍历的时候删了个元素，为什么会抛异常？
+
+【代码片段 B】
+List<Number> list = new ArrayList<Integer>();
+>> 编译报错：incompatible types
+>> 学生疑惑：Integer 是 Number 的子类，为什么 List<Integer> 不是 List<Number> 的子类？
+
+【代码片段 C】
+HashSet<String> set = new HashSet<>();
+set.add(new String("Java"));
+set.add(new String("Java"));
+System.out.println(set.size());
+>> 学生错选：2 (认为两个 new String 是不同对象，应该都能存进去)
+>> 实际结果：1
+
+【代码片段 D】
+Map<String, String> map = new HashMap<>();
+map.put("key", "value");
+// 试图获取
+String val = (String) map.get(1);
+>> 运行结果：null (或者 ClassCastException 如果用错泛型)
+>> 学生疑惑：泛型不是规定了 Key 是 String 吗？为什么 map.get(1) 这种 int 参数编译不报错？
+
+====================================================================================
