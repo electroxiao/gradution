@@ -27,7 +27,7 @@ def init_connections():
 driver, client = init_connections()
 
 
-# --- 2. 历史记录管理函数 ---
+# --- 2. 历史记录管理 ---
 def load_history_from_file():
     if os.path.exists(HISTORY_FILE):
         try:
@@ -43,7 +43,6 @@ def save_history_to_file():
         json.dump(st.session_state.all_chats, f, ensure_ascii=False, indent=2)
 
 
-# --- 3. Session State 初始化 ---
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = load_history_from_file()
 
@@ -53,27 +52,19 @@ if "current_chat_id" not in st.session_state or st.session_state.current_chat_id
     else:
         new_id = str(uuid.uuid4())
         st.session_state.all_chats[new_id] = {
-            "title": "新对话",
-            "messages": [],
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "title": "新对话", "messages": [], "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         st.session_state.current_chat_id = new_id
 
 current_chat = st.session_state.all_chats[st.session_state.current_chat_id]
 
 
-# --- 辅助函数：绘制知识依赖图 ---
+# --- 辅助函数：绘制图谱 ---
 def draw_dependency_graph(facts):
-    """
-    解析后端返回的字符串列表，提取依赖关系并绘制 Graphviz 图，同时去重边。
-    """
-    if not facts:
-        return None
-
+    if not facts: return None
     graph = graphviz.Digraph()
     graph.attr(rankdir='BT')
     graph.attr('node', shape='box', style='filled', fillcolor='#f0f2f6', color='#bdc3c7')
-
     added_edges = set()
     edge_count = 0
 
@@ -84,23 +75,19 @@ def draw_dependency_graph(facts):
                 clean_fact = clean_fact.split(" (底层概念")[0]
             elif "(底层概念" in clean_fact:
                 clean_fact = clean_fact.split("(底层概念")[0]
-
             nodes = clean_fact.split(" -> (依赖) -> ")
             nodes = [n.strip() for n in nodes if n.strip()]
-
             if len(nodes) > 1:
                 for i in range(len(nodes) - 1):
                     source = nodes[i]
                     target = nodes[i + 1]
                     edge_signature = (source, target)
-
                     if edge_signature not in added_edges:
                         graph.node(source, label=source)
                         graph.node(target, label=target, fillcolor='#d4e6f1')
                         graph.edge(source, target, label="依赖", color='#808080')
                         added_edges.add(edge_signature)
                         edge_count += 1
-
     return graph if edge_count > 0 else None
 
 
@@ -108,18 +95,29 @@ def draw_dependency_graph(facts):
 with st.sidebar:
     st.title("🗂️ 对话列表")
 
-    # === 新增功能：模式选择 ===
-    st.info("💡 模式切换")
+    # === 功能区 1: 模式选择 ===
+    st.info("💡 身份设定")
     role_selection = st.radio(
-        "选择当前身份：",
+        "选择当前模式：",
         ("👨‍🎓 学生 (个别辅导)", "👩‍🏫 教师 (批量诊断)"),
-        index=0,
-        help="学生模式：苏格拉底式引导，不直接给代码。\n教师模式：输入批量错题，生成共性诊断报告。"
+        index=0
     )
-    # 映射为后端可识别的字符串
     current_mode = "student" if "学生" in role_selection else "teacher"
+
     st.divider()
 
+    # === 功能区 2: 消融测试开关 ===
+    st.markdown("### 🧪 实验控制 (Ablation)")
+    enable_kg = st.toggle("启用知识图谱 (RAG)", value=True, help="关闭此开关以进行消融测试（仅使用大模型，不查图谱）")
+
+    if not enable_kg:
+        st.warning("⚠️ 消融模式：图谱已禁用")
+    else:
+        st.caption("✅ 状态：图谱增强已激活")
+
+    st.divider()
+
+    # === 功能区 3: 对话管理 ===
     if st.button("➕ 新建对话", use_container_width=True, type="secondary"):
         new_id = str(uuid.uuid4())
         st.session_state.all_chats[new_id] = {
@@ -129,10 +127,9 @@ with st.sidebar:
         save_history_to_file()
         st.rerun()
 
-    st.divider()
+    st.markdown("---")
     sorted_chat_ids = sorted(st.session_state.all_chats.keys(),
                              key=lambda k: st.session_state.all_chats[k].get("created_at", ""), reverse=True)
-
     for chat_id in sorted_chat_ids:
         chat_data = st.session_state.all_chats[chat_id]
         col1, col2 = st.columns([0.85, 0.15])
@@ -155,20 +152,12 @@ with st.sidebar:
                     if chat_id == st.session_state.current_chat_id: del st.session_state.current_chat_id
                     st.rerun()
 
-    st.divider()
-    with st.expander("🛠️ 系统后台状态"):
-        st.success("图谱/模型已连接")
-        # 显示当前模式状态
-        st.caption(f"当前模式: {current_mode}")
-        debug_container = st.container()
-
 # --- 5. 主界面逻辑 ---
 st.title(f"🎓 {current_chat['title']}")
-# 动态更新副标题
-if current_mode == "student":
-    st.caption(f"当前模式：{role_selection} - 我会通过引导让你自己发现错误。")
-else:
-    st.caption(f"当前模式：{role_selection} - 请输入学生们的错题，我将为您生成诊断报告。")
+
+# 动态状态栏
+status_text = f"模式：{role_selection} | " + ("🟢 图谱增强 (Ours)" if enable_kg else "🔴 纯大模型 (Baseline)")
+st.caption(status_text)
 
 for message in current_chat["messages"]:
     with st.chat_message(message["role"]):
@@ -183,53 +172,67 @@ for message in current_chat["messages"]:
                 for f in facts:
                     st.markdown(f"- {f}")
 
-if prompt := st.chat_input("请输入问题或粘贴代码..."):
+# === 处理新输入 ===
+if prompt := st.chat_input("请输入内容..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    user_msg_obj = {
-        "role": "user",
-        "content": prompt,
-        "keywords": [],
-        "facts": []
-    }
+    # 初始化消息对象
+    user_msg_obj = {"role": "user", "content": prompt, "keywords": [], "facts": []}
     current_chat["messages"].append(user_msg_obj)
     history_for_backend = current_chat["messages"][:-1]
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
 
-        # Step 1: 意图识别
-        with st.status("🧠 分析意图...", expanded=True) as status:
-            keywords = backend.extract_keywords_with_llm(client, prompt, history=history_for_backend)
-            current_chat["messages"][-1]["keywords"] = keywords
-            save_history_to_file()
-            status.update(label=f"✅ 关键词: {keywords}", state="complete", expanded=False)
+        # 初始化变量，防止消融模式下报错
+        keywords = []
+        facts = []
 
-        # Step 2: 图谱检索
-        with st.status("🕸️ 检索图谱...", expanded=True) as status:
-            facts = backend.query_graph_by_keywords(driver, keywords)
-            current_chat["messages"][-1]["facts"] = facts
-            save_history_to_file()
+        # ==================== 分支 A: 启用图谱 (完整流程) ====================
+        if enable_kg:
+            # Step 1: 意图识别
+            with st.status("🧠 分析意图...", expanded=True) as status:
+                keywords = backend.extract_keywords_with_llm(client, prompt, history=history_for_backend)
+                # 更新当前消息的 keywords
+                current_chat["messages"][-1]["keywords"] = keywords
+                save_history_to_file()
+                status.update(label=f"✅ 关键词: {keywords}", state="complete", expanded=False)
 
-            if facts:
-                graph_chart = draw_dependency_graph(facts)
-                if graph_chart:
-                    st.markdown("#### 🗺️ 知识依赖路径")
-                    st.graphviz_chart(graph_chart)
-                with st.expander("📄 查看详细文本信息"):
-                    for f in facts:
-                        st.markdown(f"- {f}")
+            # Step 2: 图谱检索
+            with st.status("🕸️ 检索图谱...", expanded=True) as status:
+                facts = backend.query_graph_by_keywords(driver, keywords)
+                # 更新当前消息的 facts
+                current_chat["messages"][-1]["facts"] = facts
+                save_history_to_file()
 
-            status.update(label=f"✅ 检索到 {len(facts)} 条知识", state="complete", expanded=False)
+                if facts:
+                    graph_chart = draw_dependency_graph(facts)
+                    if graph_chart:
+                        st.markdown("#### 🗺️ 知识依赖路径")
+                        st.graphviz_chart(graph_chart)
+                    with st.expander("📄 查看详细文本信息"):
+                        for f in facts:
+                            st.markdown(f"- {f}")
+                status.update(label=f"✅ 检索到 {len(facts)} 条知识", state="complete", expanded=False)
 
-        # Step 3: 生成回复 (传入 mode 参数)
+        # ==================== 分支 B: 消融模式 (跳过前两步) ====================
+        else:
+            # 仅仅为了UI好看，显示一个已跳过的状态
+            with st.status("🚀 纯大模型模式 (Ablation)", expanded=False) as status:
+                st.write("已跳过意图识别 (Step 1)")
+                st.write("已跳过图谱检索 (Step 2)")
+                status.update(label="⏹️ 已跳过图谱处理，直接生成", state="complete")
+
+        # Step 3: 生成回复 (无论是哪种模式，都调用这个，但 enable_graph 参数不同)
+        # 注意：如果是消融模式，传入的 facts 是空的 []
         stream_generator = backend.ask_deepseek_stream(
             client,
             prompt,
-            facts,
+            facts,  # 消融模式下这里是空列表
             history=history_for_backend,
-            mode=current_mode  # <--- 修改点：传入侧边栏选择的模式
+            mode=current_mode,
+            enable_graph=enable_kg
         )
         response = st.write_stream(stream_generator)
 
