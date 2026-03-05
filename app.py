@@ -109,6 +109,10 @@ with st.sidebar:
     # === 功能区 2: 消融测试开关 ===
     st.markdown("### 🧪 实验控制 (Ablation)")
     enable_kg = st.toggle("启用知识图谱 (RAG)", value=True, help="关闭此开关以进行消融测试（仅使用大模型，不查图谱）")
+    rag_depth = st.slider("推理深度", min_value=1, max_value=4, value=2, step=1,
+                          help="每轮从当前实体继续扩展多少跳")
+    rag_width = st.slider("每跳保留候选数", min_value=1, max_value=8, value=3, step=1,
+                          help="每一跳由大模型筛选保留的候选数量")
 
     if not enable_kg:
         st.warning("⚠️ 消融模式：图谱已禁用")
@@ -201,7 +205,14 @@ if prompt := st.chat_input("请输入内容..."):
 
             # Step 2: 图谱检索
             with st.status("🕸️ 检索图谱...", expanded=True) as status:
-                facts = backend.query_graph_by_keywords(driver, keywords)
+                facts = backend.query_graph_with_reasoning(
+                    driver,
+                    client,
+                    prompt,
+                    keywords=keywords,
+                    max_depth=rag_depth,
+                    width=rag_width
+                )
                 # 更新当前消息的 facts
                 current_chat["messages"][-1]["facts"] = facts
                 save_history_to_file()

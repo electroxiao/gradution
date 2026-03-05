@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from neo4j import GraphDatabase
 from openai import OpenAI
 
@@ -112,6 +113,173 @@ def query_graph_by_keywords(driver, keywords):
     return list(set(context_data))
 
 
+def _safe_json_extract(text, default):
+    if not text:
+        return default
+    try:
+        start = text.find("[")
+        end = text.rfind("]") + 1
+        if start != -1 and end > start:
+            return json.loads(text[start:end])
+    except Exception:
+        pass
+    return default
+
+
+def _token_overlap_score(question, text):
+    q_tokens = set(re.findall(r"[A-Za-z_]{2,}", question.lower()))
+    t_tokens = set(re.findall(r"[A-Za-z_]{2,}", text.lower()))
+    if not q_tokens or not t_tokens:
+        return 0.0
+    return len(q_tokens & t_tokens) / len(q_tokens)
+
+
+def _query_seed_nodes(driver, keywords, limit_per_kw=2):
+    seeds = []
+    query = """
+    MATCH (n:Knowledge)
+    WHERE toLower(n.name) CONTAINS toLower($kw)
+    RETURN n.name AS name, coalesce(n.desc, "无描述") AS `desc`
+    LIMIT $lim
+    """
+    with driver.session(database=DB_NAME) as session:
+        for kw in keywords:
+            for record in session.run(query, kw=kw, lim=limit_per_kw):
+                seeds.append({"name": record["name"], "desc": record["desc"]})
+    uniq = {}
+    for node in seeds:
+        uniq[node["name"]] = node
+    return list(uniq.values())
+
+
+def _query_neighbors(driver, frontier_names, limit=100):
+    if not frontier_names:
+        return []
+    query = """
+    UNWIND $names AS name
+    MATCH (src:Knowledge {name: name})-[r]-(nbr:Knowledge)
+    RETURN src.name AS source,
+           type(r) AS relation,
+           CASE WHEN startNode(r) = src THEN "out" ELSE "in" END AS direction,
+           nbr.name AS target,
+           coalesce(nbr.desc, "无描述") AS target_desc
+    LIMIT $lim
+    """
+    rows = []
+    with driver.session(database=DB_NAME) as session:
+        for rec in session.run(query, names=frontier_names, lim=limit):
+            rows.append({
+                "source": rec["source"],
+                "relation": rec["relation"],
+                "direction": rec["direction"],
+                "target": rec["target"],
+                "target_desc": rec["target_desc"],
+            })
+    return rows
+
+
+def _llm_select_triples(client, question, candidates, width):
+    if not candidates:
+        return []
+    brief = []
+    for i, c in enumerate(candidates):
+        brief.append(
+            f"{i}. {c['source']} -[{c['relation']},{c['direction']}]-> {c['target']} | {c['target_desc']}"
+        )
+    prompt = f"""
+你是知识图谱推理规划器。给定问题和候选三元组，请选出最值得继续扩展的候选。
+问题: {question}
+候选:
+{chr(10).join(brief)}
+
+只返回 JSON 数组，每个元素格式:
+{{"index": 整数, "score": 0到1}}
+按 score 从高到低，最多返回 {width} 个。
+"""
+    try:
+        resp = client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1
+        )
+        content = resp.choices[0].message.content
+        selected = _safe_json_extract(content, [])
+        picked = []
+        for item in selected:
+            idx = item.get("index")
+            score = float(item.get("score", 0))
+            if isinstance(idx, int) and 0 <= idx < len(candidates):
+                row = dict(candidates[idx])
+                row["score"] = score
+                picked.append(row)
+        if picked:
+            picked.sort(key=lambda x: x["score"], reverse=True)
+            return picked[:width]
+    except Exception:
+        pass
+
+    scored = []
+    for c in candidates:
+        raw = f"{c['source']} {c['relation']} {c['target']} {c['target_desc']}"
+        scored.append({**c, "score": _token_overlap_score(question, raw)})
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:width]
+
+
+def query_graph_with_reasoning(driver, client, question, keywords=None, max_depth=2, width=3):
+    """
+    ToG风格简化版:
+    1) 从关键词定位种子实体
+    2) 多跳收集邻居候选
+    3) 由LLM选择最相关候选并扩展下一跳
+    """
+    if keywords is None:
+        keywords = extract_keywords_with_llm(client, question, history=[])
+    if not keywords:
+        keywords = [question]
+
+    context_data = []
+    seeds = _query_seed_nodes(driver, keywords, limit_per_kw=2)
+    if not seeds:
+        return []
+
+    for s in seeds:
+        context_data.append(f"【核心知识】{s['name']}: {s['desc']}")
+
+    frontier = [s["name"] for s in seeds]
+    visited_targets = set(frontier)
+
+    for d in range(1, max_depth + 1):
+        candidates = _query_neighbors(driver, frontier, limit=120)
+        # 防止重复绕圈
+        candidates = [c for c in candidates if c["target"] not in visited_targets]
+        if not candidates:
+            break
+
+        selected = _llm_select_triples(client, question, candidates, width=width)
+        if not selected:
+            break
+
+        next_frontier = []
+        for row in selected:
+            context_data.append(
+                f"【推理检索 d={d}】{row['source']} -> ({row['relation']},{row['direction']}) -> "
+                f"{row['target']} (score={row['score']:.2f}, 说明: {row['target_desc']})"
+            )
+            next_frontier.append(row["target"])
+            visited_targets.add(row["target"])
+
+            # 附带该节点到底层依赖链，保留你原有可视化格式
+            for chain in query_dependency_chain(driver, row["target"]):
+                context_data.append(chain)
+
+        frontier = next_frontier
+        if not frontier:
+            break
+
+    return list(dict.fromkeys(context_data))
+
+
 # --- 步骤 3: 核心生成 (支持消融测试) ---
 def ask_deepseek_stream(client, user_input, context_knowledge, history=[], mode="student", enable_graph=True):
     """
@@ -143,6 +311,7 @@ def ask_deepseek_stream(client, user_input, context_knowledge, history=[], mode=
             你是一名 **Java 教学数据分析师**。
             用户会输入一系列学生的错题、报错信息或代码片段。
             你的任务是分析这些错误背后的**共性**，并利用知识图谱生成一份**全覆盖的教学诊断报告**。
+            找出学生们主要的知识薄弱点，并按知识模块分类。
     
             【相关知识点的依赖链】
             {knowledge_text}
@@ -173,10 +342,18 @@ def ask_deepseek_stream(client, user_input, context_knowledge, history=[], mode=
             #### 根因 2：[根节点名称] (关联 [Y]% 的错误)
             - **图谱路径证据**：......
             - **分析**：......
+            
+            ......
+            
+            #### 根因 n：[根节点名称] (关联 [Z]% 的错误)
+            - **图谱路径证据**：......
+            - **分析**：......
     
             ### 💡 针对性教学建议
             1. **针对 [根因1]**：建议讲解......
             2. **针对 [根因2]**：建议练习......
+            ......
+            n. **针对 [根因n]**：建议练习......
             """
 
     # === 分支 B: 禁用图谱 (Baseline: Pure LLM) ===
@@ -223,10 +400,17 @@ def ask_deepseek_stream(client, user_input, context_knowledge, history=[], mode=
     
             #### 根因 2：
             - **分析**：......
+            
+            ......
+            
+            #### 根因 n：
+            - **分析**：......
     
             ### 💡 针对性教学建议
             1. **针对 [根因1]**：建议讲解......
             2. **针对 [根因2]**：建议练习......
+            ......
+            n. **针对 [根因n]**：建议练习......
             """
 
     # 构建消息
@@ -242,7 +426,7 @@ def ask_deepseek_stream(client, user_input, context_knowledge, history=[], mode=
             model="deepseek-chat",
             messages=messages,
             stream=True,
-            temperature=0.4
+            temperature=0.1
         )
         for chunk in response:
             if chunk.choices[0].delta.content:
