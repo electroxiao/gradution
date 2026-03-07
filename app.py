@@ -61,7 +61,8 @@ current_chat = st.session_state.all_chats[st.session_state.current_chat_id]
 
 # --- 辅助函数：绘制图谱 ---
 def draw_dependency_graph(facts):
-    if not facts: return None
+    if not facts:
+        return None
     graph = graphviz.Digraph()
     graph.attr(rankdir='BT')
     graph.attr('node', shape='box', style='filled', fillcolor='#f0f2f6', color='#bdc3c7')
@@ -69,7 +70,33 @@ def draw_dependency_graph(facts):
     edge_count = 0
 
     for fact in facts:
-        if "【完整溯源】" in fact:
+        if isinstance(fact, dict):
+            if fact.get("type") == "dependency_chain":
+                nodes = [n.strip() for n in fact.get("nodes", []) if n.strip()]
+                if len(nodes) > 1:
+                    for i in range(len(nodes) - 1):
+                        source = nodes[i]
+                        target = nodes[i + 1]
+                        edge_signature = (source, target, "依赖")
+                        if edge_signature not in added_edges:
+                            graph.node(source, label=source)
+                            graph.node(target, label=target, fillcolor='#d4e6f1')
+                            graph.edge(source, target, label="依赖", color='#808080')
+                            added_edges.add(edge_signature)
+                            edge_count += 1
+            elif fact.get("type") == "path":
+                source = fact.get("source")
+                target = fact.get("target")
+                relation = fact.get("relation", "关联")
+                if source and target:
+                    edge_signature = (source, target, relation)
+                    if edge_signature not in added_edges:
+                        graph.node(source, label=source)
+                        graph.node(target, label=target, fillcolor='#d4e6f1')
+                        graph.edge(source, target, label=relation, color='#5d6d7e')
+                        added_edges.add(edge_signature)
+                        edge_count += 1
+        elif "【完整溯源】" in fact:
             clean_fact = fact.replace("【完整溯源】", "").strip()
             if " (底层概念" in clean_fact:
                 clean_fact = clean_fact.split(" (底层概念")[0]
@@ -81,7 +108,7 @@ def draw_dependency_graph(facts):
                 for i in range(len(nodes) - 1):
                     source = nodes[i]
                     target = nodes[i + 1]
-                    edge_signature = (source, target)
+                    edge_signature = (source, target, "依赖")
                     if edge_signature not in added_edges:
                         graph.node(source, label=source)
                         graph.node(target, label=target, fillcolor='#d4e6f1')
@@ -174,7 +201,7 @@ for message in current_chat["messages"]:
                 st.graphviz_chart(graph_chart)
             with st.expander("📄 溯源详情"):
                 for f in facts:
-                    st.markdown(f"- {f}")
+                    st.markdown(f"- {backend.format_fact_for_display(f)}")
 
 # === 处理新输入 ===
 if prompt := st.chat_input("请输入内容..."):
@@ -192,40 +219,73 @@ if prompt := st.chat_input("请输入内容..."):
         # 初始化变量，防止消融模式下报错
         keywords = []
         facts = []
+        teacher_analysis = None
 
         # ==================== 分支 A: 启用图谱 (完整流程) ====================
         if enable_kg:
-            # Step 1: 意图识别
-            with st.status("🧠 分析意图...", expanded=True) as status:
-                keywords = backend.extract_keywords_with_llm(client, prompt, history=history_for_backend)
-                # 更新当前消息的 keywords
-                current_chat["messages"][-1]["keywords"] = keywords
-                save_history_to_file()
-                status.update(label=f"✅ 关键词: {keywords}", state="complete", expanded=False)
+            if current_mode == "teacher":
+                with st.status("🧠 逐题分析与聚类...", expanded=True) as status:
+                    teacher_analysis = backend.analyze_teacher_batch(client, prompt)
+                    keywords = teacher_analysis.get("selected_keywords", [])
+                    current_chat["messages"][-1]["keywords"] = keywords
+                    save_history_to_file()
+                    status.update(
+                        label=f"✅ 模块: {[item['module'] for item in teacher_analysis.get('selected_modules', [])]}",
+                        state="complete",
+                        expanded=False
+                    )
 
-            # Step 2: 图谱检索
-            with st.status("🕸️ 检索图谱...", expanded=True) as status:
-                facts = backend.query_graph_with_reasoning(
-                    driver,
-                    client,
-                    prompt,
-                    keywords=keywords,
-                    max_depth=rag_depth,
-                    width=rag_width
-                )
-                # 更新当前消息的 facts
-                current_chat["messages"][-1]["facts"] = facts
-                save_history_to_file()
+                with st.status("🕸️ 聚焦检索知识模块...", expanded=True) as status:
+                    facts = backend.query_teacher_graph_with_reasoning(
+                        driver,
+                        client,
+                        prompt,
+                        analysis=teacher_analysis,
+                        max_depth=rag_depth,
+                        width=rag_width
+                    )
+                    current_chat["messages"][-1]["facts"] = facts
+                    save_history_to_file()
 
-                if facts:
-                    graph_chart = draw_dependency_graph(facts)
-                    if graph_chart:
-                        st.markdown("#### 🗺️ 知识依赖路径")
-                        st.graphviz_chart(graph_chart)
-                    with st.expander("📄 查看详细文本信息"):
-                        for f in facts:
-                            st.markdown(f"- {f}")
-                status.update(label=f"✅ 检索到 {len(facts)} 条知识", state="complete", expanded=False)
+                    if facts:
+                        graph_chart = draw_dependency_graph(facts)
+                        if graph_chart:
+                            st.markdown("#### 🗺️ 知识依赖路径")
+                            st.graphviz_chart(graph_chart)
+                        with st.expander("📄 查看详细文本信息"):
+                            for f in facts:
+                                st.markdown(f"- {backend.format_fact_for_display(f)}")
+                    status.update(label=f"✅ 检索到 {len(facts)} 条模块化证据", state="complete", expanded=False)
+            else:
+                # Step 1: 意图识别
+                with st.status("🧠 分析意图...", expanded=True) as status:
+                    keywords = backend.extract_keywords_with_llm(client, prompt, history=history_for_backend)
+                    current_chat["messages"][-1]["keywords"] = keywords
+                    save_history_to_file()
+                    status.update(label=f"✅ 关键词: {keywords}", state="complete", expanded=False)
+
+                # Step 2: 图谱检索
+                with st.status("🕸️ 检索图谱...", expanded=True) as status:
+                    facts = backend.query_graph_with_reasoning(
+                        driver,
+                        client,
+                        prompt,
+                        keywords=keywords,
+                        max_depth=rag_depth,
+                        width=rag_width
+                    )
+                    current_chat["messages"][-1]["facts"] = facts
+                    save_history_to_file()
+
+                    if facts:
+                        graph_chart = draw_dependency_graph(facts)
+                        if graph_chart:
+                            st.markdown("#### 🗺️ 知识依赖路径")
+                            st.graphviz_chart(graph_chart)
+                        with st.expander("📄 查看详细文本信息"):
+                            for f in facts:
+                                st.markdown(f"- {backend.format_fact_for_display(f)}")
+                    status.update(label=f"✅ 检索到 {len(facts)} 条知识", state="complete", expanded=False)
 
         # ==================== 分支 B: 消融模式 (跳过前两步) ====================
         else:
