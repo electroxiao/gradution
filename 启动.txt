@@ -1,1 +1,9 @@
-python -m streamlit run app.py
+后端启动：
+uvicorn backend.main:app --reload
+
+前端启动：
+npm --prefix frontend install
+npm --prefix frontend run dev
+
+环境变量：
+复制 .env.example 为 .env，并按实际 MySQL / Neo4j / LLM 配置修改

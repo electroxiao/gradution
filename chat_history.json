@@ -2660,5 +2660,2181 @@
       }
     ],
     "created_at": "2026-03-05 14:11:59"
+  },
+  "29ae7ee1-7056-4e3f-be40-4e16ac420fc8": {
+    "title": "请分析这份包含10道...",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请分析这份包含10道题的“Java期末模拟卷”错题数据，帮我找出学生们主要的知识薄弱点，并按知识模块分类：\n\n【第1题】\nString s1 = new String(\"Java\");\nString s2 = new String(\"Java\");\nSystem.out.println(s1 == s2); 结果是？\nA. true\nB. false\nC. 编译错误\nD. 运行异常\n学生错选：A\n\n【第2题】\nclass Animal {}\nclass Dog extends Animal { void bark(){} }\nAnimal a = new Dog();\na.bark(); 结果是？\nA. 成功调用 bark\nB. 编译失败，找不到符号\nC. 运行抛出异常\nD. 自动向下转型\n学生错选：A\n\n【第3题】\nint i;\nif (true) { i = 10; }\nSystem.out.println(i); 结果是？\nA. 10\nB. 0\nC. 编译错误：可能未初始化\nD. null\n学生错选：B\n\n【第4题】\nInteger a = 200;\nInteger b = 200;\nSystem.out.println(a == b); 结果是？\nA. true\nB. false\nC. 编译错误\nD. 200\n学生错选：A\n\n【第5题】\nint x = 0;\nswitch(x) {\n    case 0: System.out.print(\"0\");\n    case 1: System.out.print(\"1\");\n}\n输出结果？\nA. 0\nB. 01\nC. 1\nD. 编译错误\n学生错选：A\n\n【第6题】\nObject obj = new Object();\nString s = (String) obj; 结果是？\nA. 转换成功\nB. 编译错误\nC. ClassCastException\nD. s 变成 null\n学生错选：D\n\n【第7题】\nfor(int i=0; i<5; i++);\n{\n    System.out.println(\"Hello\");\n}\nHello 会打印几次？\nA. 5次\nB. 0次\nC. 1次\nD. 6次\n学生错选：A\n\n【第8题】\nString s = \"hello\";\ns.toUpperCase();\nSystem.out.println(s); 结果是？\nA. HELLO\nB. hello\nC. null\nD. 编译错误\n学生错选：A\n\n【第9题】\nclass Father { int x = 10; }\nclass Son extends Father { int x = 20; }\nFather f = new Son();\nSystem.out.println(f.x); 结果是？\nA. 10\nB. 20\nC. 30\nD. 编译错误\n学生错选：B\n\n【第10题】\nboolean flag = false;\nif (flag = true) {\n    System.out.println(\"True\");\n} else {\n    System.out.println(\"False\");\n}\n结果是？\nA. True\nB. False\nC. 编译错误\nD. 运行异常\n学生错选：B",
+        "keywords": [
+          "String",
+          "==",
+          "new String",
+          "引用比较",
+          "继承",
+          "向上转型",
+          "方法调用",
+          "编译时类型",
+          "变量初始化",
+          "局部变量",
+          "if语句",
+          "Integer",
+          "自动装箱",
+          "缓存",
+          "switch语句",
+          "case穿透",
+          "类型转换",
+          "向下转型",
+          "ClassCastException",
+          "for循环",
+          "空语句",
+          "代码块",
+          "String",
+          "toUpperCase",
+          "不可变性",
+          "继承",
+          "字段隐藏",
+          "多态",
+          "赋值运算符",
+          "if条件",
+          "布尔表达式"
+        ],
+        "facts": [
+          {
+            "type": "seed",
+            "seed": "StringBuilder",
+            "keyword": "String",
+            "desc": "可变的字符串构建器，用于高效拼接字符串",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "seed",
+            "seed": "StringJoiner",
+            "keyword": "String",
+            "desc": "用于高效拼接带有分隔符的字符串的工具类",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "seed",
+            "seed": "StringReader",
+            "keyword": "String",
+            "desc": "将字符串包装成输入字符流的类。",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "path",
+            "seed": "StringJoiner",
+            "hop": 1,
+            "source": "StringJoiner",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "字符串(String)",
+            "target_desc": "表示一串字符的不可变引用类型",
+            "relation_score": 0.2,
+            "entity_score": 0.1,
+            "score": 0.44500000000000006,
+            "path_text": "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "字符串(String)",
+            "nodes": [
+              "字符串(String)",
+              "引用类型"
+            ],
+            "root_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "path_text": "字符串(String) -> (依赖) -> 引用类型"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 1,
+            "source": "StringBuilder",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "字符串(String)",
+            "target_desc": "表示一串字符的不可变引用类型",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String)"
+          },
+          {
+            "type": "path",
+            "seed": "StringReader",
+            "hop": 1,
+            "source": "StringReader",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "Reader",
+            "target_desc": "所有输入字符流的抽象超类，定义了读取字符数据的基本方法。",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringReader -> (DEPENDS_ON,out) -> Reader"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "FileReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "FileReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "CharArrayReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "CharArrayReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "StringReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "StringReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "path",
+            "seed": "StringJoiner",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "in",
+            "target": "String不可变性",
+            "target_desc": "String对象一旦创建内容不可变，拼接会产生新对象",
+            "relation_score": 0.9,
+            "entity_score": 0.9,
+            "score": 0.6725000000000001,
+            "path_text": "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> String不可变性"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "String不可变性",
+            "nodes": [
+              "String不可变性",
+              "字符串(String)",
+              "引用类型"
+            ],
+            "root_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "path_text": "String不可变性 -> (依赖) -> 字符串(String) -> (依赖) -> 引用类型"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "String不可变性",
+            "nodes": [
+              "String不可变性",
+              "字符串(String)"
+            ],
+            "root_desc": "表示一串字符的不可变引用类型",
+            "path_text": "String不可变性 -> (依赖) -> 字符串(String)"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "in",
+            "target": "String不可变性",
+            "target_desc": "String对象一旦创建内容不可变，拼接会产生新对象",
+            "relation_score": 0.9,
+            "entity_score": 0.9,
+            "score": 0.6625000000000001,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> String不可变性"
+          },
+          {
+            "type": "path",
+            "seed": "StringReader",
+            "hop": 2,
+            "source": "Reader",
+            "relation": "DEPENDS_ON",
+            "direction": "in",
+            "target": "InputStreamReader",
+            "target_desc": "将任意的InputStream转换为Reader的桥梁类，可指定编码。",
+            "relation_score": 0.9,
+            "entity_score": 0.9,
+            "score": 0.6625000000000001,
+            "path_text": "StringReader -> (DEPENDS_ON,out) -> Reader -> (DEPENDS_ON,in) -> InputStreamReader"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "InputStreamReader",
+            "nodes": [
+              "InputStreamReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "InputStreamReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "InputStreamReader",
+            "nodes": [
+              "InputStreamReader",
+              "Reader",
+              "字符流"
+            ],
+            "root_desc": "以字符（char）为最小单位进行读写的IO流，能自动处理字符编码。",
+            "path_text": "InputStreamReader -> (依赖) -> Reader -> (依赖) -> 字符流"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "InputStreamReader",
+            "nodes": [
+              "InputStreamReader",
+              "InputStream",
+              "输入(Input)"
+            ],
+            "root_desc": "将数据从外部源（如磁盘、网络）读入内存的过程。",
+            "path_text": "InputStreamReader -> (依赖) -> InputStream -> (依赖) -> 输入(Input)"
+          },
+          {
+            "type": "summary",
+            "text": "stop=answerable, hop=2, beam_size=3"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "好的，作为一名Java教学数据分析师，我将对这份错题数据进行深入分析，并生成一份全面的教学诊断报告。\n\n### 📊 错误类型分布 (Top 5)\n| 错误归类 | 频次 | 涉及题目 |\n| :--- | :--- | :--- |\n| **引用类型与对象比较** | 3 | 第1题 (`==` 比较字符串对象)，第4题 (`==` 比较Integer对象)，第9题 (成员变量隐藏) |\n| **类型转换与多态** | 3 | 第2题 (多态方法调用)，第6题 (强制类型转换)，第9题 (成员变量隐藏) |\n| **基础语法与流程控制** | 2 | 第5题 (switch-case穿透)，第10题 (赋值与比较混淆) |\n| **变量作用域与初始化** | 1 | 第3题 (局部变量初始化) |\n| **API特性理解** | 1 | 第8题 (String不可变性) |\n| **代码结构理解** | 1 | 第7题 (for循环空语句体) |\n\n### 🧬 核心根因分析 (Root Cause Analysis)\n通过图谱分析，本次错题主要暴露出 **3** 个维度的知识盲区：\n\n#### 根因 1：**引用类型 (Reference Type) 的内存模型与比较逻辑** (关联 40% 的错误)\n- **图谱路径证据**：`[第1题：String对象==比较] -> (依赖) -> 字符串(String) -> (依赖) -> 引用类型`；`[第4题：Integer对象==比较] -> (依赖) -> 引用类型`。\n- **分析**：学生未能深刻理解引用类型变量存储的是对象在堆内存中的地址。对于 `==` 操作符，当用于引用类型时，比较的是**地址值**，而非对象内容。这导致他们错误地认为 `new String(“Java”)` 创建的两个对象是“相等的”，以及认为 `Integer` 在自动装箱时总是缓存（实际上只缓存-128~127）。这是对“对象”和“对象引用”概念的根本性混淆。\n\n#### 根因 2：**编译时类型与运行时类型 (多态与类型转换)** (关联 30% 的错误)\n- **图谱路径证据**：`[第2题：父类引用调用子类方法] -> (依赖) -> 多态 -> (依赖) -> 继承 -> (依赖) -> 引用类型`；`[第6题：Object转String] -> (依赖) -> 强制类型转换 -> (依赖) -> 引用类型`。\n- **分析**：学生混淆了“编译时类型”和“运行时类型”。在 `Animal a = new Dog();` 中，`a` 的编译时类型是 `Animal`，因此编译器只允许调用 `Animal` 类中定义的方法。他们误以为“运行时是什么类型就能调用什么方法”。同样，对于强制转换 `(String) obj`，他们不理解这只是一个“承诺”给编译器，而运行时（JVM）会检查这个承诺是否有效（`obj` 的运行时类型必须是 `String` 或其子类），否则抛出 `ClassCastException`。第9题的成员变量隐藏也与此相关，因为成员变量访问不具多态性，取决于编译时类型。\n\n#### 根因 3：**基础语法与程序执行流程的精确理解** (关联 30% 的错误)\n- **图谱路径证据**：`[第8题：String.toUpperCase()] -> (依赖) -> String不可变性 -> (依赖) -> 字符串(String)`；`[第5题：switch穿透]` 和 `[第10题：赋值与比较]` 属于基础语法规则。\n- **分析**：学生对Java语法细节和程序执行顺序掌握不牢。这包括：1) **String的不可变性**：误以为 `s.toUpperCase()` 会修改原字符串，而不知道它返回一个新对象。2) **switch-case的穿透(fall-through)行为**：缺少 `break` 语句会导致继续执行下一个 `case` 的代码。3) **赋值操作符(`=`)与相等比较符(`==`)** 的混淆。4) **局部变量初始化规则**：误以为局部变量会有默认值。5) **代码块结构**：未能识别 `for` 循环后的分号是一个空语句体，导致循环体为空。\n\n### 💡 针对性教学建议\n1.  **针对【引用类型的内存模型与比较逻辑】**：\n    - **可视化教学**：使用内存图（栈帧、堆对象）反复讲解 `String s1 = new String(“A”); String s2 = new String(“A”);` 与 `String s3 = “A”; String s4 = “A”;` 的区别。\n    - **对比练习**：设计一系列对比题，强制学生区分 `==` 和 `equals()` 的使用场景。重点讲解 `Integer` 等包装类的缓存机制及其边界。\n    - **核心概念强调**：反复强调“引用变量是遥控器，对象是电视机”，`==` 比较的是“遥控器是否指向同一台电视机”。\n\n2.  **针对【编译时类型与运行时类型 (多态与类型转换)】**：\n    - **“编译看左，运行看右”口诀深化**：不仅用于方法调用，也用于解释成员变量访问和类型转换。\n    - **场景化演练**：创建“动物园”或“图形库”等经典多态案例，让学生手动编写代码，体验将子类对象赋给父类引用后，哪些调用能通过编译，哪些会在运行时表现出多态。\n    - **错误模拟**：故意编写会导致 `ClassCastException` 的代码，让学生运行并观察错误堆栈信息，理解类型转换的安全检查发生在运行时。\n\n3.  **针对【基础语法与程序执行流程的精确理解】**：\n    - **代码逐行执行训练**：对于第3、5、7、10题这类问题，要求学生扮演JVM，在纸上或白板上画出程序执行步骤图，标注每个时刻变量的值。\n    - **String不可变性实验**：让学生编写代码验证 `String` 的不可变，并对比 `StringBuilder` 的可变性（可关联图谱中的 `StringBuilder` 实体）。\n    - **易混淆语法专项练习**：集中练习 `=` vs `==`、`switch` 穿透、局部变量初始化、循环体边界等高频易错点。强调代码格式（如 `for` 循环后紧跟 `{` ）的重要性。\n    - **回归基础**：建议在后续课程开始时，用5-10分钟快速回顾这些基础语法点，形成长期记忆。"
+      }
+    ],
+    "created_at": "2026-03-07 23:55:40"
+  },
+  "cf20551d-b4fc-4953-96c3-c27433c5e0c3": {
+    "title": "请分析这份包含10道...",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请分析这份包含10道题的“Java期末模拟卷”错题数据，帮我找出学生们主要的知识薄弱点，并按知识模块分类：\n\n【第1题】\nString s1 = new String(\"Java\");\nString s2 = new String(\"Java\");\nSystem.out.println(s1 == s2); 结果是？\nA. true\nB. false\nC. 编译错误\nD. 运行异常\n学生错选：A\n\n【第2题】\nclass Animal {}\nclass Dog extends Animal { void bark(){} }\nAnimal a = new Dog();\na.bark(); 结果是？\nA. 成功调用 bark\nB. 编译失败，找不到符号\nC. 运行抛出异常\nD. 自动向下转型\n学生错选：A\n\n【第3题】\nint i;\nif (true) { i = 10; }\nSystem.out.println(i); 结果是？\nA. 10\nB. 0\nC. 编译错误：可能未初始化\nD. null\n学生错选：B\n\n【第4题】\nInteger a = 200;\nInteger b = 200;\nSystem.out.println(a == b); 结果是？\nA. true\nB. false\nC. 编译错误\nD. 200\n学生错选：A\n\n【第5题】\nint x = 0;\nswitch(x) {\n    case 0: System.out.print(\"0\");\n    case 1: System.out.print(\"1\");\n}\n输出结果？\nA. 0\nB. 01\nC. 1\nD. 编译错误\n学生错选：A\n\n【第6题】\nObject obj = new Object();\nString s = (String) obj; 结果是？\nA. 转换成功\nB. 编译错误\nC. ClassCastException\nD. s 变成 null\n学生错选：D\n\n【第7题】\nfor(int i=0; i<5; i++);\n{\n    System.out.println(\"Hello\");\n}\nHello 会打印几次？\nA. 5次\nB. 0次\nC. 1次\nD. 6次\n学生错选：A\n\n【第8题】\nString s = \"hello\";\ns.toUpperCase();\nSystem.out.println(s); 结果是？\nA. HELLO\nB. hello\nC. null\nD. 编译错误\n学生错选：A\n\n【第9题】\nclass Father { int x = 10; }\nclass Son extends Father { int x = 20; }\nFather f = new Son();\nSystem.out.println(f.x); 结果是？\nA. 10\nB. 20\nC. 30\nD. 编译错误\n学生错选：B\n\n【第10题】\nboolean flag = false;\nif (flag = true) {\n    System.out.println(\"True\");\n} else {\n    System.out.println(\"False\");\n}\n结果是？\nA. True\nB. False\nC. 编译错误\nD. 运行异常\n学生错选：B",
+        "keywords": [
+          "ClassCastException",
+          "编译时类型",
+          "switch穿透",
+          "break语句",
+          "new关键字",
+          "对象引用比较"
+        ],
+        "facts": [
+          {
+            "type": "question_summary",
+            "question_id": "Q1",
+            "knowledge_module": "引用与对象比较",
+            "error_type": "混淆了引用相等与内容相等",
+            "keywords": [
+              "new关键字",
+              "对象引用比较",
+              "字符串常量池"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q2",
+            "knowledge_module": "多态与类型转换",
+            "error_type": "混淆了编译时类型与运行时类型的方法调用",
+            "keywords": [
+              "多态",
+              "编译时类型",
+              "方法可见性"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q3",
+            "knowledge_module": "变量作用域与初始化",
+            "error_type": "误认为局部变量有默认值",
+            "keywords": [
+              "条件分支",
+              "确定性赋值",
+              "局部变量初始化"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q4",
+            "knowledge_module": "包装类与自动装箱",
+            "error_type": "误认为自动装箱的Integer总是缓存",
+            "keywords": [
+              "Integer缓存",
+              "自动装箱",
+              "对象引用比较"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q5",
+            "knowledge_module": "控制流与语法细节",
+            "error_type": "忽略了switch的case穿透行为",
+            "keywords": [
+              "switch穿透",
+              "控制流",
+              "break语句"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q6",
+            "knowledge_module": "多态与类型转换",
+            "error_type": "误认为不兼容的向下转型会得到null",
+            "keywords": [
+              "ClassCastException",
+              "向下转型",
+              "类型安全"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q7",
+            "knowledge_module": "控制流与语法细节",
+            "error_type": "误将空语句后的代码块当作循环体",
+            "keywords": [
+              "for循环语法",
+              "空语句",
+              "代码块作用域"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q8",
+            "knowledge_module": "字符串特性与操作",
+            "error_type": "混淆了修改对象与返回新对象",
+            "keywords": [
+              "方法返回值",
+              "对象状态修改",
+              "字符串不可变性"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q9",
+            "knowledge_module": "继承与多态",
+            "error_type": "误将字段访问当作多态行为",
+            "keywords": [
+              "多态",
+              "字段隐藏",
+              "编译时绑定"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q10",
+            "knowledge_module": "运算符与表达式",
+            "error_type": "混淆了赋值运算符与相等比较运算符",
+            "keywords": [
+              "赋值运算符",
+              "条件表达式",
+              "布尔值比较"
+            ]
+          },
+          {
+            "type": "module_summary",
+            "module": "多态与类型转换",
+            "question_ids": [
+              "Q2",
+              "Q6"
+            ],
+            "error_types": [
+              "混淆了编译时类型与运行时类型的方法调用",
+              "误认为不兼容的向下转型会得到null"
+            ],
+            "core_concepts": [
+              "ClassCastException",
+              "编译时类型"
+            ]
+          },
+          {
+            "type": "module_summary",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ],
+            "error_types": [
+              "忽略了switch的case穿透行为",
+              "误将空语句后的代码块当作循环体"
+            ],
+            "core_concepts": [
+              "switch穿透",
+              "break语句"
+            ]
+          },
+          {
+            "type": "module_summary",
+            "module": "引用与对象比较",
+            "question_ids": [
+              "Q1"
+            ],
+            "error_types": [
+              "混淆了引用相等与内容相等"
+            ],
+            "core_concepts": [
+              "new关键字",
+              "对象引用比较"
+            ]
+          },
+          {
+            "type": "seed",
+            "seed": "break语句",
+            "keyword": "break语句",
+            "desc": "用于跳出当前循环或switch语句",
+            "score": 1.0,
+            "match_type": "exact_name",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "path",
+            "seed": "break语句",
+            "hop": 1,
+            "source": "break语句",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "switch语句",
+            "target_desc": "多重选择语句，根据表达式结果跳转到匹配的case",
+            "relation_score": 0.9,
+            "entity_score": 0.9,
+            "score": 0.9500000000000001,
+            "path_text": "break语句 -> (DEPENDS_ON,out) -> switch语句",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "switch语句",
+            "nodes": [
+              "switch语句",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "switch语句 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "switch语句",
+            "nodes": [
+              "switch语句",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "数据类型"
+            ],
+            "root_desc": "数据的类型，决定数据的存储方式和可执行的操作",
+            "path_text": "switch语句 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 数据类型",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "switch语句",
+            "nodes": [
+              "switch语句",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "字面量"
+            ],
+            "root_desc": "代码中直接写出的固定值，如10、3.14、'a'、\"hi\"、true",
+            "path_text": "switch语句 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 字面量",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "path",
+            "seed": "break语句",
+            "hop": 1,
+            "source": "break语句",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "循环",
+            "target_desc": "重复执行一段代码，包括while、do-while和for循环",
+            "relation_score": 0.9,
+            "entity_score": 0.3,
+            "score": 0.77,
+            "path_text": "break语句 -> (DEPENDS_ON,out) -> 循环",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "循环",
+            "nodes": [
+              "for-each循环",
+              "Iterable接口",
+              "Iterator",
+              "集合(Collection)",
+              "泛型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "for-each循环 -> (依赖) -> Iterable接口 -> (依赖) -> Iterator -> (依赖) -> 集合(Collection) -> (依赖) -> 泛型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "循环",
+            "nodes": [
+              "循环",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "循环 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "循环",
+            "nodes": [
+              "for-each循环",
+              "Iterator",
+              "集合(Collection)",
+              "泛型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "for-each循环 -> (依赖) -> Iterator -> (依赖) -> 集合(Collection) -> (依赖) -> 泛型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "summary",
+            "text": "stop=answerable, hop=1, beam_size=2",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "diagnostic",
+            "text": "teacher_questions=10, selected_modules=3, selected_keywords=['ClassCastException', '编译时类型', '多态与类型转换', 'switch穿透', 'break语句', '控制流与语法细节'], retained_seed_nodes=1"
+          },
+          {
+            "type": "diagnostic",
+            "text": "多态与类型转换: 图谱证据较少 ; 引用与对象比较: 图谱证据较少"
+          }
+        ]
+      },
+      {
+        "role": "assistant",
+        "content": "### 📊 错误类型分布 (Top 5)\n| 错误归类 | 频次 | 涉及题目 |\n| :--- | :--- | :--- |\n| 多态与类型转换 | 3 | Q2, Q6, Q9 |\n| 控制流与语法细节 | 2 | Q5, Q7 |\n| 引用与对象比较 | 2 | Q1, Q4 |\n| 变量作用域与初始化 | 1 | Q3 |\n| 字符串特性与操作 | 1 | Q8 |\n| 运算符与表达式 | 1 | Q10 |\n\n### 🧬 核心根因分析 (Root Cause Analysis)\n通过图谱分析，本次错题主要暴露出 **6** 个维度的知识盲区：\n\n#### 模块 1：多态与类型转换\n- **涉及题号**：Q2, Q6, Q9\n- **核心概念**：编译时类型、运行时类型、方法可见性、向下转型、ClassCastException、字段隐藏\n- **图谱路径证据**：图谱证据有限。图谱中主要关联了`类型转换`这一底层概念，但未直接关联到`多态`、`编译时绑定`等核心概念。\n- **分析**：学生混淆了编译时类型与运行时类型在方法调用和字段访问上的不同规则。在Q2中，误认为`Animal a = new Dog();`后，编译时类型为`Animal`的引用`a`可以直接调用子类特有的`bark()`方法。在Q9中，误认为多态也适用于字段访问，而实际上字段访问由编译时类型决定。在Q6中，对不兼容的向下转型结果存在误解，误以为会得到`null`，而非抛出`ClassCastException`。\n\n#### 模块 2：控制流与语法细节\n- **涉及题号**：Q5, Q7\n- **核心概念**：switch穿透、break语句、for循环语法、空语句、代码块作用域\n- **图谱路径证据**：`break语句 -> (DEPENDS_ON,out) -> switch语句`。图谱清晰地展示了`break`语句对`switch`语句控制流的关键作用。\n- **分析**：学生对程序执行流程的细节把握不足。在Q5中，忽略了`switch`语句的`case`穿透行为，认为匹配到`case 0`后会自动跳出。在Q7中，混淆了`for`循环的语法结构，将循环体后的分号`;`（空语句）误认为是循环体的一部分，而将后续的独立代码块`{...}`当成了循环体，导致对执行次数的误判。\n\n#### 模块 3：引用与对象比较\n- **涉及题号**：Q1, Q4\n- **核心概念**：`new`关键字、对象引用相等(`==`)、内容相等(`equals()`)、字符串常量池、包装类缓存\n- **图谱路径证据**：图谱证据有限。图谱中关联了`数据类型`、`字面量`等概念，但未直接关联到`引用比较`与`对象创建`的深层关系。\n- **分析**：学生未能清晰区分`==`运算符比较的是**对象引用（内存地址）**，而非对象内容。在Q1中，两次`new`操作创建了两个独立的对象，引用自然不同。在Q4中，学生知道`Integer`有缓存（-128~127），但未掌握该范围外的`Integer`对象通过自动装箱创建时，`==`比较的也是引用，因此`200`超出了缓存范围，结果为`false`。\n\n#### 模块 4：变量作用域与初始化\n- **涉及题号**：Q3\n- **核心概念**：局部变量、确定性赋值、条件分支\n- **图谱路径证据**：图谱证据有限。\n- **分析**：学生误认为局部变量像实例变量一样有默认值（如`0`）。实际上，Java要求局部变量在使用前必须被“明确地赋值”。虽然题中`if(true)`条件恒真，保证了`i`一定会被赋值，但编译器在静态分析时，对于更复杂的条件分支可能无法确定所有路径都赋值，因此这是一个需要深入理解的编译期规则。学生可能记住了“局部变量无默认值”的结论，但未理解“确定性赋值”原则。\n\n#### 模块 5：字符串特性与操作\n- **涉及题号**：Q8\n- **核心概念**：字符串不可变性、方法返回值\n- **图谱路径证据**：图谱证据有限。\n- **分析**：学生混淆了“修改对象状态”与“返回新对象”。`String`类是不可变的，`toUpperCase()`方法并不会修改原字符串`s`的内容，而是**返回一个全新的大写字符串对象**。学生误以为该方法直接修改了`s`，导致对输出结果的错误预期。\n\n#### 模块 6：运算符与表达式\n- **涉及题号**：Q10\n- **核心概念**：赋值运算符(`=`)、相等比较运算符(`==`)、条件表达式\n- **图谱路径证据**：图谱证据有限。\n- **分析**：学生混淆了赋值运算符`=`和相等比较运算符`==`。在条件`if (flag = true)`中，这是一个赋值表达式，它将`true`赋值给`flag`，并且整个表达式的值就是`true`，因此条件成立。学生可能误将其看作比较`flag == true`，而`flag`初始值为`false`，故错选B。\n\n### 💡 针对性教学建议\n1.  **针对【多态与类型转换】**：建议使用“编译看左边，运行看右边”的口诀强化方法调用规则，并明确区分**方法重写（多态）** 与**字段隐藏（无多态）**。通过图示讲解对象在内存中的形态（包含父类部分和子类特有部分），并设计对比练习，让学生手动写出编译失败、运行成功的代码，深刻理解`ClassCastException`的产生场景。\n2.  **针对【控制流与语法细节】**：建议在讲解`switch`时，必须配套讲解`break`的作用，并演示不加`break`的穿透案例。对于循环，强调语法结构（`for(初始化;条件;迭代){ 循环体 }`），并通过代码格式化工具展示`for(...); { ... }`中分号导致的视觉误导，训练学生识别空语句。\n3.  **针对【引用与对象比较】**：建议将`==`和`equals()`进行对比教学。用内存图直观展示`new`操作创建新对象的过程。对于包装类，重点讲解自动装箱机制和缓存范围（`IntegerCache`），并通过代码示例对比缓存范围内外的`==`结果差异。\n4.  **针对【变量作用域与初始化】**：建议明确区分局部变量、实例变量、类变量的初始化规则。通过设计“确定性赋值”相关的编译错误案例（如将`if(true)`改为`if(某个复杂条件)`），让学生理解编译器检查的逻辑，而非死记“局部变量没默认值”。\n5.  **针对【字符串特性与操作】**：建议强调“String对象不可变”这一核心特性。讲解任何修改字符串内容的方法（如`toUpperCase`, `concat`, `replace`）都会返回新对象。通过让学员写出`s = s.toUpperCase();`这样的正确代码，来巩固“用返回值覆盖原引用”的操作模式。\n6.  **针对【运算符与表达式】**：建议将`=`和`==`放在一起进行辨析练习。可以编写一些包含`if (x = y)`这类典型错误的代码，让学生找出问题。并强调在条件判断中，使用`if (flag)`或`if (flag == true)`的优劣，培养良好的编码习惯。"
+      }
+    ],
+    "created_at": "2026-03-08 00:23:17"
+  },
+  "56e5f032-3d02-421f-bc88-33283d75c575": {
+    "title": "public cla...",
+    "messages": [
+      {
+        "role": "user",
+        "content": "public class StringCompareMistake {\n    public static void main(String[] args) {\n        String str1 = \"Hello\";\n        String str2 = new String(\"Hello\");\n        \n        if (str1 == str2) {\n            System.out.println(\"字符串相等\");\n        } else {\n            System.out.println(\"字符串不相等\");\n        }\n    }\n}\n这段代码的输出结果是\"字符串不相等\"，但是两个字符串明明都是\"Hello\"，为什么使用==比较会返回不相等呢？我以为==可以用来比较字符串内容，但实际运行结果和我想的不一样。应该用什么方法来比较两个字符串的内容是否相同呢？\n"
+      },
+      {
+        "role": "assistant",
+        "content": "我注意到你的代码输出了“字符串不相等”，这确实和直觉不符。让我先帮你分析一下。\n\n**错误现象**：你使用了`==`运算符来比较两个字符串，但即使它们的内容都是\"Hello\"，比较结果却是`false`。\n\n根据图谱分析，这个问题涉及到**引用类型**这个底层概念。让我问你一个简单的问题来测试你的理解：\n\n**苏格拉底提问**：\n在Java中，`==`运算符比较的是两个变量的什么？是它们存储的**值**本身，还是它们指向的**内存地址**？\n\n想一下这个问题，然后告诉我你的答案。这会帮助你理解为什么`str1 == str2`返回`false`。",
+        "keywords": [
+          "String",
+          "==",
+          "equals",
+          "String pool",
+          "new String"
+        ],
+        "facts": [
+          {
+            "type": "seed",
+            "seed": "StringBuilder",
+            "keyword": "String",
+            "desc": "可变的字符串构建器，用于高效拼接字符串",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "seed",
+            "seed": "StringJoiner",
+            "keyword": "String",
+            "desc": "用于高效拼接带有分隔符的字符串的工具类",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "seed",
+            "seed": "StringReader",
+            "keyword": "String",
+            "desc": "将字符串包装成输入字符流的类。",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 1,
+            "source": "StringBuilder",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "字符串(String)",
+            "target_desc": "表示一串字符的不可变引用类型",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "字符串(String)",
+            "nodes": [
+              "字符串(String)",
+              "引用类型"
+            ],
+            "root_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "path_text": "字符串(String) -> (依赖) -> 引用类型"
+          },
+          {
+            "type": "path",
+            "seed": "StringJoiner",
+            "hop": 1,
+            "source": "StringJoiner",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "字符串(String)",
+            "target_desc": "表示一串字符的不可变引用类型",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String)"
+          },
+          {
+            "type": "path",
+            "seed": "StringReader",
+            "hop": 1,
+            "source": "StringReader",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "Reader",
+            "target_desc": "所有输入字符流的抽象超类，定义了读取字符数据的基本方法。",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringReader -> (DEPENDS_ON,out) -> Reader"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "FileReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "FileReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "CharArrayReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "CharArrayReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "StringReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "StringReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "in",
+            "target": "字符串常量池",
+            "target_desc": "JVM对字符串字面量的复用机制",
+            "relation_score": 0.9,
+            "entity_score": 0.95,
+            "score": 0.6775,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "字符串常量池",
+            "nodes": [
+              "字符串常量池",
+              "字符串(String)",
+              "引用类型"
+            ],
+            "root_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "path_text": "字符串常量池 -> (依赖) -> 字符串(String) -> (依赖) -> 引用类型"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "字符串常量池",
+            "nodes": [
+              "字符串常量池",
+              "字符串(String)"
+            ],
+            "root_desc": "表示一串字符的不可变引用类型",
+            "path_text": "字符串常量池 -> (依赖) -> 字符串(String)"
+          },
+          {
+            "type": "path",
+            "seed": "StringJoiner",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "in",
+            "target": "字符串常量池",
+            "target_desc": "JVM对字符串字面量的复用机制",
+            "relation_score": 0.9,
+            "entity_score": 0.95,
+            "score": 0.6775,
+            "path_text": "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "引用类型",
+            "target_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "relation_score": 0.7,
+            "entity_score": 0.9,
+            "score": 0.6225,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,out) -> 引用类型"
+          },
+          {
+            "type": "summary",
+            "text": "stop=answerable, hop=2, beam_size=3"
+          }
+        ],
+        "reasoning_trace": [
+          {
+            "type": "reasoning",
+            "title": "关键词提取",
+            "summary": "从输入中提取出 5 个候选概念",
+            "details": [
+              "String",
+              "==",
+              "equals",
+              "String pool",
+              "new String"
+            ],
+            "stage": "keyword_extraction",
+            "mode": "student"
+          },
+          {
+            "type": "reasoning",
+            "title": "关键词归一化",
+            "summary": "检索前保留 3 个关键词",
+            "details": [
+              "new String",
+              "String",
+              "=="
+            ],
+            "stage": "keyword_normalization",
+            "mode": "student"
+          },
+          {
+            "type": "reasoning",
+            "title": "停止判定",
+            "summary": "检索在 hop=2 时停止，原因是 answerable",
+            "details": [
+              "beam_size=3"
+            ],
+            "stage": "stop_decision",
+            "mode": "student"
+          }
+        ],
+        "retrieval_trace": [
+          {
+            "type": "retrieval",
+            "title": "种子召回",
+            "summary": "召回 3 个种子节点",
+            "details": [
+              "StringBuilder | name_contains | score=0.75",
+              "StringJoiner | name_contains | score=0.75",
+              "StringReader | name_contains | score=0.75"
+            ],
+            "stage": "seed_recall",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 关系裁剪",
+            "summary": "实体 StringBuilder 保留 1 条关系",
+            "details": [
+              "DEPENDS_ON (out) score=0.10"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 实体裁剪",
+            "summary": "StringBuilder 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "字符串(String) score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 关系裁剪",
+            "summary": "实体 StringJoiner 保留 1 条关系",
+            "details": [
+              "DEPENDS_ON (out) score=0.10"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 实体裁剪",
+            "summary": "StringJoiner 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "字符串(String) score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 关系裁剪",
+            "summary": "实体 StringReader 保留 1 条关系",
+            "details": [
+              "DEPENDS_ON (out) score=0.10"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 实体裁剪",
+            "summary": "StringReader 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "Reader score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 Beam 保留",
+            "summary": "当前保留 3 条候选路径",
+            "details": [
+              "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) | score=0.43",
+              "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String) | score=0.43",
+              "StringReader -> (DEPENDS_ON,out) -> Reader | score=0.43"
+            ],
+            "stage": "beam_truncate",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 关系裁剪",
+            "summary": "实体 字符串(String) 保留 2 条关系",
+            "details": [
+              "DEPENDS_ON (in) score=0.90",
+              "DEPENDS_ON (out) score=0.70"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 3 个邻居",
+            "details": [
+              "字符串常量池 score=0.95",
+              "String不可变性 score=0.70",
+              "StringJoiner score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "引用类型 score=0.90"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 关系裁剪",
+            "summary": "实体 字符串(String) 保留 2 条关系",
+            "details": [
+              "DEPENDS_ON (in) score=0.90",
+              "DEPENDS_ON (out) score=0.70"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 3 个邻居",
+            "details": [
+              "字符串常量池 score=0.95",
+              "String不可变性 score=0.70",
+              "StringBuilder score=0.20"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "引用类型 score=0.90"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 关系裁剪",
+            "summary": "实体 Reader 保留 2 条关系",
+            "details": [
+              "DEPENDS_ON (in) score=0.10",
+              "DEPENDS_ON (out) score=0.05"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "Reader 经关系 DEPENDS_ON 保留 3 个邻居",
+            "details": [
+              "FileReader score=0.10",
+              "CharArrayReader score=0.05",
+              "InputStreamReader score=0.05"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "Reader 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "字符流 score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 Beam 保留",
+            "summary": "当前保留 3 条候选路径",
+            "details": [
+              "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池 | score=0.68",
+              "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池 | score=0.68",
+              "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,out) -> 引用类型 | score=0.62"
+            ],
+            "stage": "beam_truncate",
+            "mode": "student"
+          }
+        ]
+      }
+    ],
+    "created_at": "2026-03-08 22:59:14"
+  },
+  "2445cc54-42b4-4651-bbc8-4407b63b2c7a": {
+    "title": "请分析这份包含10道...",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请分析这份包含10道题的“Java期末模拟卷”错题数据，帮我找出学生们主要的知识薄弱点，并按知识模块分类：\n\n【第1题】\nString s1 = new String(\"Java\");\nString s2 = new String(\"Java\");\nSystem.out.println(s1 == s2); 结果是？\nA. true\nB. false\nC. 编译错误\nD. 运行异常\n学生错选：A\n\n【第2题】\nclass Animal {}\nclass Dog extends Animal { void bark(){} }\nAnimal a = new Dog();\na.bark(); 结果是？\nA. 成功调用 bark\nB. 编译失败，找不到符号\nC. 运行抛出异常\nD. 自动向下转型\n学生错选：A\n\n【第3题】\nint i;\nif (true) { i = 10; }\nSystem.out.println(i); 结果是？\nA. 10\nB. 0\nC. 编译错误：可能未初始化\nD. null\n学生错选：B\n\n【第4题】\nInteger a = 200;\nInteger b = 200;\nSystem.out.println(a == b); 结果是？\nA. true\nB. false\nC. 编译错误\nD. 200\n学生错选：A\n\n【第5题】\nint x = 0;\nswitch(x) {\n    case 0: System.out.print(\"0\");\n    case 1: System.out.print(\"1\");\n}\n输出结果？\nA. 0\nB. 01\nC. 1\nD. 编译错误\n学生错选：A\n\n【第6题】\nObject obj = new Object();\nString s = (String) obj; 结果是？\nA. 转换成功\nB. 编译错误\nC. ClassCastException\nD. s 变成 null\n学生错选：D\n\n【第7题】\nfor(int i=0; i<5; i++);\n{\n    System.out.println(\"Hello\");\n}\nHello 会打印几次？\nA. 5次\nB. 0次\nC. 1次\nD. 6次\n学生错选：A\n\n【第8题】\nString s = \"hello\";\ns.toUpperCase();\nSystem.out.println(s); 结果是？\nA. HELLO\nB. hello\nC. null\nD. 编译错误\n学生错选：A\n\n【第9题】\nclass Father { int x = 10; }\nclass Son extends Father { int x = 20; }\nFather f = new Son();\nSystem.out.println(f.x); 结果是？\nA. 10\nB. 20\nC. 30\nD. 编译错误\n学生错选：B\n\n【第10题】\nboolean flag = false;\nif (flag = true) {\n    System.out.println(\"True\");\n} else {\n    System.out.println(\"False\");\n}\n结果是？\nA. True\nB. False\nC. 编译错误\nD. 运行异常\n学生错选：B"
+      },
+      {
+        "role": "assistant",
+        "content": "### 📊 错误类型分布 (Top 5)\n| 错误归类 | 频次 | 涉及题目 |\n| :--- | :--- | :--- |\n| 多态与类型转换 | 3 | Q2, Q6, Q9 |\n| 控制流与语法细节 | 2 | Q5, Q7 |\n| 引用与对象比较 | 2 | Q1, Q4 |\n| 变量作用域与初始化 | 1 | Q3 |\n| 字符串处理 | 1 | Q8 |\n| 运算符与表达式 | 1 | Q10 |\n\n### 🧬 核心根因分析 (Root Cause Analysis)\n通过图谱分析，本次错题主要暴露出 **5** 个维度的知识盲区：\n\n#### 模块 1：多态与类型转换\n- **涉及题号**：Q2, Q6, Q9\n- **核心概念**：编译时类型、运行时类型、方法可见性、向下转型、ClassCastException、字段隐藏\n- **图谱路径证据**：图谱证据有限。图谱中主要提供了`break`语句到`switch`和`循环`的路径，未直接关联到多态与类型转换的核心概念。\n- **分析**：学生普遍混淆了编译时类型与运行时类型。在Q2中，认为`Animal a = new Dog();`后，编译时类型为`Animal`的引用`a`可以直接调用子类特有方法`bark()`。在Q6中，认为不兼容的向下转型会得到`null`，而非抛出`ClassCastException`。在Q9中，将字段访问（静态绑定，取决于编译时类型）与方法调用（动态绑定，取决于运行时类型）的规则混淆，误以为多态适用于字段。\n\n#### 模块 2：控制流与语法细节\n- **涉及题号**：Q5, Q7\n- **核心概念**：switch穿透、break语句、空语句、代码块作用域\n- **图谱路径证据**：`break语句 -> (DEPENDS_ON,out) -> switch语句`。图谱清晰地指出了`break`语句对`switch`语句的控制流依赖关系，解释了为何缺少`break`会导致`case`穿透。\n- **分析**：学生对语法细节的掌握不牢固。在Q5中，忽略了`switch`语句中`case`的穿透（fall-through）行为，认为匹配到`case 0`后就会结束。在Q7中，将`for`循环后的分号误认为是循环体的一部分，忽略了这是一个空语句，导致循环体为空，后续的代码块与循环无关。\n\n#### 模块 3：引用与对象比较\n- **涉及题号**：Q1, Q4\n- **核心概念**：`new`关键字、对象内存地址、引用相等、对象内容相等、自动装箱、Integer缓存\n- **图谱路径证据**：图谱证据有限。图谱未直接提供关于`==`运算符、`new`关键字或`Integer`缓存机制的路径。\n- **分析**：学生混淆了引用相等（`==`）与对象内容相等（`equals()`）。在Q1中，认为通过`new`创建的两个内容相同的`String`对象，其引用是相等的。在Q4中，知道`Integer`有缓存，但错误地认为所有自动装箱的`Integer`对象都在缓存范围内（实际是`-128~127`），导致认为`200 == 200`为`true`。\n\n#### 模块 4：变量作用域与初始化\n- **涉及题号**：Q3\n- **核心概念**：局部变量、确定性赋值、编译时检查\n- **图谱路径证据**：图谱证据有限。图谱未直接提供关于局部变量初始化规则的路径。\n- **分析**：学生错误地认为局部变量像实例变量一样有默认值。忽略了Java的“确定性赋值”规则，即局部变量在使用前必须被明确初始化。虽然`if (true)`在逻辑上一定会执行，但编译器在静态分析时仍认为`i`存在未初始化的可能路径。\n\n#### 模块 5：字符串处理\n- **涉及题号**：Q8\n- **核心概念**：字符串不可变性、方法返回值\n- **图谱路径证据**：图谱证据有限。图谱未直接提供关于字符串不可变性的路径。\n- **分析**：学生认为字符串方法（如`toUpperCase()`）会修改原字符串对象。忽略了字符串的不可变性，此类方法会返回一个新的字符串对象，而原对象保持不变。\n\n#### 模块 6：运算符与表达式\n- **涉及题号**：Q10\n- **核心概念**：赋值运算符（`=`）、相等运算符（`==`）、条件表达式\n- **图谱路径证据**：图谱证据有限。图谱未直接提供关于运算符的路径。\n- **分析**：学生混淆了赋值运算符（`=`）与相等运算符（`==`）。在`if`条件中错误地使用了赋值操作`flag = true`，这会将`true`赋值给`flag`并使整个表达式结果为`true`，而非判断`flag`是否等于`true`。\n\n### 💡 针对性教学建议\n1.  **针对【多态与类型转换】**：建议使用“编译看左边，运行看右边”的口诀强化记忆。设计对比练习：1) 编译时类型决定可调用方法列表；2) 运行时类型决定实际执行的方法体；3) 字段访问永远看左边（编译时类型）；4) 使用`instanceof`进行安全的向下转型，并演示`ClassCastException`的触发场景。\n2.  **针对【控制流与语法细节】**：建议在讲解`switch`时，必须演示不加`break`的穿透效果，并强调其应用场景（多个case共享同一逻辑）和风险。对于循环，强调分号作为空语句的语法，并练习识别循环体的边界（`{}`）。\n3.  **针对【引用与对象比较】**：建议用画图法区分栈（引用）和堆（对象）。明确`==`比较的是栈中的地址值。对于`String`和包装类，重点讲解`new`与字面量/自动装箱的区别，并深入剖析`Integer`的缓存机制及其范围。\n4.  **针对【变量作用域与初始化】**：建议明确区分局部变量、实例变量、类变量的初始化规则。通过反例（如本题）强调编译器进行的是静态的“确定性赋值分析”，而非动态的逻辑分析。\n5.  **针对【字符串处理】**：建议将字符串与`StringBuilder`/`StringBuffer`进行对比教学。强调“任何看似修改字符串的方法，都返回新对象”，并通过`System.identityHashCode()`演示对象地址的变化。\n6.  **针对【运算符与表达式】**：建议将`=`和`==`作为易混淆点重点强调。在条件判断语句中，要求学生养成将常量写在左边的习惯（如`if (true == flag)`），这样如果误写成`=`，会导致编译错误，从而提前发现问题。",
+        "keywords": [
+          "ClassCastException",
+          "编译时类型",
+          "switch穿透",
+          "break语句",
+          "new关键字",
+          "对象内存地址"
+        ],
+        "facts": [
+          {
+            "type": "question_summary",
+            "question_id": "Q1",
+            "knowledge_module": "引用与对象比较",
+            "error_type": "混淆了引用相等与对象内容相等",
+            "keywords": [
+              "new关键字",
+              "引用比较",
+              "对象内存地址"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q2",
+            "knowledge_module": "多态与类型转换",
+            "error_type": "混淆了编译时类型与运行时类型，认为多态允许调用子类特有方法",
+            "keywords": [
+              "多态",
+              "编译时类型",
+              "方法可见性"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q3",
+            "knowledge_module": "变量作用域与初始化",
+            "error_type": "认为局部变量有默认值，忽略了局部变量必须显式初始化的规则",
+            "keywords": [
+              "确定性赋值",
+              "编译时检查",
+              "局部变量初始化"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q4",
+            "knowledge_module": "包装类与自动装箱",
+            "error_type": "认为自动装箱的Integer对象在==比较时总是相等，忽略了缓存范围",
+            "keywords": [
+              "Integer缓存",
+              "自动装箱",
+              "对象引用比较"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q5",
+            "knowledge_module": "控制流与语法细节",
+            "error_type": "忽略了switch语句中case的穿透（fall-through）行为",
+            "keywords": [
+              "switch穿透",
+              "控制流",
+              "break语句"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q6",
+            "knowledge_module": "多态与类型转换",
+            "error_type": "认为不兼容类型的向下转型会得到null，而非抛出异常",
+            "keywords": [
+              "ClassCastException",
+              "向下转型",
+              "类型安全"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q7",
+            "knowledge_module": "控制流与语法细节",
+            "error_type": "将for循环后的分号误认为是循环体的一部分，忽略了空语句",
+            "keywords": [
+              "空循环体",
+              "分号误用",
+              "代码块作用域"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q8",
+            "knowledge_module": "字符串处理",
+            "error_type": "认为字符串方法会修改原对象，忽略了字符串的不可变性",
+            "keywords": [
+              "方法返回值",
+              "对象状态修改",
+              "字符串不可变性"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q9",
+            "knowledge_module": "继承与多态",
+            "error_type": "混淆了方法重写与字段隐藏，认为多态适用于字段访问",
+            "keywords": [
+              "字段隐藏",
+              "静态绑定",
+              "编译时类型"
+            ]
+          },
+          {
+            "type": "question_summary",
+            "question_id": "Q10",
+            "knowledge_module": "运算符与表达式",
+            "error_type": "混淆了赋值运算符（=）与相等运算符（==）",
+            "keywords": [
+              "赋值运算符",
+              "条件表达式",
+              "布尔值比较"
+            ]
+          },
+          {
+            "type": "module_summary",
+            "module": "多态与类型转换",
+            "question_ids": [
+              "Q2",
+              "Q6"
+            ],
+            "error_types": [
+              "混淆了编译时类型与运行时类型，认为多态允许调用子类特有方法",
+              "认为不兼容类型的向下转型会得到null，而非抛出异常"
+            ],
+            "core_concepts": [
+              "ClassCastException",
+              "编译时类型"
+            ]
+          },
+          {
+            "type": "module_summary",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ],
+            "error_types": [
+              "忽略了switch语句中case的穿透（fall-through）行为",
+              "将for循环后的分号误认为是循环体的一部分，忽略了空语句"
+            ],
+            "core_concepts": [
+              "switch穿透",
+              "break语句"
+            ]
+          },
+          {
+            "type": "module_summary",
+            "module": "引用与对象比较",
+            "question_ids": [
+              "Q1"
+            ],
+            "error_types": [
+              "混淆了引用相等与对象内容相等"
+            ],
+            "core_concepts": [
+              "new关键字",
+              "对象内存地址"
+            ]
+          },
+          {
+            "type": "seed",
+            "seed": "break语句",
+            "keyword": "break语句",
+            "desc": "用于跳出当前循环或switch语句",
+            "score": 1.0,
+            "match_type": "exact_name",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "path",
+            "seed": "break语句",
+            "hop": 1,
+            "source": "break语句",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "switch语句",
+            "target_desc": "多重选择语句，根据表达式结果跳转到匹配的case",
+            "relation_score": 0.9,
+            "entity_score": 0.9,
+            "score": 0.9500000000000001,
+            "path_text": "break语句 -> (DEPENDS_ON,out) -> switch语句",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "switch语句",
+            "nodes": [
+              "switch语句",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "switch语句 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "switch语句",
+            "nodes": [
+              "switch语句",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "数据类型"
+            ],
+            "root_desc": "数据的类型，决定数据的存储方式和可执行的操作",
+            "path_text": "switch语句 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 数据类型",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "switch语句",
+            "nodes": [
+              "switch语句",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "字面量"
+            ],
+            "root_desc": "代码中直接写出的固定值，如10、3.14、'a'、\"hi\"、true",
+            "path_text": "switch语句 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 字面量",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "path",
+            "seed": "break语句",
+            "hop": 1,
+            "source": "break语句",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "循环",
+            "target_desc": "重复执行一段代码，包括while、do-while和for循环",
+            "relation_score": 0.9,
+            "entity_score": 0.3,
+            "score": 0.77,
+            "path_text": "break语句 -> (DEPENDS_ON,out) -> 循环",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "循环",
+            "nodes": [
+              "for-each循环",
+              "Iterable接口",
+              "Iterator",
+              "集合(Collection)",
+              "泛型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "for-each循环 -> (依赖) -> Iterable接口 -> (依赖) -> Iterator -> (依赖) -> 集合(Collection) -> (依赖) -> 泛型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "循环",
+            "nodes": [
+              "循环",
+              "条件判断",
+              "布尔类型",
+              "基本类型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "循环 -> (依赖) -> 条件判断 -> (依赖) -> 布尔类型 -> (依赖) -> 基本类型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "dependency_chain",
+            "target": "循环",
+            "nodes": [
+              "for-each循环",
+              "Iterator",
+              "集合(Collection)",
+              "泛型",
+              "数据类型",
+              "类型转换"
+            ],
+            "root_desc": "不同数据类型之间转换，包括自动转换与强制类型转换",
+            "path_text": "for-each循环 -> (依赖) -> Iterator -> (依赖) -> 集合(Collection) -> (依赖) -> 泛型 -> (依赖) -> 数据类型 -> (依赖) -> 类型转换",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "summary",
+            "text": "stop=answerable, hop=1, beam_size=2",
+            "module": "控制流与语法细节",
+            "question_ids": [
+              "Q5",
+              "Q7"
+            ]
+          },
+          {
+            "type": "diagnostic",
+            "text": "teacher_questions=10, selected_modules=3, selected_keywords=['ClassCastException', '编译时类型', '多态与类型转换', 'switch穿透', 'break语句', '控制流与语法细节'], retained_seed_nodes=1"
+          },
+          {
+            "type": "diagnostic",
+            "text": "多态与类型转换: 图谱证据较少 ; 引用与对象比较: 图谱证据较少"
+          }
+        ],
+        "reasoning_trace": [
+          {
+            "type": "reasoning",
+            "title": "题目切分",
+            "summary": "识别出 10 道题目",
+            "details": [
+              "Q1",
+              "Q2",
+              "Q3",
+              "Q4",
+              "Q5",
+              "Q6",
+              "Q7",
+              "Q8",
+              "Q9",
+              "Q10"
+            ],
+            "stage": "question_split",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q1 题目画像",
+            "summary": "归入模块“引用与对象比较”，错误类型为“混淆了引用相等与对象内容相等”",
+            "details": [
+              "new关键字",
+              "引用比较",
+              "对象内存地址"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q2 题目画像",
+            "summary": "归入模块“多态与类型转换”，错误类型为“混淆了编译时类型与运行时类型，认为多态允许调用子类特有方法”",
+            "details": [
+              "多态",
+              "编译时类型",
+              "方法可见性"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q3 题目画像",
+            "summary": "归入模块“变量作用域与初始化”，错误类型为“认为局部变量有默认值，忽略了局部变量必须显式初始化的规则”",
+            "details": [
+              "确定性赋值",
+              "编译时检查",
+              "局部变量初始化"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q4 题目画像",
+            "summary": "归入模块“包装类与自动装箱”，错误类型为“认为自动装箱的Integer对象在==比较时总是相等，忽略了缓存范围”",
+            "details": [
+              "Integer缓存",
+              "自动装箱",
+              "对象引用比较"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q5 题目画像",
+            "summary": "归入模块“控制流与语法细节”，错误类型为“忽略了switch语句中case的穿透（fall-through）行为”",
+            "details": [
+              "switch穿透",
+              "控制流",
+              "break语句"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q6 题目画像",
+            "summary": "归入模块“多态与类型转换”，错误类型为“认为不兼容类型的向下转型会得到null，而非抛出异常”",
+            "details": [
+              "ClassCastException",
+              "向下转型",
+              "类型安全"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q7 题目画像",
+            "summary": "归入模块“控制流与语法细节”，错误类型为“将for循环后的分号误认为是循环体的一部分，忽略了空语句”",
+            "details": [
+              "空循环体",
+              "分号误用",
+              "代码块作用域"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q8 题目画像",
+            "summary": "归入模块“字符串处理”，错误类型为“认为字符串方法会修改原对象，忽略了字符串的不可变性”",
+            "details": [
+              "方法返回值",
+              "对象状态修改",
+              "字符串不可变性"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q9 题目画像",
+            "summary": "归入模块“继承与多态”，错误类型为“混淆了方法重写与字段隐藏，认为多态适用于字段访问”",
+            "details": [
+              "字段隐藏",
+              "静态绑定",
+              "编译时类型"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "Q10 题目画像",
+            "summary": "归入模块“运算符与表达式”，错误类型为“混淆了赋值运算符（=）与相等运算符（==）”",
+            "details": [
+              "赋值运算符",
+              "条件表达式",
+              "布尔值比较"
+            ],
+            "stage": "question_profile",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "模块聚类",
+            "summary": "筛选出 3 个重点知识模块",
+            "details": [
+              "多态与类型转换 -> 题号 Q2, Q6 | 概念 ClassCastException, 编译时类型",
+              "控制流与语法细节 -> 题号 Q5, Q7 | 概念 switch穿透, break语句",
+              "引用与对象比较 -> 题号 Q1 | 概念 new关键字, 对象内存地址"
+            ],
+            "stage": "module_cluster",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "关键词归一化",
+            "summary": "检索前保留 3 个关键词",
+            "details": [
+              "ClassCastException",
+              "编译时类型",
+              "多态与类型转换"
+            ],
+            "stage": "keyword_normalization",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "关键词归一化",
+            "summary": "检索前保留 3 个关键词",
+            "details": [
+              "break语句",
+              "switch穿透",
+              "控制流与语法细节"
+            ],
+            "stage": "keyword_normalization",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "停止判定",
+            "summary": "检索在 hop=1 时停止，原因是 answerable",
+            "details": [
+              "beam_size=2"
+            ],
+            "stage": "stop_decision",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "关键词归一化",
+            "summary": "检索前保留 3 个关键词",
+            "details": [
+              "new关键字",
+              "对象内存地址",
+              "引用与对象比较"
+            ],
+            "stage": "keyword_normalization",
+            "mode": "teacher"
+          },
+          {
+            "type": "reasoning",
+            "title": "图谱覆盖诊断",
+            "summary": "部分模块图谱证据较少",
+            "details": [
+              "多态与类型转换: 图谱证据较少",
+              "引用与对象比较: 图谱证据较少"
+            ],
+            "stage": "coverage_diagnosis",
+            "mode": "teacher"
+          }
+        ],
+        "retrieval_trace": [
+          {
+            "type": "retrieval",
+            "title": "聚焦检索概念",
+            "summary": "最终选中 6 个核心概念用于图检索",
+            "details": [
+              "ClassCastException",
+              "编译时类型",
+              "switch穿透",
+              "break语句",
+              "new关键字",
+              "对象内存地址"
+            ],
+            "stage": "module_selection",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "模块检索: 多态与类型转换",
+            "summary": "对模块 多态与类型转换 的核心概念执行图检索",
+            "details": [
+              "ClassCastException",
+              "编译时类型"
+            ],
+            "stage": "module_retrieval",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "种子召回",
+            "summary": "未召回到可用种子节点",
+            "details": [],
+            "stage": "seed_recall",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "模块检索: 控制流与语法细节",
+            "summary": "对模块 控制流与语法细节 的核心概念执行图检索",
+            "details": [
+              "switch穿透",
+              "break语句"
+            ],
+            "stage": "module_retrieval",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "种子召回",
+            "summary": "召回 1 个种子节点",
+            "details": [
+              "break语句 | exact_name | score=1.00"
+            ],
+            "stage": "seed_recall",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 关系裁剪",
+            "summary": "实体 break语句 保留 1 条关系",
+            "details": [
+              "DEPENDS_ON (out) score=0.90"
+            ],
+            "stage": "relation_prune",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 实体裁剪",
+            "summary": "break语句 经关系 DEPENDS_ON 保留 2 个邻居",
+            "details": [
+              "switch语句 score=0.90",
+              "循环 score=0.30"
+            ],
+            "stage": "entity_score",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 Beam 保留",
+            "summary": "当前保留 2 条候选路径",
+            "details": [
+              "break语句 -> (DEPENDS_ON,out) -> switch语句 | score=0.95",
+              "break语句 -> (DEPENDS_ON,out) -> 循环 | score=0.77"
+            ],
+            "stage": "beam_truncate",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "模块检索: 引用与对象比较",
+            "summary": "对模块 引用与对象比较 的核心概念执行图检索",
+            "details": [
+              "new关键字",
+              "对象内存地址"
+            ],
+            "stage": "module_retrieval",
+            "mode": "teacher"
+          },
+          {
+            "type": "retrieval",
+            "title": "种子召回",
+            "summary": "未召回到可用种子节点",
+            "details": [],
+            "stage": "seed_recall",
+            "mode": "teacher"
+          }
+        ]
+      }
+    ],
+    "created_at": "2026-03-08 23:06:19"
+  },
+  "6c84b250-c2c5-487f-9207-6ecdb5ae7f90": {
+    "title": "public cla...",
+    "messages": [
+      {
+        "role": "user",
+        "content": "public class StringCompareMistake {\n    public static void main(String[] args) {\n        String str1 = \"Hello\";\n        String str2 = new String(\"Hello\");\n        \n        if (str1 == str2) {\n            System.out.println(\"字符串相等\");\n        } else {\n            System.out.println(\"字符串不相等\");\n        }\n    }\n}\n这段代码的输出结果是\"字符串不相等\"，但是两个字符串明明都是\"Hello\"，为什么使用==比较会返回不相等呢？我以为==可以用来比较字符串内容，但实际运行结果和我想的不一样。应该用什么方法来比较两个字符串的内容是否相同呢？\n"
+      },
+      {
+        "role": "assistant",
+        "content": "我注意到你的代码输出是“字符串不相等”，这确实和直觉不符。让我先帮你分析一下。\n\n**错误现象**：你使用了`==`比较两个字符串，虽然它们的内容都是\"Hello\"，但比较结果却是`false`。\n\n根据图谱分析，这个问题涉及到**引用类型**这个底层概念。让我问你一个简单的问题来测试你的理解：\n\n**引导问题**：在Java中，`==`运算符比较的是什么？是对象的内容，还是对象在内存中的地址？\n\n（提示：想想`String str1 = \"Hello\"`和`String str2 = new String(\"Hello\")`在内存中创建了什么）",
+        "keywords": [
+          "String",
+          "==",
+          "equals",
+          "String Pool",
+          "new String"
+        ],
+        "facts": [
+          {
+            "type": "seed",
+            "seed": "StringBuilder",
+            "keyword": "String",
+            "desc": "可变的字符串构建器，用于高效拼接字符串",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "seed",
+            "seed": "StringJoiner",
+            "keyword": "String",
+            "desc": "用于高效拼接带有分隔符的字符串的工具类",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "seed",
+            "seed": "StringReader",
+            "keyword": "String",
+            "desc": "将字符串包装成输入字符流的类。",
+            "score": 0.75,
+            "match_type": "name_contains"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 1,
+            "source": "StringBuilder",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "字符串(String)",
+            "target_desc": "表示一串字符的不可变引用类型",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "字符串(String)",
+            "nodes": [
+              "字符串(String)",
+              "引用类型"
+            ],
+            "root_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "path_text": "字符串(String) -> (依赖) -> 引用类型"
+          },
+          {
+            "type": "path",
+            "seed": "StringJoiner",
+            "hop": 1,
+            "source": "StringJoiner",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "字符串(String)",
+            "target_desc": "表示一串字符的不可变引用类型",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String)"
+          },
+          {
+            "type": "path",
+            "seed": "StringReader",
+            "hop": 1,
+            "source": "StringReader",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "Reader",
+            "target_desc": "所有输入字符流的抽象超类，定义了读取字符数据的基本方法。",
+            "relation_score": 0.1,
+            "entity_score": 0.1,
+            "score": 0.42500000000000004,
+            "path_text": "StringReader -> (DEPENDS_ON,out) -> Reader"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "FileReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "FileReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "CharArrayReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "CharArrayReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "Reader",
+            "nodes": [
+              "StringReader",
+              "Reader",
+              "字符流",
+              "字符(char)"
+            ],
+            "root_desc": "文本数据的基本单位",
+            "path_text": "StringReader -> (依赖) -> Reader -> (依赖) -> 字符流 -> (依赖) -> 字符(char)"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "in",
+            "target": "字符串常量池",
+            "target_desc": "JVM对字符串字面量的复用机制",
+            "relation_score": 0.9,
+            "entity_score": 0.95,
+            "score": 0.6775,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "字符串常量池",
+            "nodes": [
+              "字符串常量池",
+              "字符串(String)",
+              "引用类型"
+            ],
+            "root_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "path_text": "字符串常量池 -> (依赖) -> 字符串(String) -> (依赖) -> 引用类型"
+          },
+          {
+            "type": "dependency_chain",
+            "target": "字符串常量池",
+            "nodes": [
+              "字符串常量池",
+              "字符串(String)"
+            ],
+            "root_desc": "表示一串字符的不可变引用类型",
+            "path_text": "字符串常量池 -> (依赖) -> 字符串(String)"
+          },
+          {
+            "type": "path",
+            "seed": "StringJoiner",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "in",
+            "target": "字符串常量池",
+            "target_desc": "JVM对字符串字面量的复用机制",
+            "relation_score": 0.9,
+            "entity_score": 0.95,
+            "score": 0.6775,
+            "path_text": "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池"
+          },
+          {
+            "type": "path",
+            "seed": "StringBuilder",
+            "hop": 2,
+            "source": "字符串(String)",
+            "relation": "DEPENDS_ON",
+            "direction": "out",
+            "target": "引用类型",
+            "target_desc": "存储对象地址的数据类型，存储在堆上，如字符串、数组和类",
+            "relation_score": 0.7,
+            "entity_score": 0.9,
+            "score": 0.6225,
+            "path_text": "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,out) -> 引用类型"
+          },
+          {
+            "type": "summary",
+            "text": "stop=answerable, hop=2, beam_size=3"
+          }
+        ],
+        "reasoning_trace": [
+          {
+            "type": "reasoning",
+            "title": "关键词提取",
+            "summary": "从输入中提取出 5 个候选概念",
+            "details": [
+              "String",
+              "==",
+              "equals",
+              "String Pool",
+              "new String"
+            ],
+            "stage": "keyword_extraction",
+            "mode": "student"
+          },
+          {
+            "type": "reasoning",
+            "title": "关键词归一化",
+            "summary": "检索前保留 3 个关键词",
+            "details": [
+              "new String",
+              "String",
+              "=="
+            ],
+            "stage": "keyword_normalization",
+            "mode": "student"
+          },
+          {
+            "type": "reasoning",
+            "title": "停止判定",
+            "summary": "检索在 hop=2 时停止，原因是 answerable",
+            "details": [
+              "beam_size=3"
+            ],
+            "stage": "stop_decision",
+            "mode": "student"
+          }
+        ],
+        "retrieval_trace": [
+          {
+            "type": "retrieval",
+            "title": "种子召回",
+            "summary": "召回 3 个种子节点",
+            "details": [
+              "StringBuilder | name_contains | score=0.75",
+              "StringJoiner | name_contains | score=0.75",
+              "StringReader | name_contains | score=0.75"
+            ],
+            "stage": "seed_recall",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 关系裁剪",
+            "summary": "实体 StringBuilder 保留 1 条关系",
+            "details": [
+              "DEPENDS_ON (out) score=0.10"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 实体裁剪",
+            "summary": "StringBuilder 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "字符串(String) score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 关系裁剪",
+            "summary": "实体 StringJoiner 保留 1 条关系",
+            "details": [
+              "DEPENDS_ON (out) score=0.10"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 实体裁剪",
+            "summary": "StringJoiner 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "字符串(String) score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 关系裁剪",
+            "summary": "实体 StringReader 保留 1 条关系",
+            "details": [
+              "DEPENDS_ON (out) score=0.10"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 实体裁剪",
+            "summary": "StringReader 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "Reader score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 1 Beam 保留",
+            "summary": "当前保留 3 条候选路径",
+            "details": [
+              "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) | score=0.43",
+              "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String) | score=0.43",
+              "StringReader -> (DEPENDS_ON,out) -> Reader | score=0.43"
+            ],
+            "stage": "beam_truncate",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 关系裁剪",
+            "summary": "实体 字符串(String) 保留 2 条关系",
+            "details": [
+              "DEPENDS_ON (in) score=0.90",
+              "DEPENDS_ON (out) score=0.70"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 3 个邻居",
+            "details": [
+              "字符串常量池 score=0.95",
+              "String不可变性 score=0.70",
+              "StringJoiner score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "引用类型 score=0.90"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 关系裁剪",
+            "summary": "实体 字符串(String) 保留 2 条关系",
+            "details": [
+              "DEPENDS_ON (in) score=0.90",
+              "DEPENDS_ON (out) score=0.70"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 3 个邻居",
+            "details": [
+              "字符串常量池 score=0.95",
+              "String不可变性 score=0.70",
+              "StringBuilder score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "字符串(String) 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "引用类型 score=0.90"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 关系裁剪",
+            "summary": "实体 Reader 保留 2 条关系",
+            "details": [
+              "DEPENDS_ON (in) score=0.10",
+              "DEPENDS_ON (out) score=0.05"
+            ],
+            "stage": "relation_prune",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "Reader 经关系 DEPENDS_ON 保留 3 个邻居",
+            "details": [
+              "FileReader score=0.10",
+              "CharArrayReader score=0.05",
+              "InputStreamReader score=0.05"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 实体裁剪",
+            "summary": "Reader 经关系 DEPENDS_ON 保留 1 个邻居",
+            "details": [
+              "字符流 score=0.10"
+            ],
+            "stage": "entity_score",
+            "mode": "student"
+          },
+          {
+            "type": "retrieval",
+            "title": "Hop 2 Beam 保留",
+            "summary": "当前保留 3 条候选路径",
+            "details": [
+              "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池 | score=0.68",
+              "StringJoiner -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,in) -> 字符串常量池 | score=0.68",
+              "StringBuilder -> (DEPENDS_ON,out) -> 字符串(String) -> (DEPENDS_ON,out) -> 引用类型 | score=0.62"
+            ],
+            "stage": "beam_truncate",
+            "mode": "student"
+          }
+        ]
+      }
+    ],
+    "created_at": "2026-03-19 10:12:08"
   }
 }
