@@ -115,7 +115,7 @@ def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricRes
     )
 
 
-def get_graph(keyword: str = "", limit: int = 80) -> GraphQueryResponse:
+def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
     driver = get_neo4j_driver()
     node_rows = []
     edge_rows = []

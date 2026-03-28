@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 @router.get("/graph")
 def get_teacher_graph(
     keyword: str = Query(default="", max_length=255),
-    limit: int = Query(default=80, ge=1, le=200),
+    limit: int = Query(default=500, ge=1, le=2000),
     current_user: User = Depends(get_current_teacher),
 ):
     return get_graph(keyword=keyword, limit=limit)

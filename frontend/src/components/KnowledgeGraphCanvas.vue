@@ -1,9 +1,10 @@
 <template>
-  <div ref="container" class="graph-canvas"></div>
+  <div ref="container" class="graph-canvas" @wheel.prevent></div>
 </template>
 
 <script setup>
 import { NVL } from "@neo4j-nvl/base";
+import { PanInteraction, ZoomInteraction, DragNodeInteraction } from "@neo4j-nvl/interaction-handlers";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { buildTeacherGraphLayout } from "../features/teacher-graph/graphLayout";
@@ -20,8 +21,12 @@ const emit = defineEmits(["select-node", "select-edge", "clear-selection"]);
 
 const container = ref(null);
 let nvl = null;
+let panInteraction = null;
+let zoomInteraction = null;
+let dragInteraction = null;
 let resizeObserver = null;
 let clickHandler = null;
+let wheelHandler = null; // ✅ 新增
 
 function getViewportSize() {
   const rect = container.value?.getBoundingClientRect();
@@ -69,7 +74,7 @@ function bindCanvasEvents() {
 function unbindCanvasEvents() {
   if (container.value && clickHandler) {
     container.value.removeEventListener("click", clickHandler);
-  }
+  }  
   clickHandler = null;
 }
 
@@ -85,8 +90,8 @@ function fitGraph(nodeIds = []) {
 
 function applyLayout(nodeIdsToFit = []) {
   if (!nvl) return;
-  const positions = buildTeacherGraphLayout(props.nodes, props.edges, getViewportSize());
-  nvl.setNodePositions(positions, false);
+  // const positions = buildTeacherGraphLayout(props.nodes, props.edges, getViewportSize());
+  // nvl.setNodePositions(positions, false);
   requestAnimationFrame(() => {
     fitGraph(nodeIdsToFit);
   });
@@ -144,10 +149,14 @@ function initializeGraph() {
     payload.relationships,
     {
       disableTelemetry: true,
-      disableWebWorkers: true,
-      renderer: "canvas",
-      layout: "free",
+      disableWebWorkers: false,
+      renderer: "webgl",
+      layout: "d3Force",
       initialZoom: 0.9,
+      // 🌟 修复 1：增加物理引擎配置，控制排斥力与引力
+      layoutOptions: {
+        nodeSpacing: 80, // 节点间距，数值越大图越散        
+      },      
     },
     {
       onLayoutDone: () => {
@@ -156,15 +165,20 @@ function initializeGraph() {
     },
   );
 
-  nvl.setRenderer("canvas");
-  nvl.setLayout("free");
+  dragInteraction = new DragNodeInteraction(nvl); 
+  panInteraction = new PanInteraction(nvl);       
+  zoomInteraction = new ZoomInteraction(nvl);
+
   applyLayout(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
   bindCanvasEvents();
 
-  resizeObserver = new ResizeObserver(() => {
-    applyLayout(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
-  });
-  resizeObserver.observe(container.value);
+  // ⛔️ 修复 3：删除/注释掉 ResizeObserver！
+  // 彻底阻止它在后台疯狂重置你的镜头，把交互控制权还给鼠标。
+  
+  // resizeObserver = new ResizeObserver(() => {
+  //   applyLayout(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
+  // });
+  // resizeObserver.observe(container.value);
 }
 
 function focusNodes(nodeIds = []) {

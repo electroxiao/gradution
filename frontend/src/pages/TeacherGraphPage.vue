@@ -196,7 +196,7 @@ async function loadGraph() {
   errorMessage.value = "";
   graphRenderError.value = "";
   try {
-    const { data } = await getTeacherGraphApi({ keyword: "", limit: 120 });
+    const { data } = await getTeacherGraphApi({ keyword: "", limit: 1000 });
     fullGraph.value = data;
     applyGraphData(data);
   } catch (error) {
@@ -374,7 +374,7 @@ async function searchGraph(options = {}) {
   }
 
   try {
-    const { data } = await getTeacherGraphApi({ keyword: query, limit: 120 });
+    const { data } = await getTeacherGraphApi({ keyword: query, limit: 1000 });
     applyGraphData(data);
     if (data.nodes.length) {
       handleSelectNode(data.nodes[0].id);
