@@ -7,6 +7,10 @@ class SessionCreateRequest(BaseModel):
     title: str | None = None
 
 
+class SessionUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+
 class SessionResponse(BaseModel):
     id: int
     title: str

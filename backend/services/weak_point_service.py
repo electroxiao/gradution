@@ -11,9 +11,16 @@ def extract_core_nodes(facts: list) -> list[str]:
     for fact in facts or []:
         if not isinstance(fact, dict):
             continue
-        if fact.get("type") == "seed" and fact.get("seed"):
-            nodes.add(fact["seed"])
-        if fact.get("type") == "path" and fact.get("target"):
+        if fact.get("type") == "weak_point" and fact.get("node_name"):
+            nodes.add(fact["node_name"])
+
+    if nodes:
+        return sorted(nodes)
+
+    for fact in facts or []:
+        if not isinstance(fact, dict):
+            continue
+        if fact.get("type") == "selected_path" and fact.get("target"):
             nodes.add(fact["target"])
     return sorted(nodes)
 

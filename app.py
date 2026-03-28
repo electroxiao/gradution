@@ -1,6 +1,8 @@
 import json
 import os
 import uuid
+import importlib.util
+from pathlib import Path
 from datetime import datetime
 
 import graphviz
@@ -8,7 +10,17 @@ import streamlit as st
 from neo4j import GraphDatabase
 from openai import OpenAI
 
-import backend
+
+def load_legacy_backend():
+    backend_path = Path(__file__).with_name("backend.py")
+    spec = importlib.util.spec_from_file_location("legacy_backend", backend_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(module)
+    return module
+
+
+backend = load_legacy_backend()
 
 
 st.set_page_config(page_title="Java 智能编程导师", page_icon="🎓", layout="wide")

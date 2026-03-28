@@ -1,15 +1,26 @@
 :root {
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-  color: #1f2937;
-  background: linear-gradient(180deg, #f6fbff 0%, #eef5f9 100%);
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  color: #12263a;
+  background: #ffffff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  min-height: 100%;
+}
+
+body {
+  color: #12263a;
+  background: #ffffff;
 }
 
 button,
@@ -18,9 +29,17 @@ textarea {
   font: inherit;
 }
 
+a {
+  color: inherit;
+}
+
+#app {
+  min-height: 100vh;
+}
+
 .page-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 0;
 }
 
 .card {

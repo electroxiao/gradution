@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@neo4j-nvl/base": "^0.3.9",
     "axios": "^1.7.7",
     "pinia": "^2.3.0",
     "vue": "^3.5.12",

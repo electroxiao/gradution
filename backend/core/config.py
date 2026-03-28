@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com"
     cors_origins: str = "http://localhost:5173"
+    teacher_seed_username: str = "teacher"
+    teacher_seed_password: str = "teacher123"
 
     model_config = SettingsConfigDict(
         env_file=".env",

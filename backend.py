@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from neo4j import GraphDatabase
 from openai import OpenAI
 
@@ -15,8 +16,20 @@ DB_NAME = "javagemini"
 
 # ============================================
 
+
+def _now():
+    return time.perf_counter()
+
+
+def _log_timing(label, started_at, extra=""):
+    elapsed = _now() - started_at
+    suffix = f" | {extra}" if extra else ""
+    print(f"[timing] {label}: {elapsed:.2f}s{suffix}")
+    return elapsed
+
 # --- 步骤 1: 意图识别 (通用) ---
 def extract_keywords_with_llm(client, user_input, history=[], trace=None):
+    fn_started_at = _now()
     print(f"\n🧠 [Step 1] 正在分析输入内容...")
 
     context_entities = []
@@ -41,11 +54,13 @@ def extract_keywords_with_llm(client, user_input, history=[], trace=None):
     """
 
     try:
+        api_started_at = _now()
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
+        _log_timing("extract_keywords_with_llm.api", api_started_at, f"input_len={len(user_input)}")
         content = response.choices[0].message.content
 
         start = content.find('[')
@@ -65,6 +80,7 @@ def extract_keywords_with_llm(client, user_input, history=[], trace=None):
             stage="keyword_extraction",
             mode="student",
         )
+        _log_timing("extract_keywords_with_llm.total", fn_started_at, f"keywords={len(keywords)}")
         return keywords
     except Exception as e:
         print(f"   -> 意图识别出错: {e}")
@@ -77,6 +93,7 @@ def extract_keywords_with_llm(client, user_input, history=[], trace=None):
             stage="keyword_extraction",
             mode="student",
         )
+        _log_timing("extract_keywords_with_llm.total", fn_started_at, "failed")
         return []
 
 
@@ -304,6 +321,7 @@ def _format_path_text(path_rows):
 
 
 def _query_dependency_chain_evidence(driver, keyword):
+    fn_started_at = _now()
     chains = []
     query = """
     MATCH path = (target:Knowledge)-[:DEPENDS_ON*]->(root)
@@ -328,10 +346,12 @@ def _query_dependency_chain_evidence(driver, keyword):
                 })
     except Exception as e:
         print(f"查询依赖链出错: {e}")
+    _log_timing("_query_dependency_chain_evidence", fn_started_at, f"keyword={keyword} chains={len(chains)}")
     return chains
 
 # 种子召回阶段：根据问题和关键词从图谱里找最值得扩展的初始节点。
 def _query_seed_nodes(driver, question, keywords, limit_per_kw=3, max_total=4):
+    fn_started_at = _now()
     seeds = []
     query = """
     MATCH (n:Knowledge)
@@ -375,14 +395,18 @@ def _query_seed_nodes(driver, question, keywords, limit_per_kw=3, max_total=4):
 
     seeds.sort(key=lambda item: (item["final_seed_score"], item["question_relevance"], item["match_score"]), reverse=True)
     if not seeds:
+        _log_timing("_query_seed_nodes", fn_started_at, f"keywords={len(keywords)} seeds=0")
         return []
 
     best_score = seeds[0]["final_seed_score"]
     filtered = [seed for seed in seeds if seed["final_seed_score"] >= max(0.35, best_score - 0.18)]
-    return filtered[:max_total]
+    result = filtered[:max_total]
+    _log_timing("_query_seed_nodes", fn_started_at, f"keywords={len(keywords)} seeds={len(result)}")
+    return result
 
 
 def _query_candidate_relations(driver, entity_name, limit=12):
+    fn_started_at = _now()
     query = """
     MATCH (src:Knowledge {name: $name})-[r]-(nbr:Knowledge)
     RETURN src.name AS source,
@@ -403,10 +427,12 @@ def _query_candidate_relations(driver, entity_name, limit=12):
                 "neighbor_count": rec["neighbor_count"],
                 "sample_targets": rec["sample_targets"] or [],
             })
+    _log_timing("_query_candidate_relations", fn_started_at, f"entity={entity_name} rows={len(rows)}")
     return rows
 
 
 def relation_prune(client, question, current_entity, candidate_relations, top_k=3):
+    fn_started_at = _now()
     if not candidate_relations:
         return []
 
@@ -430,11 +456,13 @@ def relation_prune(client, question, current_entity, candidate_relations, top_k=
 按 score 从高到低排序，最多返回 {top_k} 项。
 """
     try:
+        api_started_at = _now()
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
+        _log_timing("relation_prune.api", api_started_at, f"entity={current_entity} candidates={len(candidate_relations)}")
         content = resp.choices[0].message.content
         selected = _safe_json_extract(content, [])
         picked = []
@@ -447,7 +475,9 @@ def relation_prune(client, question, current_entity, candidate_relations, top_k=
                 picked.append(row)
         if picked:
             picked.sort(key=lambda x: x["relation_score"], reverse=True)
-            return picked[:top_k]
+            result = picked[:top_k]
+            _log_timing("relation_prune.total", fn_started_at, f"entity={current_entity} selected={len(result)} mode=llm")
+            return result
     except Exception:
         pass
 
@@ -462,10 +492,13 @@ def relation_prune(client, question, current_entity, candidate_relations, top_k=
         score = 0.7 * _token_overlap_score(question, raw) + 0.3 * min(relation["neighbor_count"] / 5.0, 1.0)
         scored.append({**relation, "relation_score": score})
     scored.sort(key=lambda x: x["relation_score"], reverse=True)
-    return scored[:top_k]
+    result = scored[:top_k]
+    _log_timing("relation_prune.total", fn_started_at, f"entity={current_entity} selected={len(result)} mode=fallback")
+    return result
 
 
 def _query_neighbors_by_relation(driver, entity_name, relation, direction, limit=8):
+    fn_started_at = _now()
     query = """
     MATCH (src:Knowledge {name: $name})-[r]-(nbr:Knowledge)
     WHERE type(r) = $relation
@@ -496,10 +529,13 @@ def _query_neighbors_by_relation(driver, entity_name, relation, direction, limit
                 "target": rec["target"],
                 "target_desc": rec["target_desc"],
             })
-    return _dedupe_dicts(rows, ("source", "relation", "direction", "target"))
+    result = _dedupe_dicts(rows, ("source", "relation", "direction", "target"))
+    _log_timing("_query_neighbors_by_relation", fn_started_at, f"entity={entity_name} relation={relation} rows={len(result)}")
+    return result
 
 
 def entity_score(client, question, current_entity, relation_row, entity_candidates, top_k=5):
+    fn_started_at = _now()
     if not entity_candidates:
         return []
 
@@ -522,11 +558,13 @@ def entity_score(client, question, current_entity, relation_row, entity_candidat
 按 score 从高到低排序，最多返回 {top_k} 项。
 """
     try:
+        api_started_at = _now()
         resp = client.chat.completions.create(
             model="deepseek-chat",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
+        _log_timing("entity_score.api", api_started_at, f"entity={current_entity} relation={relation_row['relation']} candidates={len(entity_candidates)}")
         content = resp.choices[0].message.content
         selected = _safe_json_extract(content, [])
         picked = []
@@ -539,7 +577,9 @@ def entity_score(client, question, current_entity, relation_row, entity_candidat
                 picked.append(row)
         if picked:
             picked.sort(key=lambda x: x["entity_score"], reverse=True)
-            return picked[:top_k]
+            result = picked[:top_k]
+            _log_timing("entity_score.total", fn_started_at, f"entity={current_entity} relation={relation_row['relation']} selected={len(result)} mode=llm")
+            return result
     except Exception:
         pass
 
@@ -549,7 +589,9 @@ def entity_score(client, question, current_entity, relation_row, entity_candidat
         score = _token_overlap_score(question, raw)
         scored.append({**row, "entity_score": score})
     scored.sort(key=lambda x: x["entity_score"], reverse=True)
-    return scored[:top_k]
+    result = scored[:top_k]
+    _log_timing("entity_score.total", fn_started_at, f"entity={current_entity} relation={relation_row['relation']} selected={len(result)} mode=fallback")
+    return result
 
 
 def _stop_decision(question, beam, hop, max_depth):
@@ -578,6 +620,7 @@ def query_graph_with_reasoning(
     reasoning_trace=None,
     retrieval_trace=None
 ):
+    fn_started_at = _now()
     """
     ToG 风格图检索:
     1) 种子召回
@@ -618,6 +661,7 @@ def query_graph_with_reasoning(
         max_total=max(2, min(width, 3))
     )
     if not seeds:
+        _log_timing("query_graph_with_reasoning.total", fn_started_at, "no_seeds")
         _append_trace(
             retrieval_trace,
             "retrieval",
@@ -662,6 +706,7 @@ def query_graph_with_reasoning(
     beam = beam[:width]
 
     for hop in range(1, max_depth + 1):
+        hop_started_at = _now()
         next_beam = []
         for state in beam:
             relations = _query_candidate_relations(
@@ -797,6 +842,7 @@ def query_graph_with_reasoning(
                 evidence.append(chain)
 
         decision = _stop_decision(question, beam, hop, max_depth)
+        _log_timing("query_graph_with_reasoning.hop", hop_started_at, f"hop={hop} beam={len(beam)} next={len(next_beam)} decision={decision}")
         if decision != "continue":
             evidence.append({
                 "type": "summary",
@@ -813,7 +859,9 @@ def query_graph_with_reasoning(
             )
             break
 
-    return _dedupe_dicts(evidence, ("type", "path_text", "seed", "target", "text"))
+    result = _dedupe_dicts(evidence, ("type", "path_text", "seed", "target", "text"))
+    _log_timing("query_graph_with_reasoning.total", fn_started_at, f"facts={len(result)}")
+    return result
 
 def ask_deepseek_stream(client, user_input, context_knowledge, history=[]):
     """
@@ -845,14 +893,22 @@ def ask_deepseek_stream(client, user_input, context_knowledge, history=[]):
     messages.append({"role": "user", "content": user_input})
 
     try:
+        api_started_at = _now()
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages,
             stream=True,
             temperature=0.1
         )
+        _log_timing("ask_deepseek_stream.api_create", api_started_at, f"history={len(history)} facts={len(context_knowledge)}")
+        stream_started_at = _now()
+        first_chunk_logged = False
         for chunk in response:
             if chunk.choices[0].delta.content:
+                if not first_chunk_logged:
+                    _log_timing("ask_deepseek_stream.first_chunk", stream_started_at)
+                    first_chunk_logged = True
                 yield chunk.choices[0].delta.content
+        _log_timing("ask_deepseek_stream.stream_total", stream_started_at)
     except Exception as e:
         yield f"❌ 出错: {e}"

@@ -11,7 +11,7 @@ def register_user(db: Session, payload: RegisterRequest) -> TokenResponse:
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="用户名已存在")
 
-    user = User(username=payload.username, password_hash=get_password_hash(payload.password))
+    user = User(username=payload.username, password_hash=get_password_hash(payload.password), role="student")
     db.add(user)
     db.commit()
     db.refresh(user)

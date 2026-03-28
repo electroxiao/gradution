@@ -2,7 +2,7 @@
   <div class="page-shell auth-page">
     <div class="card auth-card">
       <h1>Java 智能编程导师</h1>
-      <p>登录后查看个人历史与薄弱点。</p>
+      <p>学生登录后进入辅导端，教师使用预置账号登录后进入教师工作台。</p>
       <form @submit.prevent="submit">
         <input v-model="username" placeholder="用户名" />
         <input v-model="password" type="password" placeholder="密码" />
@@ -31,7 +31,6 @@ const password = ref("");
 const isRegister = ref(false);
 const errorMessage = ref("");
 const loading = ref(false);
-
 async function submit() {
   errorMessage.value = "";
   loading.value = true;
@@ -42,7 +41,7 @@ async function submit() {
     } else {
       await authStore.login(payload);
     }
-    router.push("/");
+    router.push(authStore.role === "teacher" ? "/teacher/dashboard" : "/");
   } catch (error) {
     errorMessage.value = error?.response?.data?.detail || "登录失败，请检查输入或后端状态。";
   } finally {
