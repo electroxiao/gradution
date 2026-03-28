@@ -11,10 +11,23 @@
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
     <div class="toolbar">
-      <button @click="startCreateNode">新增节点</button>
       <div class="toolbar-search">
-        <input v-model="keyword" placeholder="搜索节点名或描述" @keydown.enter.prevent="searchGraph" />
+        <input 
+          v-model="keyword" 
+          placeholder="搜索节点名或描述" 
+          @input="handleSearchInput"
+          @focus="handleSearchInput"
+          @blur="hideSearchDropdown"
+          @keydown.enter.prevent="searchGraph" 
+        />
         <button class="ghost" @click="searchGraph">搜索</button>
+
+        <ul v-if="showSearchResults" class="search-dropdown">
+          <li v-for="res in searchResults" :key="res.id" @mousedown.prevent="selectSearchResult(res)">
+            <strong>{{ res.name }}</strong>
+            <span v-if="res.desc" class="desc-preview">{{ res.desc }}</span>
+          </li>
+        </ul>
       </div>
       <span class="graph-meta">节点 {{ graph.nodes.length }} / 边 {{ graph.edges.length }}</span>
       <button class="ghost" @click="toggleFullscreen">全屏</button>
@@ -45,6 +58,11 @@
       </section>
 
       <aside class="detail-panel">
+        <div class="panel-card action-bar">
+          <button @click="startCreateNode">➕ 新增节点</button>
+          <button @click="startCreateEdge">➕ 新增关系</button>
+        </div>
+
         <div class="panel-card">
           <div class="panel-head">
             <h3>详细信息</h3>
@@ -56,18 +74,14 @@
           <div v-if="selectedNode" class="detail-body">
             <label>
               节点名
-              <input v-model="nodeForm.name" placeholder="节点名" />
+              <input v-model="nodeForm.name" placeholder="节点名" disabled title="节点名作为唯一标识不可修改" />
             </label>
             <label>
               描述
               <textarea v-model="nodeForm.desc" rows="5" placeholder="节点描述"></textarea>
             </label>
-            <label>
-              类型
-              <input v-model="nodeForm.node_type" placeholder="节点类型（可选）" />
-            </label>
             <div class="detail-actions">
-              <button @click="submitNode">保存节点</button>
+              <button @click="submitNode">保存修改</button>
               <button class="danger" @click="deleteNode">删除</button>
             </div>
           </div>
@@ -75,24 +89,14 @@
           <div v-else-if="selectedEdge" class="detail-body">
             <label>
               起点
-              <select v-model="edgeForm.source">
-                <option value="">选择起点节点</option>
-                <option v-for="node in graph.nodes" :key="`src-${node.id}`" :value="node.name">{{ node.name }}</option>
-              </select>
-            </label>
-            <label>
-              关系名
-              <input v-model="edgeForm.relation" placeholder="如 DEPENDS_ON" />
+              <input list="node-list" v-model="edgeForm.source" placeholder="搜索或选择起点" />
             </label>
             <label>
               终点
-              <select v-model="edgeForm.target">
-                <option value="">选择终点节点</option>
-                <option v-for="node in graph.nodes" :key="`tgt-${node.id}`" :value="node.name">{{ node.name }}</option>
-              </select>
+              <input list="node-list" v-model="edgeForm.target" placeholder="搜索或选择终点" />
             </label>
             <div class="detail-actions">
-              <button @click="submitEdge">保存关系</button>
+              <button @click="submitEdge">保存修改</button>
               <button class="danger" @click="deleteEdge">删除</button>
             </div>
           </div>
@@ -101,38 +105,53 @@
             <p>点击左侧图谱中的节点或关系，就能在这里查看详细信息并继续编辑。</p>
           </div>
         </div>
-
-        <div class="panel-card">
-          <div class="panel-head">
-            <h3>快捷新增关系</h3>
-            <button class="ghost small" @click="startCreateEdge">清空</button>
-          </div>
-          <div class="detail-body">
-            <label>
-              起点
-              <select v-model="edgeForm.source">
-                <option value="">选择起点节点</option>
-                <option v-for="node in graph.nodes" :key="`create-src-${node.id}`" :value="node.name">{{ node.name }}</option>
-              </select>
-            </label>
-            <label>
-              关系名
-              <input v-model="edgeForm.relation" placeholder="如 DEPENDS_ON" />
-            </label>
-            <label>
-              终点
-              <select v-model="edgeForm.target">
-                <option value="">选择终点节点</option>
-                <option v-for="node in graph.nodes" :key="`create-tgt-${node.id}`" :value="node.name">{{ node.name }}</option>
-              </select>
-            </label>
-            <div class="detail-actions">
-              <button @click="submitEdge">{{ selectedEdge ? "另存为新关系" : "创建关系" }}</button>
-            </div>
-          </div>
-        </div>
       </aside>
     </div>
+
+    <div v-if="isCreatingNode" class="modal-overlay" @click.self="cancelCreateNode">
+      <div class="modal-card">
+        <h3>新增节点</h3>
+        <div class="detail-body">
+          <label>
+            节点名 <span class="required">*</span>
+            <input v-model="nodeForm.name" placeholder="请输入唯一的节点名" />
+          </label>
+          <label>
+            描述
+            <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述"></textarea>
+          </label>
+          <div class="detail-actions modal-actions">
+            <button class="ghost" @click="cancelCreateNode">取消</button>
+            <button @click="submitNode">确认创建</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="isCreatingEdge" class="modal-overlay" @click.self="cancelCreateEdge">
+      <div class="modal-card">
+        <h3>新增关系</h3>
+        <div class="detail-body">
+          <label>
+            起点 <span class="required">*</span>
+            <input list="node-list" v-model="edgeForm.source" placeholder="搜索或选择起点" />
+          </label>
+          <label>
+            终点 <span class="required">*</span>
+            <input list="node-list" v-model="edgeForm.target" placeholder="搜索或选择终点" />
+          </label>
+          <div class="detail-actions modal-actions">
+            <button class="ghost" @click="cancelCreateEdge">取消</button>
+            <button @click="submitEdge">确认创建</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <datalist id="node-list">
+      <option v-for="node in graph.nodes" :key="node.id" :value="node.name"></option>
+    </datalist>
+
   </section>
 </template>
 
@@ -158,20 +177,29 @@ const graphRenderError = ref("");
 const isGraphLoading = ref(false);
 const fullGraph = ref({ nodes: [], edges: [] });
 const graph = ref({ nodes: [], edges: [] });
+
 const selectedNodeId = ref("");
 const selectedEdgeId = ref("");
+
+// 控制弹窗的显示状态
+const isCreatingNode = ref(false);
+const isCreatingEdge = ref(false);
+
+// 搜索下拉相关状态
+const showSearchResults = ref(false);
+const searchResults = ref([]);
+
 const graphViewport = ref(null);
 const graphCanvas = ref(null);
 
 const nodeForm = reactive({
   name: "",
   desc: "",
-  node_type: "",
 });
 
 const edgeForm = reactive({
   source: "",
-  relation: "",
+  relation: "DEPENDS_ON", // 🚀 优化 3：默认为 DEPENDS_ON 且不暴露给用户修改
   target: "",
 });
 
@@ -196,7 +224,8 @@ async function loadGraph() {
   errorMessage.value = "";
   graphRenderError.value = "";
   try {
-    const { data } = await getTeacherGraphApi({ keyword: "", limit: 1000 });
+    // 修复了隐藏的 bug，将 limit 统一改为 2000
+    const { data } = await getTeacherGraphApi({ keyword: "", limit: 2000 });
     fullGraph.value = data;
     applyGraphData(data);
   } catch (error) {
@@ -231,17 +260,26 @@ function clearSelection() {
 }
 
 function startCreateNode() {
-  clearSelection();
+  isCreatingNode.value = true;
   nodeForm.name = "";
   nodeForm.desc = "";
-  nodeForm.node_type = "";
+}
+
+function cancelCreateNode() {
+  isCreatingNode.value = false;
+  if (selectedNodeId.value) handleSelectNode(selectedNodeId.value);
 }
 
 function startCreateEdge() {
-  selectedEdgeId.value = "";
-  edgeForm.source = "";
-  edgeForm.relation = "";
+  isCreatingEdge.value = true;
+  edgeForm.source = selectedNode.value ? selectedNode.value.name : "";
+  edgeForm.relation = "DEPENDS_ON"; // 永远固定为 DEPENDS_ON
   edgeForm.target = "";
+}
+
+function cancelCreateEdge() {
+  isCreatingEdge.value = false;
+  if (selectedEdgeId.value) handleSelectEdge(selectedEdgeId.value);
 }
 
 function handleSelectNode(nodeId) {
@@ -251,7 +289,6 @@ function handleSelectNode(nodeId) {
   if (!node) return;
   nodeForm.name = node.name;
   nodeForm.desc = node.desc || "";
-  nodeForm.node_type = node.node_type || "";
 }
 
 function handleSelectEdge(edgeId) {
@@ -260,58 +297,73 @@ function handleSelectEdge(edgeId) {
   const edge = graph.value.edges.find((item) => item.id === edgeId);
   if (!edge) return;
   edgeForm.source = edge.source_name || edge.source;
-  edgeForm.relation = edge.relation;
+  edgeForm.relation = edge.relation || "DEPENDS_ON";
   edgeForm.target = edge.target_name || edge.target;
 }
 
 async function submitNode() {
+  if (!nodeForm.name.trim()) {
+    errorMessage.value = "节点名不能为空";
+    return;
+  }
   try {
-    if (selectedNode.value) {
-      await updateTeacherNodeApi(selectedNode.value.name, { ...nodeForm });
-    } else {
+    if (isCreatingNode.value) {
       await createTeacherNodeApi({ ...nodeForm });
+      isCreatingNode.value = false;
+    } else if (selectedNode.value) {
+      await updateTeacherNodeApi(selectedNode.value.name, { ...nodeForm });
     }
     await refreshGraph();
-    startCreateNode();
+    errorMessage.value = "";
   } catch (error) {
     handleApiError(error, "保存节点失败。");
   }
 }
 
-async function deleteNode() {
-  if (!selectedNode.value) return;
-  try {
-    await deleteTeacherNodeApi(selectedNode.value.name);
-    await refreshGraph();
-    startCreateNode();
-  } catch (error) {
-    handleApiError(error, "删除节点失败。");
-  }
-}
-
 async function submitEdge() {
+  if (!edgeForm.source || !edgeForm.target) {
+    errorMessage.value = "请填写起点和终点信息";
+    return;
+  }
+  // 提交前再次确认关系名称
+  edgeForm.relation = "DEPENDS_ON";
+  
   try {
-    if (selectedEdge.value) {
-      await updateTeacherEdgeApi(selectedEdge.value.edge_key, { ...edgeForm });
-    } else {
+    if (isCreatingEdge.value) {
       await createTeacherEdgeApi({ ...edgeForm });
+      isCreatingEdge.value = false;
+    } else if (selectedEdge.value) {
+      await updateTeacherEdgeApi(selectedEdge.value.edge_key, { ...edgeForm });
     }
     await refreshGraph();
-    startCreateEdge();
+    errorMessage.value = "";
   } catch (error) {
     handleApiError(error, "保存关系失败。");
   }
 }
 
+function asyncDeleteAction(actionFn) {
+    return async () => {
+        try {
+            await actionFn();
+            await refreshGraph();
+            clearSelection();
+        } catch (error) {
+            handleApiError(error, "删除失败。");
+        }
+    }
+}
+
+async function deleteNode() {
+  if (!selectedNode.value) return;
+  if(!confirm(`确定要删除节点 "${selectedNode.value.name}" 吗？这可能也会删除关联的边。`)) return;
+  await asyncDeleteAction(() => deleteTeacherNodeApi(selectedNode.value.name))();
+}
+
 async function deleteEdge() {
   if (!selectedEdge.value) return;
-  try {
-    await deleteTeacherEdgeApi(selectedEdge.value.edge_key);
-    await refreshGraph();
-    startCreateEdge();
-  } catch (error) {
-    handleApiError(error, "删除关系失败。");
-  }
+  if(!confirm("确定要删除这条关系吗？")) return;
+  await asyncDeleteAction(() => deleteTeacherEdgeApi(selectedEdge.value.edge_key))();
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -345,12 +397,37 @@ function findLocalMatches(query) {
   });
 }
 
+// 🚀 搜索与下拉框逻辑
+function handleSearchInput() {
+  const query = keyword.value.trim();
+  if (!query) {
+    showSearchResults.value = false;
+    searchResults.value = [];
+    return;
+  }
+  searchResults.value = findLocalMatches(query);
+  showSearchResults.value = searchResults.value.length > 0;
+}
+
+function hideSearchDropdown() {
+  // 延迟关闭，以确保点击事件能触发
+  setTimeout(() => { showSearchResults.value = false; }, 150);
+}
+
+async function selectSearchResult(node) {
+  keyword.value = node.name; // 将输入框内容替换为选中的节点名
+  showSearchResults.value = false;
+  handleSelectNode(node.id);
+  await focusNodeIds([node.id]);
+}
+
 async function focusNodeIds(nodeIds) {
   await nextTick();
   graphCanvas.value?.focusNodes?.(nodeIds);
 }
 
 async function searchGraph(options = {}) {
+  showSearchResults.value = false;
   const query = keyword.value.trim();
   errorMessage.value = "";
   graphRenderError.value = "";
@@ -369,12 +446,10 @@ async function searchGraph(options = {}) {
     return;
   }
 
-  if (!options.useFreshBaseGraph) {
-    isGraphLoading.value = true;
-  }
+  if (!options.useFreshBaseGraph) isGraphLoading.value = true;
 
   try {
-    const { data } = await getTeacherGraphApi({ keyword: query, limit: 1000 });
+    const { data } = await getTeacherGraphApi({ keyword: query, limit: 2000 });
     applyGraphData(data);
     if (data.nodes.length) {
       handleSelectNode(data.nodes[0].id);
@@ -385,9 +460,7 @@ async function searchGraph(options = {}) {
   } catch (error) {
     handleApiError(error, "搜索图谱失败。");
   } finally {
-    if (!options.useFreshBaseGraph) {
-      isGraphLoading.value = false;
-    }
+    if (!options.useFreshBaseGraph) isGraphLoading.value = false;
   }
 }
 </script>
@@ -431,11 +504,61 @@ async function searchGraph(options = {}) {
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.05);
 }
 
+/* 🚀 搜索框布局调整 */
 .toolbar-search {
   display: flex;
   flex: 1;
   min-width: 260px;
   gap: 10px;
+  position: relative; /* 为绝对定位的下拉框做基准 */
+}
+
+/* 🚀 新增下拉菜单样式 */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 80px; /* 避开右侧的搜索按钮 */
+  margin-top: 8px;
+  background: #ffffff;
+  border: 1px solid #e2ebf4;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 40, 64, 0.15);
+  list-style: none;
+  padding: 8px 0;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.search-dropdown li {
+  padding: 10px 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid #f0f5fa;
+}
+
+.search-dropdown li:last-child {
+  border-bottom: none;
+}
+
+.search-dropdown li:hover {
+  background: #f8fbff;
+}
+
+.search-dropdown li strong {
+  color: #10283d;
+  font-size: 14px;
+}
+
+.desc-preview {
+  color: #6f8297;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .graph-meta {
@@ -448,15 +571,14 @@ async function searchGraph(options = {}) {
 .toolbar input,
 .detail-body input,
 .detail-body textarea,
-.detail-body select,
-.detail-actions button {
+.detail-actions button,
+.action-bar button {
   font: inherit;
 }
 
 .toolbar input,
 .detail-body input,
-.detail-body textarea,
-.detail-body select {
+.detail-body textarea {
   width: 100%;
   padding: 12px 14px;
   border: 1px solid #d8e2ee;
@@ -465,13 +587,21 @@ async function searchGraph(options = {}) {
 }
 
 .toolbar button,
-.detail-actions button {
+.detail-actions button,
+.action-bar button {
   border: none;
   border-radius: 14px;
   padding: 12px 16px;
   background: #10283d;
   color: #fff;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toolbar button:hover,
+.detail-actions button:hover,
+.action-bar button:hover {
+  background: #1c3d5a;
 }
 
 .toolbar .ghost,
@@ -481,8 +611,9 @@ async function searchGraph(options = {}) {
   color: #2d5278;
 }
 
-.toolbar .ghost.small {
-  padding: 10px 12px;
+.toolbar .ghost:hover,
+.detail-actions .ghost:hover {
+  background: #d8e6fa;
 }
 
 .graph-layout {
@@ -540,6 +671,22 @@ async function searchGraph(options = {}) {
   background: #f8fbff;
 }
 
+.action-bar {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #e2ebf4;
+}
+.action-bar button {
+  flex: 1;
+  background: #2563eb;
+  font-weight: 500;
+}
+.action-bar button:hover {
+  background: #1d4ed8;
+}
+
 .panel-head {
   display: flex;
   align-items: center;
@@ -560,7 +707,7 @@ async function searchGraph(options = {}) {
 
 .detail-body {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .detail-body label {
@@ -568,6 +715,11 @@ async function searchGraph(options = {}) {
   gap: 8px;
   color: #526b84;
   font-size: 13px;
+  font-weight: 500;
+}
+
+.required {
+  color: #e11d48;
 }
 
 .detail-body textarea {
@@ -578,15 +730,23 @@ async function searchGraph(options = {}) {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 6px;
 }
 
 .detail-actions .danger {
   background: #f97316;
 }
 
+.detail-actions .danger:hover {
+  background: #ea580c;
+}
+
 .empty-detail {
   color: #6f8297;
   line-height: 1.7;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px 0;
 }
 
 .feedback.error {
@@ -594,6 +754,44 @@ async function searchGraph(options = {}) {
   border-radius: 18px;
   background: #fff8f8;
   color: #b42318;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  padding: 28px;
+  border-radius: 24px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
+  transform: translateY(-5vh);
+}
+
+.modal-card h3 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  color: #0f2840;
+}
+
+.modal-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (max-width: 1120px) {
