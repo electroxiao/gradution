@@ -1,13 +1,12 @@
 <template>
-  <div ref="container" class="graph-canvas" @wheel.prevent></div>
+  <div ref="container" class="graph-canvas" @dragstart.prevent></div>
 </template>
 
 <script setup>
 import { NVL } from "@neo4j-nvl/base";
-import { PanInteraction, ZoomInteraction, DragNodeInteraction } from "@neo4j-nvl/interaction-handlers";
+// 引入官方四大交互引擎
+import { PanInteraction, ZoomInteraction, DragNodeInteraction, ClickInteraction } from "@neo4j-nvl/interaction-handlers";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-
-import { buildTeacherGraphLayout } from "../features/teacher-graph/graphLayout";
 import { toNvlGraph } from "../features/teacher-graph/nvlGraphAdapter";
 
 const props = defineProps({
@@ -20,62 +19,20 @@ const props = defineProps({
 const emit = defineEmits(["select-node", "select-edge", "clear-selection"]);
 
 const container = ref(null);
+
+// 🚀 修复 2：必须将引擎声明为全局变量！
+// 绝对不能让它们在函数执行完后被垃圾回收机制(GC)销毁！
 let nvl = null;
 let panInteraction = null;
 let zoomInteraction = null;
 let dragInteraction = null;
-let resizeObserver = null;
-let clickHandler = null;
-let wheelHandler = null; // ✅ 新增
-
-function getViewportSize() {
-  const rect = container.value?.getBoundingClientRect();
-  return {
-    width: rect?.width || 1120,
-    height: rect?.height || 680,
-  };
-}
+let clickInteraction = null;
 
 function getGraphPayload() {
   return toNvlGraph(
-    {
-      nodes: props.nodes,
-      edges: props.edges,
-    },
-    {
-      selectedNodeId: props.selectedNodeId,
-      selectedEdgeId: props.selectedEdgeId,
-    },
+    { nodes: props.nodes, edges: props.edges },
+    { selectedNodeId: props.selectedNodeId, selectedEdgeId: props.selectedEdgeId }
   );
-}
-
-function bindCanvasEvents() {
-  if (!container.value || !nvl) return;
-
-  clickHandler = (event) => {
-    const hits = nvl.getHits(event);
-    const hitNode = hits?.nvlTargets?.nodes?.[0];
-    const hitRelationship = hits?.nvlTargets?.relationships?.[0];
-
-    if (hitNode?.data?.id) {
-      emit("select-node", hitNode.data.id);
-      return;
-    }
-    if (hitRelationship?.data?.id) {
-      emit("select-edge", hitRelationship.data.id);
-      return;
-    }
-    emit("clear-selection");
-  };
-
-  container.value.addEventListener("click", clickHandler);
-}
-
-function unbindCanvasEvents() {
-  if (container.value && clickHandler) {
-    container.value.removeEventListener("click", clickHandler);
-  }  
-  clickHandler = null;
 }
 
 function fitGraph(nodeIds = []) {
@@ -88,61 +45,35 @@ function fitGraph(nodeIds = []) {
   nvl.fit(ids);
 }
 
-function applyLayout(nodeIdsToFit = []) {
-  if (!nvl) return;
-  // const positions = buildTeacherGraphLayout(props.nodes, props.edges, getViewportSize());
-  // nvl.setNodePositions(positions, false);
-  requestAnimationFrame(() => {
-    fitGraph(nodeIdsToFit);
-  });
-}
-
 function syncGraph() {
   if (!nvl) return;
-
   const payload = getGraphPayload();
   const incomingNodeIds = new Set(payload.nodes.map((node) => node.id));
-  const incomingRelationshipIds = new Set(payload.relationships.map((relationship) => relationship.id));
+  const incomingRelIds = new Set(payload.relationships.map((rel) => rel.id));
 
-  const staleNodeIds = nvl
-    .getNodes()
-    .map((node) => node.id)
-    .filter((id) => !incomingNodeIds.has(id));
-  const staleRelationshipIds = nvl
-    .getRelationships()
-    .map((relationship) => relationship.id)
-    .filter((id) => !incomingRelationshipIds.has(id));
+  const staleNodeIds = nvl.getNodes().map((n) => n.id).filter((id) => !incomingNodeIds.has(id));
+  const staleRelIds = nvl.getRelationships().map((r) => r.id).filter((id) => !incomingRelIds.has(id));
 
-  if (staleRelationshipIds.length) {
-    nvl.removeRelationshipsWithIds(staleRelationshipIds);
-  }
-  if (staleNodeIds.length) {
-    nvl.removeNodesWithIds(staleNodeIds);
-  }
+  if (staleRelIds.length) nvl.removeRelationshipsWithIds(staleRelIds);
+  if (staleNodeIds.length) nvl.removeNodesWithIds(staleNodeIds);
 
   nvl.addAndUpdateElementsInGraph(payload.nodes, payload.relationships);
-  applyLayout(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
+  
+  // ⛔️ 修复 3：删除了这里的 fitGraph()！
+  // 之前你一缩放，Vue 的数据监听就触发这里强制把镜头拉回原点，导致了“无法缩放”的假象！
 }
 
 function syncSelection() {
   if (!nvl) return;
-
   const payload = getGraphPayload();
   nvl.updateElementsInGraph(payload.nodes, payload.relationships);
-
-  if (props.selectedNodeId) {
-    requestAnimationFrame(() => {
-      fitGraph([String(props.selectedNodeId)]);
-    });
-  }
 }
 
 function initializeGraph() {
   if (!container.value) return;
 
-  destroyGraph();
-
   const payload = getGraphPayload();
+  
   nvl = new NVL(
     container.value,
     payload.nodes,
@@ -153,32 +84,31 @@ function initializeGraph() {
       renderer: "webgl",
       layout: "d3Force",
       initialZoom: 0.9,
-      // 🌟 修复 1：增加物理引擎配置，控制排斥力与引力
-      layoutOptions: {
-        nodeSpacing: 80, // 节点间距，数值越大图越散        
-      },      
-    },
-    {
-      onLayoutDone: () => {
-        fitGraph(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
-      },
-    },
+      layoutOptions: { nodeSpacing: 80 }
+    }
   );
 
-  dragInteraction = new DragNodeInteraction(nvl); 
-  panInteraction = new PanInteraction(nvl);       
+  // 🚀 修复 4：把引擎实例存入全局变量，给它们“保活”
   zoomInteraction = new ZoomInteraction(nvl);
-
-  applyLayout(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
-  bindCanvasEvents();
-
-  // ⛔️ 修复 3：删除/注释掉 ResizeObserver！
-  // 彻底阻止它在后台疯狂重置你的镜头，把交互控制权还给鼠标。
+  panInteraction = new PanInteraction(nvl);
+  dragInteraction = new DragNodeInteraction(nvl);
   
-  // resizeObserver = new ResizeObserver(() => {
-  //   applyLayout(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
-  // });
-  // resizeObserver.observe(container.value);
+  // 🚀 修复 5：使用官方的点击引擎，完美解决拖拽和点击的冲突
+  clickInteraction = new ClickInteraction(nvl);
+  clickInteraction.updateCallback('onNodeClick', (node) => {
+    emit("select-node", node.id);
+  });
+  clickInteraction.updateCallback('onRelationshipClick', (rel) => {
+    emit("select-edge", rel.id);
+  });
+  clickInteraction.updateCallback('onCanvasClick', () => {
+    emit("clear-selection");
+  });
+
+  // 初次加载时居中一次即可
+  requestAnimationFrame(() => {
+    fitGraph(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
+  });
 }
 
 function focusNodes(nodeIds = []) {
@@ -186,54 +116,33 @@ function focusNodes(nodeIds = []) {
 }
 
 function restartLayout() {
-  applyLayout(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
+  if (!nvl) return;
+  fitGraph(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
 }
 
 function destroyGraph() {
-  unbindCanvasEvents();
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-    resizeObserver = null;
-  }
   if (nvl) {
     nvl.destroy();
     nvl = null;
   }
+  // 释放内存
+  panInteraction = null;
+  zoomInteraction = null;
+  dragInteraction = null;
+  clickInteraction = null;
 }
 
-watch(
-  () => [props.nodes, props.edges],
-  () => {
-    if (!nvl) return;
-    syncGraph();
-  },
-  { deep: true },
-);
-
-watch(
-  () => [props.selectedNodeId, props.selectedEdgeId],
-  () => {
-    if (!nvl) return;
-    syncSelection();
-  },
-);
+watch(() => [props.nodes, props.edges], () => { if (nvl) syncGraph(); }, { deep: true });
+watch(() => [props.selectedNodeId, props.selectedEdgeId], () => { if (nvl) syncSelection(); });
 
 onMounted(async () => {
   await nextTick();
-  requestAnimationFrame(() => {
-    initializeGraph();
-  });
+  requestAnimationFrame(() => initializeGraph());
 });
 
-onBeforeUnmount(() => {
-  destroyGraph();
-});
+onBeforeUnmount(() => destroyGraph());
 
-defineExpose({
-  fitGraph,
-  focusNodes,
-  restartLayout,
-});
+defineExpose({ fitGraph, focusNodes, restartLayout });
 </script>
 
 <style scoped>
@@ -244,5 +153,11 @@ defineExpose({
   border-radius: 18px;
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
   overflow: hidden;
+  
+  /* 🚀 修复 6：CSS 终极护盾，阻断所有系统级干扰 */
+  user-select: none;           /* 禁止文本选中 */
+  -webkit-user-drag: none;     /* 禁止触发原生拖拽（红色禁止图标的终极元凶） */
+  touch-action: none;          /* 彻底将触控和滚轮交给底层的 Zoom 引擎处理 */
+  overscroll-behavior: none;   /* 阻断浏览器回弹和页面上下乱滚 */
 }
 </style>
