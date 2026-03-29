@@ -4,7 +4,6 @@
 
 <script setup>
 import { NVL } from "@neo4j-nvl/base";
-// 引入官方四大交互引擎
 import { PanInteraction, ZoomInteraction, DragNodeInteraction, ClickInteraction } from "@neo4j-nvl/interaction-handlers";
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { toNvlGraph } from "../features/teacher-graph/nvlGraphAdapter";
@@ -20,13 +19,12 @@ const emit = defineEmits(["select-node", "select-edge", "clear-selection"]);
 
 const container = ref(null);
 
-// 🚀 修复 2：必须将引擎声明为全局变量！
-// 绝对不能让它们在函数执行完后被垃圾回收机制(GC)销毁！
 let nvl = null;
 let panInteraction = null;
 let zoomInteraction = null;
 let dragInteraction = null;
 let clickInteraction = null;
+let currentZoom = 0.9;
 
 function getGraphPayload() {
   return toNvlGraph(
@@ -58,15 +56,37 @@ function syncGraph() {
   if (staleNodeIds.length) nvl.removeNodesWithIds(staleNodeIds);
 
   nvl.addAndUpdateElementsInGraph(payload.nodes, payload.relationships);
-  
-  // ⛔️ 修复 3：删除了这里的 fitGraph()！
-  // 之前你一缩放，Vue 的数据监听就触发这里强制把镜头拉回原点，导致了“无法缩放”的假象！
 }
 
 function syncSelection() {
   if (!nvl) return;
   const payload = getGraphPayload();
   nvl.updateElementsInGraph(payload.nodes, payload.relationships);
+}
+
+function handleZoomChange() {
+  if (!nvl) return;
+  
+  const viewport = nvl.getViewport();
+  if (!viewport) return;
+  
+  currentZoom = viewport.zoom || currentZoom;
+  
+  const showLabels = currentZoom > 1.2;
+  
+  const nodes = nvl.getNodes();
+  const updatedNodes = nodes.map(node => {
+    const originalNode = props.nodes.find(n => String(n.id) === node.id);
+    const label = originalNode?.name || originalNode?.label || node.id;
+    
+    return {
+      ...node,
+      captionSize: showLabels ? 14 : 11,
+      captions: [{ value: label }],
+    };
+  });
+  
+  nvl.updateElementsInGraph(updatedNodes, []);
 }
 
 function initializeGraph() {
@@ -81,19 +101,21 @@ function initializeGraph() {
     {
       disableTelemetry: true,
       disableWebWorkers: false,
-      renderer: "webgl",
+      renderer: "canvas",
       layout: "d3Force",
       initialZoom: 0.9,
-      layoutOptions: { nodeSpacing: 80 }
+      layoutOptions: { nodeSpacing: 80 },
+      nodeCaptionSize: 11,
+      nodeCaptionColor: "#1e293b",
+      relationshipCaptionSize: 10,
+      relationshipCaptionColor: "#64748b",
     }
   );
 
-  // 🚀 修复 4：把引擎实例存入全局变量，给它们“保活”
   zoomInteraction = new ZoomInteraction(nvl);
   panInteraction = new PanInteraction(nvl);
   dragInteraction = new DragNodeInteraction(nvl);
   
-  // 🚀 修复 5：使用官方的点击引擎，完美解决拖拽和点击的冲突
   clickInteraction = new ClickInteraction(nvl);
   clickInteraction.updateCallback('onNodeClick', (node) => {
     emit("select-node", node.id);
@@ -105,9 +127,17 @@ function initializeGraph() {
     emit("clear-selection");
   });
 
-  // 初次加载时居中一次即可
+  const addZoomListener = () => {
+    if (!container.value) return;
+    container.value.addEventListener('wheel', () => {
+      requestAnimationFrame(handleZoomChange);
+    }, { passive: true });
+    handleZoomChange();
+  };
+
   requestAnimationFrame(() => {
     fitGraph(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
+    addZoomListener();
   });
 }
 
@@ -125,7 +155,6 @@ function destroyGraph() {
     nvl.destroy();
     nvl = null;
   }
-  // 释放内存
   panInteraction = null;
   zoomInteraction = null;
   dragInteraction = null;
@@ -153,11 +182,9 @@ defineExpose({ fitGraph, focusNodes, restartLayout });
   border-radius: 18px;
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
   overflow: hidden;
-  
-  /* 🚀 修复 6：CSS 终极护盾，阻断所有系统级干扰 */
-  user-select: none;           /* 禁止文本选中 */
-  -webkit-user-drag: none;     /* 禁止触发原生拖拽（红色禁止图标的终极元凶） */
-  touch-action: none;          /* 彻底将触控和滚轮交给底层的 Zoom 引擎处理 */
-  overscroll-behavior: none;   /* 阻断浏览器回弹和页面上下乱滚 */
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 </style>

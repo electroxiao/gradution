@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routes import auth, chat as chat_routes, teacher, weak_points
+from backend.api.routes import auth, chat as chat_routes, quiz, teacher, weak_points
 from backend.core.config import settings
 from backend.db import base  # noqa: F401
 from backend.db.bootstrap import ensure_schema_and_seed
@@ -24,6 +24,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(chat_routes.router)
+app.include_router(quiz.router)
 app.include_router(teacher.router)
 app.include_router(weak_points.router)
 

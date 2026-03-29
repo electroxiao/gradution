@@ -18,3 +18,4 @@ class User(Base):
 
     sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
     weak_points = relationship("UserWeakPoint", back_populates="user", cascade="all, delete-orphan")
+    knowledge_states = relationship("UserKnowledgeState", back_populates="user", cascade="all, delete-orphan")

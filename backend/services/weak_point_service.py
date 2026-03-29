@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.chat import ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
+from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
 from backend.schemas.weak_point import WeakPointResponse
 
@@ -57,6 +58,24 @@ def upsert_weak_points(db: Session, user: User, session: ChatSession, node_names
             weak_point.status = "unmastered"
             added.append(node_name)
         weak_point.source_session_id = session.id
+
+        knowledge_state = (
+            db.query(UserKnowledgeState)
+            .filter(
+                UserKnowledgeState.user_id == user.id,
+                UserKnowledgeState.node_id == node_name,
+            )
+            .first()
+        )
+        if not knowledge_state:
+            knowledge_state = UserKnowledgeState(
+                user_id=user.id,
+                node_id=node_name,
+                status="weak",
+            )
+            db.add(knowledge_state)
+        elif knowledge_state.status != "mastered":
+            knowledge_state.status = "weak"
 
     db.commit()
     return added

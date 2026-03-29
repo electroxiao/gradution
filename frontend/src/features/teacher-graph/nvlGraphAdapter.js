@@ -7,13 +7,27 @@ const TYPE_COLOR_MAP = {
   thread: "#d56ca4",
 };
 
+const STATUS_COLOR_MAP = {
+  weak: "#ef4444",
+  mastered: "#22c55e",
+  learning: "#f59e0b",
+};
+
 function normalizeType(rawType) {
   return String(rawType || "").trim().toLowerCase();
 }
 
-function resolveNodeColor(nodeType, isSelected) {
+function resolveNodeColor(nodeType, isSelected, status) {
   if (isSelected) {
     return "#2b76f0";
+  }
+
+  if (status && STATUS_COLOR_MAP[status]) {
+    return STATUS_COLOR_MAP[status];
+  }
+
+  if (nodeType && nodeType.startsWith("#")) {
+    return nodeType;
   }
 
   const normalized = normalizeType(nodeType);
@@ -61,7 +75,7 @@ export function toNvlNodes(nodes, selectedNodeId = "") {
     return {
       id: String(node.id),
       size: isSelected ? 26 : 20,
-      color: resolveNodeColor(node.node_type, isSelected),
+      color: resolveNodeColor(node.color || node.node_type, isSelected, node.status),
       selected: isSelected,
       captionAlign: "bottom",
       captionSize: isSelected ? 13 : 11,
