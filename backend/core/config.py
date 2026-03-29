@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     neo4j_db_name: str = "javagemini"
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com"
+    llm_model_name: str = "deepseek-chat"
     cors_origins: str = "http://localhost:5173"
     teacher_seed_username: str = "teacher"
     teacher_seed_password: str = "teacher123"

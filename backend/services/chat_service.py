@@ -117,7 +117,7 @@ def _generate_session_title(client: OpenAI, user_input: str, assistant_output: s
     try:
         started_at = perf_counter()
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model=settings.llm_model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
         )

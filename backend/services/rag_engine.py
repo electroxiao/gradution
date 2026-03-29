@@ -8,6 +8,7 @@ from backend.core.config import settings
 
 API_KEY = settings.llm_api_key
 BASE_URL = settings.llm_base_url
+MODEL_NAME = settings.llm_model_name
 NEO4J_URI = settings.neo4j_uri
 NEO4J_AUTH = settings.neo4j_auth
 DB_NAME = settings.neo4j_db_name
@@ -26,7 +27,7 @@ def _log_timing(label, started_at, extra=""):
 # --- 步骤 1: 意图识别 (通用) ---
 def extract_keywords_with_llm(client, user_input, history=[], trace=None):
     fn_started_at = _now()
-    print(f"\n🧠 [Step 1] 正在分析输入内容...")
+    print(f"\n[Step 1] 正在分析输入内容...")
 
     context_entities = []
     if history:
@@ -37,7 +38,7 @@ def extract_keywords_with_llm(client, user_input, history=[], trace=None):
     context_str = f"{list(set(context_entities))}" if context_entities else "无"
 
     prompt = f"""
-    你是一个Java知识实体提取专家。请从【用户输入】中提取核心的 Java 知识图谱实体 ID。
+    请从【用户输入】中提取核心的 Java 知识图谱实体 ID。
 
     【用户输入】
     "{user_input}"
@@ -52,7 +53,7 @@ def extract_keywords_with_llm(client, user_input, history=[], trace=None):
     try:
         api_started_at = _now()
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model=settings.llm_model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
@@ -95,6 +96,7 @@ def extract_keywords_with_llm(client, user_input, history=[], trace=None):
 
 # --- 步骤 2: 递归查询完整依赖链 (通用) ---
 def query_dependency_chain(driver, keyword):
+    print("\n[Step 2] 递归查询依赖链...")
     chains = []
     query = """
     MATCH path = (target:Knowledge)-[:DEPENDS_ON*]->(root)
@@ -453,7 +455,7 @@ def relation_prune(client, question, current_entity, candidate_relations, top_k=
         )
 
     prompt = f"""
-你是 ToG 风格图检索规划器。请从候选关系里挑出最值得扩展的关系。
+你是图检索规划器。请从候选关系里挑出最值得扩展的关系。
 问题: {question}
 当前实体: {current_entity}
 候选关系:
@@ -466,7 +468,7 @@ def relation_prune(client, question, current_entity, candidate_relations, top_k=
     try:
         api_started_at = _now()
         resp = client.chat.completions.create(
-            model="deepseek-chat",
+            model=settings.llm_model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
@@ -554,7 +556,7 @@ def entity_score(client, question, current_entity, relation_row, entity_candidat
         )
 
     prompt = f"""
-你是 ToG 风格图推理器。请评估哪些邻居实体最能帮助回答问题。
+请评估哪些邻居实体最能帮助回答问题。
 问题: {question}
 当前实体: {current_entity}
 已选关系: {relation_row['relation']} ({relation_row['direction']})
@@ -568,7 +570,7 @@ def entity_score(client, question, current_entity, relation_row, entity_candidat
     try:
         api_started_at = _now()
         resp = client.chat.completions.create(
-            model="deepseek-chat",
+            model=settings.llm_model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
@@ -802,7 +804,7 @@ def _select_paths_from_subgraph(client, question, candidate_paths, top_k=3):
     try:
         api_started_at = _now()
         resp = client.chat.completions.create(
-            model="deepseek-chat",
+            model=settings.llm_model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
@@ -907,7 +909,7 @@ def _select_weak_points_from_path(client, question, selected_path_fact, dependen
     try:
         api_started_at = _now()
         resp = client.chat.completions.create(
-            model="deepseek-chat",
+            model=settings.llm_model_name,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.1
         )
@@ -1232,7 +1234,7 @@ def ask_deepseek_stream(client, user_input, context_knowledge, history=[]):
     try:
         api_started_at = _now()
         response = client.chat.completions.create(
-            model="deepseek-chat",
+            model=settings.llm_model_name,
             messages=messages,
             stream=True,
             temperature=0.1
