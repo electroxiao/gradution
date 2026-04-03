@@ -13,6 +13,28 @@ const STATUS_COLOR_MAP = {
   learning: "#f59e0b",
 };
 
+function createNodeHtml(label, isSelected) {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  const element = document.createElement("div");
+  element.textContent = label;
+  element.style.pointerEvents = "none";
+  element.style.userSelect = "none";
+  element.style.whiteSpace = "nowrap";
+  element.style.display = "inline-block";
+  element.style.fontSize = isSelected ? "14px" : "12px";
+  element.style.fontWeight = isSelected ? "700" : "600";
+  element.style.lineHeight = "1.2";
+  element.style.color = "#10283d";
+  element.style.textAlign = "center";
+  element.style.textShadow = "0 1px 2px rgba(255, 255, 255, 0.9)";
+  element.style.transform = "translate(-50%, 16px)";
+
+  return element;
+}
+
 function normalizeType(rawType) {
   return String(rawType || "").trim().toLowerCase();
 }
@@ -60,13 +82,6 @@ function resolveNodeColor(nodeType, isSelected, status) {
   return "#d8e7ff";
 }
 
-function formatRelationshipLabel(relation) {
-  return String(relation || "")
-    .trim()
-    .replaceAll("_", " ")
-    .toLowerCase();
-}
-
 export function toNvlNodes(nodes, selectedNodeId = "") {
   return nodes.map((node) => {
     const isSelected = String(node.id) === String(selectedNodeId);
@@ -74,12 +89,10 @@ export function toNvlNodes(nodes, selectedNodeId = "") {
 
     return {
       id: String(node.id),
-      size: isSelected ? 26 : 20,
+      size: isSelected ? 45 : 28,
       color: resolveNodeColor(node.color || node.node_type, isSelected, node.status),
       selected: isSelected,
-      captionAlign: "bottom",
-      captionSize: isSelected ? 13 : 11,
-      captions: [{ value: label }],
+      html: createNodeHtml(label, isSelected),
     };
   });
 }
@@ -92,13 +105,10 @@ export function toNvlRelationships(edges, selectedEdgeId = "") {
       id: String(edge.id),
       from: String(edge.source),
       to: String(edge.target),
-      type: edge.relation || edge.label || "",
+      type: "",
       selected: isSelected,
       color: isSelected ? "#2b76f0" : "#8eabc8",
       width: isSelected ? 3 : 2,
-      captionAlign: "top",
-      captionSize: 10,
-      captions: [{ value: formatRelationshipLabel(edge.relation || edge.label) }],
     };
   });
 }

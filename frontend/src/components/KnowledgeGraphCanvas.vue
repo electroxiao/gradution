@@ -24,7 +24,6 @@ let panInteraction = null;
 let zoomInteraction = null;
 let dragInteraction = null;
 let clickInteraction = null;
-let currentZoom = 0.9;
 
 function getGraphPayload() {
   return toNvlGraph(
@@ -64,31 +63,6 @@ function syncSelection() {
   nvl.updateElementsInGraph(payload.nodes, payload.relationships);
 }
 
-function handleZoomChange() {
-  if (!nvl) return;
-  
-  const viewport = nvl.getViewport();
-  if (!viewport) return;
-  
-  currentZoom = viewport.zoom || currentZoom;
-  
-  const showLabels = currentZoom > 1.2;
-  
-  const nodes = nvl.getNodes();
-  const updatedNodes = nodes.map(node => {
-    const originalNode = props.nodes.find(n => String(n.id) === node.id);
-    const label = originalNode?.name || originalNode?.label || node.id;
-    
-    return {
-      ...node,
-      captionSize: showLabels ? 14 : 11,
-      captions: [{ value: label }],
-    };
-  });
-  
-  nvl.updateElementsInGraph(updatedNodes, []);
-}
-
 function initializeGraph() {
   if (!container.value) return;
 
@@ -105,10 +79,6 @@ function initializeGraph() {
       layout: "d3Force",
       initialZoom: 0.9,
       layoutOptions: { nodeSpacing: 80 },
-      nodeCaptionSize: 11,
-      nodeCaptionColor: "#1e293b",
-      relationshipCaptionSize: 10,
-      relationshipCaptionColor: "#64748b",
     }
   );
 
@@ -127,17 +97,10 @@ function initializeGraph() {
     emit("clear-selection");
   });
 
-  const addZoomListener = () => {
-    if (!container.value) return;
-    container.value.addEventListener('wheel', () => {
-      requestAnimationFrame(handleZoomChange);
-    }, { passive: true });
-    handleZoomChange();
-  };
-
   requestAnimationFrame(() => {
-    fitGraph(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
-    addZoomListener();
+    if (props.selectedNodeId) {
+      fitGraph([String(props.selectedNodeId)]);
+    }
   });
 }
 
@@ -147,7 +110,11 @@ function focusNodes(nodeIds = []) {
 
 function restartLayout() {
   if (!nvl) return;
-  fitGraph(props.selectedNodeId ? [String(props.selectedNodeId)] : []);
+  if (props.selectedNodeId) {
+    fitGraph([String(props.selectedNodeId)]);
+    return;
+  }
+  nvl.resetZoom();
 }
 
 function destroyGraph() {
