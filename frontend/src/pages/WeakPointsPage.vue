@@ -60,7 +60,7 @@
               <span class="icon-circle">!</span>
             </div>
             <p class="intro-text">
-              检测到薄弱点 <strong>【{{ quizNodeName }}】</strong>，是否开始针对性训练？
+              是否针对 <strong>【{{ quizNodeName }}】</strong>开始训练？
             </p>
             <div class="intro-actions">
               <button class="secondary-btn" @click="closeQuizPanel">稍后再说</button>
