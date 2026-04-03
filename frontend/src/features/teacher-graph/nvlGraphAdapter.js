@@ -22,15 +22,18 @@ function createNodeHtml(label, isSelected) {
   element.textContent = label;
   element.style.pointerEvents = "none";
   element.style.userSelect = "none";
-  element.style.whiteSpace = "nowrap";
+  element.style.position = "absolute";
+  element.style.left = "50%";
+  element.style.top = "50%";
   element.style.display = "inline-block";
+  element.style.maxWidth = "80px";
+  element.style.fontFamily = "微软雅黑, Microsoft YaHei, sans-serif";
   element.style.fontSize = isSelected ? "14px" : "12px";
-  element.style.fontWeight = isSelected ? "700" : "600";
+  element.style.fontWeight = "480";
   element.style.lineHeight = "1.2";
-  element.style.color = "#10283d";
+  element.style.color = "#1f2b37ff";
   element.style.textAlign = "center";
-  element.style.textShadow = "0 1px 2px rgba(255, 255, 255, 0.9)";
-  element.style.transform = "translate(-50%, 16px)";
+  element.style.transform = "translate(-50%, -50%)";
 
   return element;
 }
@@ -40,46 +43,40 @@ function normalizeType(rawType) {
 }
 
 function resolveNodeColor(nodeType, isSelected, status) {
+  // 选中状态优先
   if (isSelected) {
     return "#2b76f0";
   }
 
+  // 状态颜色优先
   if (status && STATUS_COLOR_MAP[status]) {
     return STATUS_COLOR_MAP[status];
   }
 
+  // 自定义颜色
   if (nodeType && nodeType.startsWith("#")) {
     return nodeType;
   }
 
+  // 节点类型颜色
   const normalized = normalizeType(nodeType);
-  if (!normalized) {
-    return "#d8e7ff";
+  if (normalized) {
+    // 精确匹配类型
+    if (TYPE_COLOR_MAP[normalized]) {
+      return TYPE_COLOR_MAP[normalized];
+    }
+    
+    // 包含关系匹配
+    if (normalized.includes("collection")) return TYPE_COLOR_MAP.collection;
+    if (normalized.includes("exception")) return TYPE_COLOR_MAP.exception;
+    if (normalized.includes("thread")) return TYPE_COLOR_MAP.thread;
+    if (normalized.includes("syntax")) return TYPE_COLOR_MAP.syntax;
+    if (normalized.includes("oop")) return TYPE_COLOR_MAP.oop;
+    if (normalized.includes("io")) return TYPE_COLOR_MAP.io;
   }
 
-  if (TYPE_COLOR_MAP[normalized]) {
-    return TYPE_COLOR_MAP[normalized];
-  }
-  if (normalized.includes("collection")) {
-    return TYPE_COLOR_MAP.collection;
-  }
-  if (normalized.includes("exception")) {
-    return TYPE_COLOR_MAP.exception;
-  }
-  if (normalized.includes("thread")) {
-    return TYPE_COLOR_MAP.thread;
-  }
-  if (normalized.includes("syntax")) {
-    return TYPE_COLOR_MAP.syntax;
-  }
-  if (normalized.includes("oop")) {
-    return TYPE_COLOR_MAP.oop;
-  }
-  if (normalized.includes("io")) {
-    return TYPE_COLOR_MAP.io;
-  }
-
-  return "#d8e7ff";
+  // 默认颜色
+  return "#B0BEC5";
 }
 
 export function toNvlNodes(nodes, selectedNodeId = "") {
