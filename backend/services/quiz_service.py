@@ -3,7 +3,7 @@ from neo4j import GraphDatabase
 from openai import OpenAI
 
 from backend.core.config import settings
-from backend.services.knowledge_state_service import mark_node_mastered
+from backend.services.knowledge_progress_service import mark_node_mastered
 
 API_KEY = settings.llm_api_key
 BASE_URL = settings.llm_base_url
@@ -194,6 +194,7 @@ def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) 
                     args = json.loads(tool_call.function.arguments)
                     if args.get("node_id"):
                         mark_node_mastered(db, user, args["node_id"])
+                        db.commit()
                         mastered = True
 
         content = message.content or ""
@@ -291,6 +292,7 @@ def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
 
         if mastered or is_correct:
             mark_node_mastered(db, user, node_id)
+            db.commit()
 
         yield {
             "type": "result",

@@ -1,10 +1,13 @@
 from sqlalchemy.orm import Session
 
 from backend.models.chat import ChatSession
-from backend.models.knowledge import KnowledgeNode, UserWeakPoint
-from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
 from backend.schemas.weak_point import WeakPointResponse
+from backend.services.knowledge_progress_service import (
+    list_unmastered_weak_point_rows,
+    mark_node_weak,
+    mark_weak_point_mastered_by_node_id,
+)
 
 
 def extract_core_nodes(facts: list) -> list[str]:
@@ -25,79 +28,23 @@ def extract_core_nodes(facts: list) -> list[str]:
             nodes.add(fact["target"])
     return sorted(nodes)
 
-
-def set_knowledge_state_status(db: Session, user: User, node_name: str, status: str) -> None:
-    knowledge_state = (
-        db.query(UserKnowledgeState)
-        .filter(
-            UserKnowledgeState.user_id == user.id,
-            UserKnowledgeState.node_id == node_name,
-        )
-        .first()
-    )
-    if not knowledge_state:
-        knowledge_state = UserKnowledgeState(
-            user_id=user.id,
-            node_id=node_name,
-            status=status,
-        )
-        db.add(knowledge_state)
-        return
-
-    knowledge_state.status = status
-
-
 def upsert_weak_points(db: Session, user: User, session: ChatSession, node_names: list[str]) -> list[str]:
     added: list[str] = []
     for node_name in node_names:
-        node = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == node_name).first()
-        if not node:
-            node = KnowledgeNode(node_name=node_name)
-            db.add(node)
-            db.flush()
-
-        weak_point = (
-            db.query(UserWeakPoint)
-            .filter(
-                UserWeakPoint.user_id == user.id,
-                UserWeakPoint.knowledge_node_id == node.id,
-            )
-            .first()
-        )
-        if not weak_point:
-            weak_point = UserWeakPoint(
-                user_id=user.id,
-                knowledge_node_id=node.id,
-                source_session_id=session.id,
-                status="unmastered",
-            )
-            db.add(weak_point)
+        if mark_node_weak(db, user, node_name, source_session_id=session.id):
             added.append(node_name)
-        else:
-            if weak_point.status != "unmastered":
-                weak_point.status = "unmastered"
-                added.append(node_name)
-            weak_point.source_session_id = session.id
-
-        set_knowledge_state_status(db, user, node_name, "weak")
 
     db.commit()
     return added
 
 
 def list_unmastered_weak_points(db: Session, user: User) -> list[WeakPointResponse]:
-    rows = (
-        db.query(UserWeakPoint, KnowledgeNode)
-        .join(KnowledgeNode, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
-        .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.status == "unmastered")
-        .order_by(UserWeakPoint.last_seen_at.desc())
-        .all()
-    )
+    rows = list_unmastered_weak_point_rows(db, user)
     return [
         WeakPointResponse(
             id=node.id,
             node_name=node.node_name,
-            status=weak_point.status,
+            status="weak",
             first_seen_at=weak_point.first_seen_at,
             last_seen_at=weak_point.last_seen_at,
         )
@@ -106,18 +53,5 @@ def list_unmastered_weak_points(db: Session, user: User) -> list[WeakPointRespon
 
 
 def mark_weak_point_mastered(db: Session, user: User, node_id: int) -> None:
-    weak_point = (
-        db.query(UserWeakPoint)
-        .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.knowledge_node_id == node_id)
-        .first()
-    )
-    if weak_point:
-        weak_point.status = "mastered"
-        node = (
-            db.query(KnowledgeNode)
-            .filter(KnowledgeNode.id == weak_point.knowledge_node_id)
-            .first()
-        )
-        if node:
-            set_knowledge_state_status(db, user, node.node_name, "mastered")
+    if mark_weak_point_mastered_by_node_id(db, user, node_id):
         db.commit()

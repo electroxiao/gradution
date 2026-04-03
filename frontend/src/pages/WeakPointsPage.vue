@@ -155,6 +155,7 @@ import {
 import { streamGenerateQuizApi, streamSubmitAnswerApi } from "../api/quiz";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
+import { findGraphNodeById, markGraphNodeMastered } from "../features/weak-points/graphState";
 
 const router = useRouter();
 const weakPoints = ref([]);
@@ -222,7 +223,7 @@ async function markMastered(nodeId) {
 
 function handleNodeSelect(nodeId) {
   selectedNodeId.value = nodeId;
-  const node = graphNodes.value.find((n) => n.id === nodeId);
+  const node = findGraphNodeById(graphNodes.value, nodeId);
   if (node) {
     quizNodeId.value = nodeId;
     quizNodeName.value = node.name || nodeId;
@@ -306,11 +307,7 @@ function resetQuiz() {
 }
 
 async function handleMastered(nodeId) {
-  const node = graphNodes.value.find((n) => n.id === nodeId);
-  if (node) {
-    node.status = "mastered";
-    node.color = "#22c55e";
-  }
+  markGraphNodeMastered(graphNodes.value, nodeId);
 }
 
 function handleComplete() {

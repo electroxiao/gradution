@@ -2,55 +2,16 @@ from neo4j import GraphDatabase
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
-from backend.models.knowledge import KnowledgeNode, UserWeakPoint
-from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
-from backend.services.weak_point_service import set_knowledge_state_status
+from backend.services.knowledge_progress_service import (
+    build_graph_state_map,
+    get_graph_node_color,
+    list_unmastered_weak_node_names,
+)
 
 NEO4J_URI = settings.neo4j_uri
 NEO4J_AUTH = settings.neo4j_auth
 DB_NAME = settings.neo4j_db_name
-
-
-def list_unmastered_weak_node_names(db: Session, user: User) -> list[str]:
-    rows = (
-        db.query(KnowledgeNode.node_name)
-        .join(UserWeakPoint, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
-        .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.status == "unmastered")
-        .all()
-    )
-    return [row.node_name for row in rows]
-
-
-def get_user_knowledge_states(db: Session, user: User) -> dict[str, str]:
-    rows = db.query(UserKnowledgeState).filter(UserKnowledgeState.user_id == user.id).all()
-    states = {row.node_id: row.status for row in rows}
-
-    for node_name in list_unmastered_weak_node_names(db, user):
-        if states.get(node_name) != "mastered":
-            states[node_name] = "weak"
-
-    return states
-
-
-def mark_node_mastered(db: Session, user: User, node_id: str) -> None:
-    set_knowledge_state_status(db, user, node_id, "mastered")
-
-    node = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == node_id).first()
-    if node:
-        weak_point = (
-            db.query(UserWeakPoint)
-            .filter(
-                UserWeakPoint.user_id == user.id,
-                UserWeakPoint.knowledge_node_id == node.id,
-            )
-            .first()
-        )
-        if weak_point:
-            weak_point.status = "mastered"
-
-    db.commit()
-
 
 def query_weak_points_subgraph(weak_node_ids: list[str]) -> dict:
     driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
@@ -158,20 +119,12 @@ def query_weak_points_subgraph(weak_node_ids: list[str]) -> dict:
 def get_weak_points_graph(db: Session, user: User) -> dict:
     weak_node_ids = list_unmastered_weak_node_names(db, user)
     graph = query_weak_points_subgraph(weak_node_ids)
-    states = get_user_knowledge_states(db, user)
+    states = build_graph_state_map(db, user)
 
     for node in graph["nodes"]:
         node_id = node["id"]
         status = states.get(node_id, "unknown")
         node["status"] = status
-
-        if status == "weak":
-            node["color"] = "#ef4444"
-        elif status == "mastered":
-            node["color"] = "#22c55e"
-        elif status == "learning":
-            node["color"] = "#f59e0b"
-        else:
-            node["color"] = "#94a3b8"
+        node["color"] = get_graph_node_color(status)
 
     return graph
