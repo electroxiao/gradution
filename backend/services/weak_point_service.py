@@ -79,9 +79,6 @@ def upsert_weak_points(db: Session, user: User, session: ChatSession, node_names
                 added.append(node_name)
             weak_point.source_session_id = session.id
 
-        if weak_point.status != "unmastered":
-            weak_point.status = "unmastered"
-
         set_knowledge_state_status(db, user, node_name, "weak")
 
     db.commit()

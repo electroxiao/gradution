@@ -12,7 +12,7 @@ NEO4J_AUTH = settings.neo4j_auth
 DB_NAME = settings.neo4j_db_name
 
 
-def get_user_weak_node_ids(db: Session, user: User) -> list[str]:
+def list_unmastered_weak_node_names(db: Session, user: User) -> list[str]:
     rows = (
         db.query(KnowledgeNode.node_name)
         .join(UserWeakPoint, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
@@ -22,35 +22,19 @@ def get_user_weak_node_ids(db: Session, user: User) -> list[str]:
     return [row.node_name for row in rows]
 
 
+def get_user_weak_node_ids(db: Session, user: User) -> list[str]:
+    return list_unmastered_weak_node_names(db, user)
+
+
 def get_user_knowledge_states(db: Session, user: User) -> dict[str, str]:
     rows = db.query(UserKnowledgeState).filter(UserKnowledgeState.user_id == user.id).all()
     states = {row.node_id: row.status for row in rows}
 
-    weak_rows = (
-        db.query(KnowledgeNode.node_name)
-        .join(UserWeakPoint, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
-        .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.status == "unmastered")
-        .all()
-    )
-    for row in weak_rows:
-        if states.get(row.node_name) != "mastered":
-            states[row.node_name] = "weak"
+    for node_name in list_unmastered_weak_node_names(db, user):
+        if states.get(node_name) != "mastered":
+            states[node_name] = "weak"
 
     return states
-
-
-def upsert_knowledge_state(db: Session, user: User, node_id: str, status: str) -> None:
-    state = (
-        db.query(UserKnowledgeState)
-        .filter(UserKnowledgeState.user_id == user.id, UserKnowledgeState.node_id == node_id)
-        .first()
-    )
-    if state:
-        state.status = status
-    else:
-        state = UserKnowledgeState(user_id=user.id, node_id=node_id, status=status)
-        db.add(state)
-    db.commit()
 
 
 def mark_node_mastered(db: Session, user: User, node_id: str) -> None:
