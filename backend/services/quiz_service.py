@@ -61,6 +61,7 @@ def generate_quiz_question(node_id: str) -> dict:
 1. 题目应该测试学生对核心概念的理解
 2. 难度适中，适合初学者
 3. 题目要有明确的正确答案
+4. 只生成问题本身，禁止输出答案
 
 只返回 JSON 格式，格式如下：
 {{"question": "题目内容", "hint": "可选的提示"}}
@@ -108,9 +109,11 @@ def stream_generate_quiz_question(node_id: str):
 1. 题目应该测试学生对核心概念的理解
 2. 难度适中，适合初学者
 3. 题目要有明确的正确答案
+4. 只生成问题本身，禁止输出答案
 
 直接输出题目内容，不需要JSON格式。
 """
+
 
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 

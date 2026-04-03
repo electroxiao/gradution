@@ -100,15 +100,18 @@
           </div>
 
           <div v-else-if="quizStep === 'result'" class="quiz-result">
-            <div class="result-icon" :class="isCorrect ? 'correct' : 'incorrect'">
+            <div v-if="isSubmitting" class="result-icon">
+              ⏳
+            </div>
+            <div v-else class="result-icon" :class="isCorrect ? 'correct' : 'incorrect'">
               {{ isCorrect ? '✓' : '✗' }}
             </div>
-            <h4 class="result-title">{{ isCorrect ? '回答正确！' : '回答不完全正确' }}</h4>
+            <h4 class="result-title">{{ isSubmitting ? '判断中...' : (isCorrect ? '回答正确！' : '回答不完全正确') }}</h4>
             <div class="result-feedback">
               <MarkdownContent :content="feedbackContent" />
               <span v-if="isSubmitting" class="streaming-indicator">正在生成反馈...</span>
             </div>
-            <div class="result-actions">
+            <div v-if="!isSubmitting" class="result-actions">
               <button class="secondary-btn" @click="resetQuiz">再来一题</button>
               <button class="primary-btn" @click="handleComplete">
                 {{ isCorrect ? '完成' : '我知道了' }}
