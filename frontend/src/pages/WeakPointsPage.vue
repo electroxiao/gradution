@@ -209,8 +209,12 @@ async function loadGraph() {
 
 async function markMastered(nodeId) {
   try {
+    const masteredItem = weakPoints.value.find((item) => item.id === nodeId);
     await markMasteredApi(nodeId);
     weakPoints.value = weakPoints.value.filter((item) => item.id !== nodeId);
+    if (masteredItem) {
+      handleMastered(masteredItem.node_name);
+    }
   } catch (error) {
     handleApiError(error, "更新薄弱点失败。");
   }

@@ -26,6 +26,27 @@ def extract_core_nodes(facts: list) -> list[str]:
     return sorted(nodes)
 
 
+def set_knowledge_state_status(db: Session, user: User, node_name: str, status: str) -> None:
+    knowledge_state = (
+        db.query(UserKnowledgeState)
+        .filter(
+            UserKnowledgeState.user_id == user.id,
+            UserKnowledgeState.node_id == node_name,
+        )
+        .first()
+    )
+    if not knowledge_state:
+        knowledge_state = UserKnowledgeState(
+            user_id=user.id,
+            node_id=node_name,
+            status=status,
+        )
+        db.add(knowledge_state)
+        return
+
+    knowledge_state.status = status
+
+
 def upsert_weak_points(db: Session, user: User, session: ChatSession, node_names: list[str]) -> list[str]:
     added: list[str] = []
     for node_name in node_names:
@@ -52,30 +73,16 @@ def upsert_weak_points(db: Session, user: User, session: ChatSession, node_names
             )
             db.add(weak_point)
             added.append(node_name)
-            continue
+        else:
+            if weak_point.status != "unmastered":
+                weak_point.status = "unmastered"
+                added.append(node_name)
+            weak_point.source_session_id = session.id
 
         if weak_point.status != "unmastered":
             weak_point.status = "unmastered"
-            added.append(node_name)
-        weak_point.source_session_id = session.id
 
-        knowledge_state = (
-            db.query(UserKnowledgeState)
-            .filter(
-                UserKnowledgeState.user_id == user.id,
-                UserKnowledgeState.node_id == node_name,
-            )
-            .first()
-        )
-        if not knowledge_state:
-            knowledge_state = UserKnowledgeState(
-                user_id=user.id,
-                node_id=node_name,
-                status="weak",
-            )
-            db.add(knowledge_state)
-        elif knowledge_state.status != "mastered":
-            knowledge_state.status = "weak"
+        set_knowledge_state_status(db, user, node_name, "weak")
 
     db.commit()
     return added
@@ -109,4 +116,11 @@ def mark_weak_point_mastered(db: Session, user: User, node_id: int) -> None:
     )
     if weak_point:
         weak_point.status = "mastered"
+        node = (
+            db.query(KnowledgeNode)
+            .filter(KnowledgeNode.id == weak_point.knowledge_node_id)
+            .first()
+        )
+        if node:
+            set_knowledge_state_status(db, user, node.node_name, "mastered")
         db.commit()

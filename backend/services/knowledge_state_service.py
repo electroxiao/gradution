@@ -2,8 +2,10 @@ from neo4j import GraphDatabase
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
+from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
+from backend.services.weak_point_service import set_knowledge_state_status
 
 NEO4J_URI = settings.neo4j_uri
 NEO4J_AUTH = settings.neo4j_auth
@@ -12,16 +14,29 @@ DB_NAME = settings.neo4j_db_name
 
 def get_user_weak_node_ids(db: Session, user: User) -> list[str]:
     rows = (
-        db.query(UserKnowledgeState.node_id)
-        .filter(UserKnowledgeState.user_id == user.id, UserKnowledgeState.status == "weak")
+        db.query(KnowledgeNode.node_name)
+        .join(UserWeakPoint, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
+        .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.status == "unmastered")
         .all()
     )
-    return [row.node_id for row in rows]
+    return [row.node_name for row in rows]
 
 
 def get_user_knowledge_states(db: Session, user: User) -> dict[str, str]:
     rows = db.query(UserKnowledgeState).filter(UserKnowledgeState.user_id == user.id).all()
-    return {row.node_id: row.status for row in rows}
+    states = {row.node_id: row.status for row in rows}
+
+    weak_rows = (
+        db.query(KnowledgeNode.node_name)
+        .join(UserWeakPoint, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
+        .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.status == "unmastered")
+        .all()
+    )
+    for row in weak_rows:
+        if states.get(row.node_name) != "mastered":
+            states[row.node_name] = "weak"
+
+    return states
 
 
 def upsert_knowledge_state(db: Session, user: User, node_id: str, status: str) -> None:
@@ -39,7 +54,22 @@ def upsert_knowledge_state(db: Session, user: User, node_id: str, status: str) -
 
 
 def mark_node_mastered(db: Session, user: User, node_id: str) -> None:
-    upsert_knowledge_state(db, user, node_id, "mastered")
+    set_knowledge_state_status(db, user, node_id, "mastered")
+
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == node_id).first()
+    if node:
+        weak_point = (
+            db.query(UserWeakPoint)
+            .filter(
+                UserWeakPoint.user_id == user.id,
+                UserWeakPoint.knowledge_node_id == node.id,
+            )
+            .first()
+        )
+        if weak_point:
+            weak_point.status = "mastered"
+
+    db.commit()
 
 
 def query_weak_points_subgraph(weak_node_ids: list[str]) -> dict:
