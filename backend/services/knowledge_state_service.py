@@ -22,10 +22,6 @@ def list_unmastered_weak_node_names(db: Session, user: User) -> list[str]:
     return [row.node_name for row in rows]
 
 
-def get_user_weak_node_ids(db: Session, user: User) -> list[str]:
-    return list_unmastered_weak_node_names(db, user)
-
-
 def get_user_knowledge_states(db: Session, user: User) -> dict[str, str]:
     rows = db.query(UserKnowledgeState).filter(UserKnowledgeState.user_id == user.id).all()
     states = {row.node_id: row.status for row in rows}
@@ -160,7 +156,7 @@ def query_weak_points_subgraph(weak_node_ids: list[str]) -> dict:
 
 
 def get_weak_points_graph(db: Session, user: User) -> dict:
-    weak_node_ids = get_user_weak_node_ids(db, user)
+    weak_node_ids = list_unmastered_weak_node_names(db, user)
     graph = query_weak_points_subgraph(weak_node_ids)
     states = get_user_knowledge_states(db, user)
 
