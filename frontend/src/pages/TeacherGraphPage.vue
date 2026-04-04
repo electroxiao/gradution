@@ -105,6 +105,79 @@
             <p>点击左侧图谱中的节点或关系，就能在这里查看详细信息并继续编辑。</p>
           </div>
         </div>
+
+        <div class="panel-card pending-card">
+          <div class="panel-head">
+            <h3>候选审核</h3>
+            <span>{{ pendingProposals.length }} 待处理</span>
+          </div>
+
+          <div v-if="isPendingLoading" class="empty-detail">
+            <p>候选审核队列加载中...</p>
+          </div>
+          <template v-else-if="pendingProposals.length">
+            <div class="pending-list">
+              <button
+                v-for="proposal in pendingProposals"
+                :key="proposal.id"
+                type="button"
+                :class="['pending-item', { active: proposal.id === selectedPendingId }]"
+                @click="selectPendingProposal(proposal)"
+              >
+                <strong>{{ proposal.name }}</strong>
+                <span>{{ proposal.source_weak_point || '无来源薄弱点' }}</span>
+              </button>
+            </div>
+
+            <div v-if="selectedPendingProposal" class="detail-body pending-form">
+              <label>
+                节点名
+                <input v-model="pendingForm.name" placeholder="候选节点名" />
+              </label>
+              <label>
+                描述
+                <textarea v-model="pendingForm.desc" rows="4" placeholder="候选节点描述"></textarea>
+              </label>
+              <label>
+                提议原因
+                <textarea :value="selectedPendingProposal.reason || '未提供'" rows="3" disabled />
+              </label>
+              <div class="pending-meta">
+                <span>来源薄弱点：{{ selectedPendingProposal.source_weak_point || '--' }}</span>
+                <button class="ghost" type="button" @click="locatePendingReference(selectedPendingProposal)">定位相关节点</button>
+              </div>
+
+              <div class="pending-edge-editor">
+                <div class="panel-head sub-head">
+                  <h4>建议关系</h4>
+                  <button class="ghost" type="button" @click="addPendingEdgeRow">新增关系</button>
+                </div>
+                <div
+                  v-for="(edge, index) in pendingForm.suggested_edges"
+                  :key="`${selectedPendingProposal.id}-${index}`"
+                  class="pending-edge-row"
+                >
+                  <input v-model="edge.source" placeholder="起点" />
+                  <input v-model="edge.target" placeholder="终点" />
+                  <button class="danger small" type="button" @click="removePendingEdgeRow(index)">删除</button>
+                </div>
+              </div>
+
+              <label>
+                驳回备注
+                <textarea v-model="pendingForm.rejectNote" rows="2" placeholder="可选，记录驳回原因"></textarea>
+              </label>
+
+              <div class="detail-actions">
+                <button type="button" @click="approveSelectedPending">通过并入图</button>
+                <button class="danger" type="button" @click="rejectSelectedPending">驳回</button>
+              </div>
+            </div>
+          </template>
+          <div v-else class="empty-detail">
+            <p>当前没有待教师确认的候选新结点。</p>
+          </div>
+        </div>
       </aside>
     </div>
 
@@ -160,11 +233,14 @@ import { computed, nextTick, onErrorCaptured, onMounted, reactive, ref } from "v
 import { useRouter } from "vue-router";
 
 import {
+  approvePendingTeacherNodeApi,
   createTeacherEdgeApi,
   createTeacherNodeApi,
   deleteTeacherEdgeApi,
   deleteTeacherNodeApi,
   getTeacherGraphApi,
+  listPendingTeacherNodesApi,
+  rejectPendingTeacherNodeApi,
   updateTeacherEdgeApi,
   updateTeacherNodeApi,
 } from "../api/teacher";
@@ -180,6 +256,9 @@ const graph = ref({ nodes: [], edges: [] });
 
 const selectedNodeId = ref("");
 const selectedEdgeId = ref("");
+const pendingProposals = ref([]);
+const selectedPendingId = ref(null);
+const isPendingLoading = ref(false);
 
 // 控制弹窗的显示状态
 const isCreatingNode = ref(false);
@@ -203,15 +282,26 @@ const edgeForm = reactive({
   target: "",
 });
 
+const pendingForm = reactive({
+  name: "",
+  desc: "",
+  node_type: "",
+  suggested_edges: [],
+  rejectNote: "",
+});
+
 const selectedNode = computed(() =>
   graph.value.nodes.find((node) => node.id === selectedNodeId.value) || null,
 );
 const selectedEdge = computed(() =>
   graph.value.edges.find((edge) => edge.id === selectedEdgeId.value) || null,
 );
+const selectedPendingProposal = computed(() =>
+  pendingProposals.value.find((item) => item.id === selectedPendingId.value) || null,
+);
 
 onMounted(async () => {
-  await loadGraph();
+  await Promise.all([loadGraph(), loadPendingProposals()]);
 });
 
 onErrorCaptured((error) => {
@@ -235,8 +325,26 @@ async function loadGraph() {
   }
 }
 
+async function loadPendingProposals() {
+  isPendingLoading.value = true;
+  try {
+    const { data } = await listPendingTeacherNodesApi();
+    pendingProposals.value = data || [];
+    if (selectedPendingId.value && !pendingProposals.value.some((item) => item.id === selectedPendingId.value)) {
+      selectedPendingId.value = null;
+    }
+    if (!selectedPendingId.value && pendingProposals.value.length) {
+      selectPendingProposal(pendingProposals.value[0]);
+    }
+  } catch (error) {
+    handleApiError(error, "加载候选审核队列失败。");
+  } finally {
+    isPendingLoading.value = false;
+  }
+}
+
 async function refreshGraph() {
-  await loadGraph();
+  await Promise.all([loadGraph(), loadPendingProposals()]);
   if (keyword.value.trim()) {
     await searchGraph({ useFreshBaseGraph: true });
     return;
@@ -257,6 +365,21 @@ async function toggleFullscreen() {
 function clearSelection() {
   selectedNodeId.value = "";
   selectedEdgeId.value = "";
+}
+
+function selectPendingProposal(proposal) {
+  if (!proposal) return;
+  selectedPendingId.value = proposal.id;
+  pendingForm.name = proposal.name || "";
+  pendingForm.desc = proposal.desc || "";
+  pendingForm.node_type = proposal.node_type || "";
+  pendingForm.rejectNote = "";
+  pendingForm.suggested_edges = (proposal.suggested_edges || []).map((edge) => ({
+    source: edge.source || "",
+    target: edge.target || "",
+    relation: edge.relation || "DEPENDS_ON",
+    direction: edge.direction || "out",
+  }));
 }
 
 function startCreateNode() {
@@ -385,6 +508,67 @@ function applyGraphData(data) {
   if (selectedEdgeId.value && !data.edges.some((edge) => edge.id === selectedEdgeId.value)) {
     selectedEdgeId.value = "";
   }
+}
+
+function addPendingEdgeRow() {
+  pendingForm.suggested_edges.push({
+    source: pendingForm.name || "",
+    target: "",
+    relation: "DEPENDS_ON",
+    direction: "out",
+  });
+}
+
+function removePendingEdgeRow(index) {
+  pendingForm.suggested_edges.splice(index, 1);
+}
+
+async function approveSelectedPending() {
+  if (!selectedPendingProposal.value) return;
+  if (!pendingForm.name.trim()) {
+    errorMessage.value = "候选节点名不能为空";
+    return;
+  }
+  try {
+    await approvePendingTeacherNodeApi(selectedPendingProposal.value.id, {
+      name: pendingForm.name,
+      desc: pendingForm.desc,
+      node_type: pendingForm.node_type,
+      suggested_edges: pendingForm.suggested_edges.map((edge) => ({
+        source: edge.source,
+        target: edge.target,
+        relation: "DEPENDS_ON",
+        direction: edge.direction || "out",
+      })),
+    });
+    await refreshGraph();
+    errorMessage.value = "";
+  } catch (error) {
+    handleApiError(error, "通过候选失败。");
+  }
+}
+
+async function rejectSelectedPending() {
+  if (!selectedPendingProposal.value) return;
+  try {
+    await rejectPendingTeacherNodeApi(selectedPendingProposal.value.id, {
+      note: pendingForm.rejectNote,
+    });
+    await loadPendingProposals();
+    errorMessage.value = "";
+  } catch (error) {
+    handleApiError(error, "驳回候选失败。");
+  }
+}
+
+async function locatePendingReference(proposal) {
+  const firstEdge = proposal?.suggested_edges?.[0];
+  const relatedNodeName = firstEdge
+    ? (firstEdge.source === proposal.name ? firstEdge.target : firstEdge.source)
+    : proposal?.name;
+  if (!relatedNodeName) return;
+  keyword.value = relatedNodeName;
+  await searchGraph();
 }
 
 function findLocalMatches(query) {
@@ -747,6 +931,82 @@ async function searchGraph(options = {}) {
   font-size: 14px;
   text-align: center;
   padding: 20px 0;
+}
+
+.pending-card {
+  display: grid;
+  gap: 14px;
+}
+
+.pending-list {
+  display: grid;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.pending-item {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid #d9e6f3;
+  border-radius: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+}
+
+.pending-item.active {
+  border-color: #8b5cf6;
+  background: #f6f1ff;
+}
+
+.pending-item strong {
+  color: #10283d;
+}
+
+.pending-item span,
+.pending-meta span {
+  color: #6f8297;
+  font-size: 12px;
+}
+
+.pending-form {
+  border-top: 1px solid #e6edf5;
+  padding-top: 14px;
+}
+
+.pending-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sub-head {
+  margin-bottom: 8px;
+}
+
+.sub-head h4 {
+  margin: 0;
+  color: #10283d;
+  font-size: 14px;
+}
+
+.pending-edge-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.pending-edge-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+}
+
+.detail-actions .small {
+  padding: 10px 12px;
 }
 
 .feedback.error {

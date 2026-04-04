@@ -26,15 +26,15 @@
           v-for="message in messages"
           :key="message.id ?? message.tempId"
           class="message-row"
-          :class="message.role === 'user' ? 'user-row' : 'assistant-row'"
+          :class="message.role === 'user' ? 'user-row' : message.role === 'system' ? 'system-row' : 'assistant-row'"
         >
-          <div class="message-stack" :class="message.role === 'user' ? 'user-stack' : 'assistant-stack'">
+          <div class="message-stack" :class="message.role === 'user' ? 'user-stack' : message.role === 'system' ? 'system-stack' : 'assistant-stack'">
             <div class="message-meta">
-              <strong>{{ message.role === "user" ? "你" : "知识助教" }}</strong>
+              <strong>{{ message.role === "user" ? "你" : message.role === "system" ? "系统提示" : "知识助教" }}</strong>
               <span v-if="message.streaming" class="streaming-flag">正在生成</span>
             </div>
 
-            <div class="message-body" :class="message.role === 'user' ? 'user-body' : 'assistant-body'">
+            <div class="message-body" :class="message.role === 'user' ? 'user-body' : message.role === 'system' ? 'system-body' : 'assistant-body'">
               <MarkdownContent v-if="message.role === 'assistant'" :content="message.content" />
               <p v-else class="plain-text">{{ message.content }}</p>
             </div>
@@ -264,6 +264,18 @@ async function sendMessage() {
           await loadSessions();
           await scrollToBottom();
         },
+        async onPendingNotice(data) {
+          messages.value.push({
+            tempId: `pending-${Date.now()}`,
+            role: "system",
+            content: data.message || "系统已提交候选知识结点，等待教师审核。",
+            facts: [],
+            reasoning_trace: [],
+            retrieval_trace: [],
+            streaming: false,
+          });
+          await scrollToBottom();
+        },
       },
     );
   } catch (error) {
@@ -399,6 +411,10 @@ async function scrollToBottom() {
   justify-content: flex-end;
 }
 
+.system-row {
+  justify-content: center;
+}
+
 .message-stack {
   display: flex;
   flex-direction: column;
@@ -413,6 +429,11 @@ async function scrollToBottom() {
 .user-stack {
   align-items: flex-end;
   max-width: min(520px, 72%);
+}
+
+.system-stack {
+  width: min(680px, calc(100% - 180px));
+  align-items: stretch;
 }
 
 .message-meta {
@@ -443,6 +464,14 @@ async function scrollToBottom() {
   color: #1f2937;
   text-align: left;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+.system-body {
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: #f7f2ff;
+  color: #5b3f93;
+  border: 1px solid #e6dbff;
 }
 
 .plain-text {

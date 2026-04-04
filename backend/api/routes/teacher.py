@@ -8,15 +8,20 @@ from backend.schemas.teacher import (
     GraphEdgeUpdateRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
+    PendingNodeApproveRequest,
+    PendingNodeRejectRequest,
 )
 from backend.services.teacher_service import (
+    approve_pending_graph_node,
     create_graph_edge,
     create_graph_node,
     delete_graph_edge,
     delete_graph_node,
     get_graph,
     get_weak_point_dashboard,
+    list_pending_graph_nodes,
     list_student_weak_points,
+    reject_pending_graph_node,
     list_students_with_weak_points,
     update_graph_edge,
     update_graph_node,
@@ -32,6 +37,34 @@ def get_teacher_graph(
     current_user: User = Depends(get_current_teacher),
 ):
     return get_graph(keyword=keyword, limit=limit)
+
+
+@router.get("/graph/pending-nodes")
+def get_pending_graph_nodes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return list_pending_graph_nodes(db)
+
+
+@router.post("/graph/pending-nodes/{proposal_id}/approve")
+def approve_pending_node(
+    proposal_id: int,
+    payload: PendingNodeApproveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return approve_pending_graph_node(db, current_user, proposal_id, payload)
+
+
+@router.post("/graph/pending-nodes/{proposal_id}/reject")
+def reject_pending_node(
+    proposal_id: int,
+    payload: PendingNodeRejectRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return reject_pending_graph_node(db, current_user, proposal_id, payload)
 
 
 @router.post("/graph/nodes")

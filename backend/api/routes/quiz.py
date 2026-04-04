@@ -32,7 +32,7 @@ def generate_quiz(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    quiz = generate_quiz_question(request.node_id)
+    quiz = generate_quiz_question(request.node_id, db, current_user)
     return quiz
 
 
@@ -43,7 +43,7 @@ def generate_quiz_stream(
     current_user: User = Depends(get_current_user),
 ):
     def event_generator():
-        for chunk in stream_generate_quiz_question(request.node_id):
+        for chunk in stream_generate_quiz_question(request.node_id, db, current_user):
             yield f"data: {json.dumps({'content': chunk}, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
 

@@ -3,6 +3,7 @@ from neo4j import GraphDatabase
 from openai import OpenAI
 
 from backend.core.config import settings
+from backend.services.pending_proposal_service import get_pending_proposal_context
 from backend.services.knowledge_progress_service import mark_node_mastered
 
 API_KEY = settings.llm_api_key
@@ -11,6 +12,16 @@ MODEL_NAME = settings.llm_model_name
 NEO4J_URI = settings.neo4j_uri
 NEO4J_AUTH = settings.neo4j_auth
 DB_NAME = settings.neo4j_db_name
+
+
+def get_node_context(node_id: str, db=None, user=None) -> dict:
+    if isinstance(node_id, str) and node_id.startswith("pending:"):
+        proposal_id = node_id.split(":", 1)[1]
+        if proposal_id.isdigit():
+            context = get_pending_proposal_context(db, int(proposal_id), getattr(user, "id", None))
+            if context:
+                return context
+    return get_node_context_from_neo4j(node_id)
 
 
 def get_node_context_from_neo4j(node_id: str) -> dict:
@@ -41,8 +52,8 @@ def get_node_context_from_neo4j(node_id: str) -> dict:
     return context
 
 
-def generate_quiz_question(node_id: str) -> dict:
-    context = get_node_context_from_neo4j(node_id)
+def generate_quiz_question(node_id: str, db=None, user=None) -> dict:
+    context = get_node_context(node_id, db=db, user=user)
 
     related_str = ""
     if context["related_concepts"]:
@@ -89,8 +100,8 @@ def generate_quiz_question(node_id: str) -> dict:
         return {"question": f"请解释 {node_id} 的核心概念和用法。", "hint": ""}
 
 
-def stream_generate_quiz_question(node_id: str):
-    context = get_node_context_from_neo4j(node_id)
+def stream_generate_quiz_question(node_id: str, db=None, user=None):
+    context = get_node_context(node_id, db=db, user=user)
 
     related_str = ""
     if context["related_concepts"]:
@@ -135,27 +146,30 @@ def stream_generate_quiz_question(node_id: str):
 
 
 def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) -> dict:
-    context = get_node_context_from_neo4j(node_id)
+    context = get_node_context(node_id, db=db, user=user)
+    is_pending_node = bool(context.get("is_pending"))
 
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "mark_node_mastered",
-                "description": "当用户回答正确时，调用此函数标记知识点已掌握",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "node_id": {
-                            "type": "string",
-                            "description": "知识点节点ID",
-                        }
+    tools = []
+    if not is_pending_node:
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "mark_node_mastered",
+                    "description": "当用户回答正确时，调用此函数标记知识点已掌握",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "node_id": {
+                                "type": "string",
+                                "description": "知识点节点ID",
+                            }
+                        },
+                        "required": ["node_id"],
                     },
-                    "required": ["node_id"],
                 },
-            },
-        }
-    ]
+            }
+        ]
 
     prompt = f"""
 你是一名 Java 编程教学专家。请判断学生的回答是否正确。
@@ -171,6 +185,8 @@ def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) 
 1. 学生回答是否正确（理解了核心概念）
 2. 给出详细的反馈和解释
 
+{'' if not is_pending_node else '这是待教师确认的候选知识点。即使学生回答正确，也不要调用 mark_node_mastered。'}
+
 如果学生回答正确，请调用 mark_node_mastered 函数来标记该知识点已掌握。
 
 返回 JSON 格式：
@@ -183,8 +199,8 @@ def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) 
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            tools=tools,
-            tool_choice="auto",
+            tools=tools or None,
+            tool_choice="auto" if tools else None,
             temperature=0.3,
         )
 
@@ -196,23 +212,24 @@ def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) 
                 if tool_call.function.name == "mark_node_mastered":
                     args = json.loads(tool_call.function.arguments)
                     if args.get("node_id"):
-                        mark_node_mastered(db, user, args["node_id"])
-                        db.commit()
-                        mastered = True
+                        if not is_pending_node:
+                            mark_node_mastered(db, user, args["node_id"])
+                            db.commit()
+                            mastered = True
 
         content = message.content or ""
         start = content.find("{")
         end = content.rfind("}") + 1
         if start != -1 and end > start:
             result = json.loads(content[start:end])
-            result["mastered"] = mastered or result.get("is_correct", False)
+            result["mastered"] = False if is_pending_node else mastered or result.get("is_correct", False)
             return result
 
         is_correct = "正确" in content or "对" in content
         return {
             "is_correct": is_correct,
             "feedback": content,
-            "mastered": is_correct,
+            "mastered": False if is_pending_node else is_correct,
         }
     except Exception as e:
         print(f"判题失败: {e}")
@@ -224,27 +241,30 @@ def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) 
 
 
 def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
-    context = get_node_context_from_neo4j(node_id)
+    context = get_node_context(node_id, db=db, user=user)
+    is_pending_node = bool(context.get("is_pending"))
 
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "mark_node_mastered",
-                "description": "当用户回答正确时，调用此函数标记知识点已掌握",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "node_id": {
-                            "type": "string",
-                            "description": "知识点节点ID",
-                        }
+    tools = []
+    if not is_pending_node:
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "mark_node_mastered",
+                    "description": "当用户回答正确时，调用此函数标记知识点已掌握",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "node_id": {
+                                "type": "string",
+                                "description": "知识点节点ID",
+                            }
+                        },
+                        "required": ["node_id"],
                     },
-                    "required": ["node_id"],
                 },
-            },
-        }
-    ]
+            }
+        ]
 
     prompt = f"""
 你是一名 Java 编程教学专家。请判断学生的回答是否正确，并给出详细的反馈。
@@ -261,6 +281,7 @@ def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
 2. 然后给出详细的解释和反馈
 3. 如果回答正确，解释为什么正确
 4. 如果回答错误，指出错误之处并给出正确答案
+5. 如果这是待教师确认的候选知识点，不要调用 mark_node_mastered，也不要声称已经正式掌握
 
 直接输出反馈内容，不需要JSON格式。
 """
@@ -273,8 +294,8 @@ def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
         response = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            tools=tools,
-            tool_choice="auto",
+            tools=tools or None,
+            tool_choice="auto" if tools else None,
             temperature=0.3,
             stream=True,
         )
@@ -293,14 +314,14 @@ def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
 
         is_correct = "正确" in full_content and "错误" not in full_content[:10]
 
-        if mastered or is_correct:
+        if not is_pending_node and (mastered or is_correct):
             mark_node_mastered(db, user, node_id)
             db.commit()
 
         yield {
             "type": "result",
             "is_correct": is_correct,
-            "mastered": mastered or is_correct,
+            "mastered": False if is_pending_node else mastered or is_correct,
         }
 
     except Exception as e:

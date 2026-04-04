@@ -29,6 +29,7 @@
           <div class="legend">
             <span class="legend-item"><span class="legend-dot weak"></span> 薄弱</span>
             <span class="legend-item"><span class="legend-dot recommended"></span> 推荐学习</span>
+            <span class="legend-item"><span class="legend-dot pending"></span> 待审核</span>
             <span class="legend-item"><span class="legend-dot mastered"></span> 已掌握</span>
           </div>
         </div>
@@ -61,6 +62,9 @@
             <p class="intro-text">
               是否针对 <strong>【{{ quizNodeName }}】</strong>开始训练？
             </p>
+            <p v-if="quizNodeStatus === 'pending'" class="quiz-pending-tip">
+              这是待教师确认的候选知识点。本次训练只用于辅助学习，不会计入正式掌握状态。
+            </p>
             <div class="intro-actions">
               <button class="secondary-btn" @click="closeQuizPanel">稍后再说</button>
               <button class="primary-btn" @click="startQuiz" :disabled="isGenerating">
@@ -73,6 +77,7 @@
             <div class="quiz-meta">
               <span class="quiz-badge">题目</span>
               <span class="quiz-node">{{ quizNodeName }}</span>
+              <span v-if="quizNodeStatus === 'pending'" class="quiz-pending-badge">候选知识点</span>
             </div>
             <div class="quiz-question">
               <MarkdownContent :content="quizQuestion" />
@@ -146,6 +151,16 @@
               <li v-for="item in recommendedNodes" :key="item.id">
                 <strong>{{ item.name }}</strong>
                 <p>{{ item.reason || "这是当前阶段最值得优先补齐的相关知识点。" }}</p>
+              </li>
+            </ul>
+          </div>
+
+          <div v-if="pendingNodes.length" class="recommendation-block">
+            <span class="recommendation-label">待教师确认的新结点</span>
+            <ul class="recommendation-list pending-list">
+              <li v-for="item in pendingNodes" :key="item.id">
+                <strong>{{ item.name }}</strong>
+                <p>{{ item.reason || "当前图谱里暂时没有更合适的已有结点，系统已提交教师审核。" }}</p>
               </li>
             </ul>
           </div>
@@ -232,10 +247,12 @@ const graphCanvas = ref(null);
 const recommendationSummary = ref("");
 const learningOrder = ref([]);
 const recommendedNodes = ref([]);
+const pendingNodes = ref([]);
 
 const showQuizPanel = ref(false);
 const quizNodeId = ref("");
 const quizNodeName = ref("");
+const quizNodeStatus = ref("");
 const quizStep = ref("intro");
 const quizQuestion = ref("");
 const userAnswer = ref("");
@@ -286,6 +303,7 @@ async function loadGraph(nodeId = currentWeakPointId.value) {
     learningOrder.value = [];
     recommendationSummary.value = "";
     recommendedNodes.value = [];
+    pendingNodes.value = [];
     selectedNodeId.value = "";
     return;
   }
@@ -298,6 +316,7 @@ async function loadGraph(nodeId = currentWeakPointId.value) {
     learningOrder.value = data.learning_order || [];
     recommendationSummary.value = data.summary || "";
     recommendedNodes.value = data.recommended_nodes || [];
+    pendingNodes.value = data.pending_nodes || [];
     currentWeakPointName.value = data.target?.name || currentWeakPointName.value;
     selectedNodeId.value = data.target?.id || "";
     await nextTick();
@@ -327,6 +346,7 @@ function handleNodeSelect(nodeId) {
   if (!node || node.status === "weak") return;
   quizNodeId.value = nodeId;
   quizNodeName.value = node.name || nodeId;
+  quizNodeStatus.value = node.status || "";
   showQuizPanel.value = true;
   quizStep.value = "intro";
   quizQuestion.value = "";
@@ -338,6 +358,7 @@ function closeQuizPanel() {
   showQuizPanel.value = false;
   quizNodeId.value = "";
   quizNodeName.value = "";
+  quizNodeStatus.value = "";
   quizStep.value = "intro";
   quizQuestion.value = "";
   userAnswer.value = "";
@@ -411,13 +432,13 @@ async function handleMastered(nodeId) {
   if (recommended) {
     recommended.status = "mastered";
   }
-  if (shouldAutoArchiveCurrentWeakPoint()) {
+  if (recommended && shouldAutoArchiveCurrentWeakPoint()) {
     await completeCurrentWeakPoint();
   }
 }
 
 async function handleComplete() {
-  if (isCorrect.value) {
+  if (isCorrect.value && quizNodeStatus.value !== "pending") {
     await handleMastered(quizNodeId.value);
   }
   closeQuizPanel();
@@ -619,6 +640,10 @@ function handleApiError(error, fallbackMessage) {
 
 .legend-dot.recommended {
   background: #2563eb;
+}
+
+.legend-dot.pending {
+  background: #8b5cf6;
 }
 
 .legend-dot.mastered {
@@ -831,6 +856,16 @@ function handleApiError(error, fallbackMessage) {
   justify-content: center;
 }
 
+.quiz-pending-tip {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f7f2ff;
+  color: #6d4bc5;
+  line-height: 1.6;
+  font-size: 13px;
+}
+
 .primary-btn,
 .secondary-btn {
   padding: 10px 18px;
@@ -889,6 +924,15 @@ function handleApiError(error, fallbackMessage) {
 .quiz-node {
   color: #64748b;
   font-size: 13px;
+}
+
+.quiz-pending-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f3e8ff;
+  color: #7c3aed;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .quiz-question {

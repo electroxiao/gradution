@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from time import perf_counter
 
@@ -8,6 +9,7 @@ from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
+from backend.db.session import SessionLocal
 from backend.models.chat import ChatMessage, ChatSession
 from backend.models.user import User
 from backend.schemas.chat import (
@@ -18,7 +20,10 @@ from backend.schemas.chat import (
     SessionUpdateRequest,
 )
 from backend.services import rag_engine
+from backend.services.pending_proposal_service import propose_pending_from_chat
 from backend.services.weak_point_service import extract_core_nodes, upsert_weak_points
+
+PENDING_PROPOSAL_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 
 
 @lru_cache(maxsize=1)
@@ -170,6 +175,7 @@ def send_message(db: Session, user: User, session_id: int, payload: MessageCreat
     answer_started_at = perf_counter()
     answer = "".join(rag_engine.ask_deepseek_stream(client, payload.content, facts, history=history))
     answer_elapsed = perf_counter() - answer_started_at
+    pending_notice = _run_pending_chat_proposal(payload.content, facts, user.id, session.id)
 
     print(
         "[chat_timing] "
@@ -202,11 +208,23 @@ def send_message(db: Session, user: User, session_id: int, payload: MessageCreat
     db.refresh(assistant_message)
 
     weak_points_added = upsert_weak_points(db, user, session, extract_core_nodes(facts))
-    return ChatTurnResponse(
+    response = ChatTurnResponse(
         user_message=_message_to_schema(user_message),
         assistant_message=_message_to_schema(assistant_message),
         weak_points_added=weak_points_added,
     )
+    if pending_notice:
+        response.assistant_message.retrieval_trace.append(
+            {
+                "type": "retrieval",
+                "title": "候选结点提议",
+                "summary": pending_notice["message"],
+                "details": [item["name"] for item in pending_notice.get("pending_nodes", [])],
+                "stage": "pending_notice",
+                "mode": "student",
+            }
+        )
+    return response
 
 
 def stream_message(db: Session, user: User, session_id: int, payload: MessageCreateRequest):
@@ -251,6 +269,13 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     db.flush()
 
     yield _sse_event("user_message", _message_to_schema(user_message).model_dump(mode="json"))
+    pending_future = PENDING_PROPOSAL_EXECUTOR.submit(
+        _run_pending_chat_proposal,
+        payload.content,
+        facts,
+        user.id,
+        session.id,
+    )
 
     answer_started_at = perf_counter()
     chunks: list[str] = []
@@ -297,6 +322,13 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
             "weak_points_added": weak_points_added,
         },
     )
+    pending_notice = None
+    try:
+        pending_notice = pending_future.result(timeout=20)
+    except Exception:
+        pending_notice = None
+    if pending_notice:
+        yield _sse_event("pending_notice", pending_notice)
 
 
 def _get_user_session(db: Session, user: User, session_id: int) -> ChatSession:
@@ -340,3 +372,17 @@ def _message_to_schema(message: ChatMessage) -> MessageResponse:
 
 def _sse_event(event: str, payload: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _run_pending_chat_proposal(question: str, facts: list, user_id: int, session_id: int) -> dict | None:
+    db = SessionLocal()
+    try:
+        return propose_pending_from_chat(
+            db,
+            question=question,
+            facts=facts,
+            user_id=user_id,
+            session_id=session_id,
+        )
+    finally:
+        db.close()

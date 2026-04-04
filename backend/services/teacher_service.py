@@ -14,10 +14,17 @@ from backend.schemas.teacher import (
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
     GraphQueryResponse,
+    PendingNodeApproveRequest,
+    PendingNodeRejectRequest,
     TeacherStudentResponse,
     TeacherStudentWeakPointResponse,
 )
 from backend.services.chat_service import get_neo4j_driver
+from backend.services.pending_proposal_service import (
+    approve_pending_proposal,
+    list_pending_proposals,
+    reject_pending_proposal,
+)
 
 
 RELATION_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -184,6 +191,28 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
                 edge_index += 1
 
     return GraphQueryResponse(nodes=node_rows, edges=edge_rows)
+
+
+def list_pending_graph_nodes(db: Session):
+    return list_pending_proposals(db)
+
+
+def approve_pending_graph_node(
+    db: Session,
+    current_user: User,
+    proposal_id: int,
+    payload: PendingNodeApproveRequest,
+):
+    return approve_pending_proposal(db, current_user, proposal_id, payload)
+
+
+def reject_pending_graph_node(
+    db: Session,
+    current_user: User,
+    proposal_id: int,
+    payload: PendingNodeRejectRequest,
+):
+    return reject_pending_proposal(db, current_user, proposal_id, payload)
 
 
 def create_graph_node(payload: GraphNodeCreateRequest) -> dict:

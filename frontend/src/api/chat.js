@@ -56,6 +56,8 @@ export async function streamMessageApi(sessionId, payload, handlers = {}) {
         handlers.onAssistantDelta?.(parsed.data);
       } else if (parsed.event === "assistant_done") {
         handlers.onAssistantDone?.(parsed.data);
+      } else if (parsed.event === "pending_notice") {
+        handlers.onPendingNotice?.(parsed.data);
       } else if (parsed.event === "error") {
         handlers.onError?.(parsed.data);
       }

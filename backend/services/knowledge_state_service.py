@@ -4,15 +4,15 @@ from neo4j import GraphDatabase
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
-from backend.models.knowledge import KnowledgeNode
 from backend.models.user import User
 from backend.services.chat_service import get_openai_client
 from backend.services.knowledge_progress_service import (
     build_graph_state_map,
     get_graph_node_color,
-    list_unmastered_weak_node_names,
     list_unmastered_weak_point_rows,
 )
+from backend.services.pending_proposal_service import create_or_reuse_pending_proposal
+from backend.services.pending_proposal_service import list_pending_proposals_for_anchor, serialize_pending_proposal
 
 NEO4J_URI = settings.neo4j_uri
 NEO4J_AUTH = settings.neo4j_auth
@@ -21,6 +21,7 @@ DB_NAME = settings.neo4j_db_name
 RECOMMENDATION_STATUS_COLOR_MAP = {
     "weak": "#ef4444",
     "recommended": "#2563eb",
+    "pending": "#8b5cf6",
     "mastered": "#22c55e",
     "unknown": "#94a3b8",
 }
@@ -266,6 +267,81 @@ def _recommend_nodes_with_llm(target: dict, candidates: list[dict], state_map: d
         return fallback
 
 
+def _propose_pending_nodes_with_llm(target: dict, candidates: list[dict]) -> list[dict]:
+    if len(candidates) >= 2:
+        return []
+
+    client = get_openai_client()
+    candidate_names = [item["name"] for item in candidates]
+    prompt = f"""
+你是自适应编程辅导系统中的知识图谱扩展助手。
+当前薄弱点是 {target['name']}，描述是：{target.get('desc', '') or '无描述'}。
+现有可推荐的相关结点较少：{json.dumps(candidate_names, ensure_ascii=False)}。
+
+请判断是否需要补充一个待审核的新知识结点，作为当前薄弱点的中间概念或补充概念。
+
+要求：
+1. 如果没有必要，返回空数组 []。
+2. 如果有必要，只返回 1 个候选新结点。
+3. 候选结点必须尽量简洁，不能与当前薄弱点同名。
+4. suggested_edges 只允许使用 DEPENDS_ON。
+5. 只返回 JSON 数组，不要附加解释文字。
+
+返回格式：
+[
+  {{
+    "name": "候选结点名",
+    "desc": "候选结点描述",
+    "reason": "为什么图谱里需要这个中间概念",
+    "suggested_edges": [
+      {{"source": "候选结点名", "target": "{target['name']}", "relation": "DEPENDS_ON", "direction": "out"}}
+    ]
+  }}
+]
+"""
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content or ""
+        start = content.find("[")
+        end = content.rfind("]") + 1
+        if start == -1 or end <= start:
+            return []
+        parsed = json.loads(content[start:end])
+        if not isinstance(parsed, list):
+            return []
+        proposals = []
+        for item in parsed[:1]:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or "").strip()
+            if not name or name == target["name"]:
+                continue
+            proposals.append(
+                {
+                    "name": name,
+                    "desc": str(item.get("desc") or "").strip(),
+                    "reason": str(item.get("reason") or "").strip(),
+                    "suggested_edges": [
+                        {
+                            "source": str(edge.get("source") or "").strip(),
+                            "target": str(edge.get("target") or "").strip(),
+                            "relation": "DEPENDS_ON",
+                            "direction": str(edge.get("direction") or "out").strip() or "out",
+                        }
+                        for edge in (item.get("suggested_edges") or [])
+                        if isinstance(edge, dict)
+                    ],
+                }
+            )
+        return proposals
+    except Exception:
+        return []
+
+
 def _select_path_edges(all_edges: list[dict], ordered_node_ids: list[str]) -> list[dict]:
     if len(ordered_node_ids) < 2:
         return []
@@ -293,6 +369,7 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
         return {
             "target": None,
             "recommended_nodes": [],
+            "pending_nodes": [],
             "learning_order": [],
             "summary": "",
             "nodes": [],
@@ -301,12 +378,14 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
 
     state_map = build_graph_state_map(db, user)
     driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
+    pending_nodes = []
 
     try:
         with driver.session(database=DB_NAME) as session:
             target = _query_node_details(session, target_node.node_name)
             candidates = _query_candidate_nodes(session, target["name"], target.get("desc", ""))
             recommendation = _recommend_nodes_with_llm(target, candidates, state_map)
+            pending_proposals = _propose_pending_nodes_with_llm(target, candidates)
 
             recommended_ids = recommendation["recommended_node_ids"]
             selected_node_ids = []
@@ -324,6 +403,36 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
 
     finally:
         driver.close()
+
+    created_pending_ids = set()
+    for item in pending_proposals:
+        proposal = create_or_reuse_pending_proposal(
+            db,
+            name=item["name"],
+            desc=item.get("desc", ""),
+            node_type="",
+            reason=item.get("reason", ""),
+            source_weak_point_id=weak_point.id,
+            source_user_id=user.id,
+            source_chat_session_id=weak_point.source_session_id,
+            anchor_node_name=target["name"],
+            suggested_edges=item.get("suggested_edges", []),
+        )
+        created_pending_ids.add(proposal.id)
+        pending_nodes.append(serialize_pending_proposal(proposal))
+    if pending_proposals:
+        db.commit()
+
+    reused_pending = list_pending_proposals_for_anchor(
+        db,
+        user_id=user.id,
+        anchor_node_name=target["name"],
+        source_weak_point_id=weak_point.id,
+    )
+    for proposal in reused_pending:
+        if proposal.id in created_pending_ids:
+            continue
+        pending_nodes.append(serialize_pending_proposal(proposal))
 
     graph_nodes = []
     recommended_nodes = []
@@ -348,6 +457,34 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
                 }
             )
 
+    for item in pending_nodes:
+        graph_nodes.append(
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "desc": item.get("desc", ""),
+                "status": "pending",
+                "color": RECOMMENDATION_STATUS_COLOR_MAP["pending"],
+            }
+        )
+        for index, edge in enumerate(item["suggested_edges"], start=1):
+            source = edge["source"]
+            target_name = edge["target"]
+            if target_name == target["name"]:
+                target_id = target["id"]
+            elif target_name in node_details_map:
+                target_id = target_name
+            else:
+                continue
+            graph_edges.append(
+                {
+                    "id": f"{item['id']}-edge-{index}",
+                    "source": item["id"] if source == item["name"] else target_id,
+                    "target": target_id if source == item["name"] else item["id"],
+                    "relation": edge["relation"],
+                }
+            )
+
     learning_order = []
     for node_id in recommendation["learning_order"]:
         if node_id == target["id"]:
@@ -363,6 +500,7 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
             "weak_point_id": weak_point.id,
         },
         "recommended_nodes": recommended_nodes,
+        "pending_nodes": pending_nodes,
         "learning_order": learning_order,
         "summary": recommendation["summary"],
         "nodes": graph_nodes,
