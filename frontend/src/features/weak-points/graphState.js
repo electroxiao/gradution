@@ -1,5 +1,6 @@
 const NODE_STATUS_COLOR_MAP = {
   weak: "#ef4444",
+  recommended: "#2563eb",
   mastered: "#22c55e",
   learning: "#f59e0b",
   unknown: "#94a3b8",

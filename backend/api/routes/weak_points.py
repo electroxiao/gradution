@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from backend.api.deps import get_current_user, get_db
@@ -16,10 +16,11 @@ def get_weak_points(db: Session = Depends(get_db), current_user: User = Depends(
 
 @router.get("/graph")
 def get_weak_points_graph_endpoint(
+    node_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return get_weak_points_graph(db, current_user)
+    return get_weak_points_graph(db, current_user, weak_point_id=node_id)
 
 
 @router.post("/{node_id}/mastered", status_code=status.HTTP_204_NO_CONTENT)

@@ -28,9 +28,8 @@
           <h2 class="section-title">知识点掌握情况图谱</h2>
           <div class="legend">
             <span class="legend-item"><span class="legend-dot weak"></span> 薄弱</span>
-            <span class="legend-item"><span class="legend-dot learning"></span> 学习中</span>
+            <span class="legend-item"><span class="legend-dot recommended"></span> 推荐学习</span>
             <span class="legend-item"><span class="legend-dot mastered"></span> 已掌握</span>
-            <span class="legend-item"><span class="legend-dot unknown"></span> 未学习</span>
           </div>
         </div>
         <div class="graph-container">
@@ -120,10 +119,49 @@
           </div>
         </div>
       </aside>
+
+      <aside v-else-if="currentWeakPointId" class="recommendation-panel">
+        <header class="recommendation-header">
+          <p class="recommendation-eyebrow">AI Recommendation</p>
+          <h3>{{ currentWeakPointName || "当前暂无薄弱点" }}</h3>
+        </header>
+
+        <template v-if="learningOrder.length">
+          <p class="recommendation-summary">
+            {{ recommendationSummary || "系统正在围绕当前薄弱点收敛推荐学习顺序。" }}
+          </p>
+
+          <div class="recommendation-block">
+            <span class="recommendation-label">推荐顺序</span>
+            <ol class="learning-order">
+              <li v-for="item in learningOrder" :key="item">{{ item }}</li>
+            </ol>
+          </div>
+
+          <div v-if="recommendedNodes.length" class="recommendation-block">
+            <span class="recommendation-label">推荐理由</span>
+            <ul class="recommendation-list">
+              <li v-for="item in recommendedNodes" :key="item.id">
+                <strong>{{ item.name }}</strong>
+                <p>{{ item.reason || "这是当前阶段最值得优先补齐的相关知识点。" }}</p>
+              </li>
+            </ul>
+          </div>
+        </template>
+
+        <p v-else class="recommendation-empty">
+          当前还没有足够的候选结点，先围绕这个薄弱点进行针对性训练也可以。
+        </p>
+      </aside>
     </div>
 
     <section v-if="weakPoints.length && !showQuizPanel" class="weak-grid">
-      <article v-for="item in weakPoints" :key="item.id" class="weak-card">
+      <article
+        v-for="item in weakPoints"
+        :key="item.id"
+        :class="['weak-card', { active: item.id === currentWeakPointId }]"
+        @click="selectWeakPoint(item)"
+      >
         <div class="weak-card-top">
           <span class="weak-badge">核心薄弱点</span>
           <span class="weak-time">最近出现 {{ formatDate(item.last_seen_at) }}</span>
@@ -132,7 +170,7 @@
         <p class="weak-caption">建议优先围绕这个知识点复盘概念定义、典型错误和与题目的关系。</p>
         <div class="weak-card-bottom">
           <span class="weak-first-seen">首次记录 {{ formatDate(item.first_seen_at) }}</span>
-          <button @click="markMastered(item.id)">已掌握</button>
+          <button @click.stop="markMastered(item.id)">已掌握</button>
         </div>
       </article>
     </section>
@@ -166,8 +204,13 @@ const errorMessage = ref("");
 const graphNodes = ref([]);
 const graphEdges = ref([]);
 const selectedNodeId = ref("");
+const currentWeakPointId = ref(null);
+const currentWeakPointName = ref("");
 const isGraphLoading = ref(false);
 const graphCanvas = ref(null);
+const recommendationSummary = ref("");
+const learningOrder = ref([]);
+const recommendedNodes = ref([]);
 
 const showQuizPanel = ref(false);
 const quizNodeId = ref("");
@@ -181,24 +224,52 @@ const isGenerating = ref(false);
 const isSubmitting = ref(false);
 
 onMounted(async () => {
-  await Promise.all([loadWeakPoints(), loadGraph()]);
+  await loadWeakPoints();
+  await loadGraph();
 });
 
-async function loadWeakPoints() {
+async function loadWeakPoints(options = {}) {
+  const preferredId = options.preferredId ?? currentWeakPointId.value;
   try {
     const { data } = await listWeakPointsApi();
     weakPoints.value = data;
+    if (!weakPoints.value.length) {
+      currentWeakPointId.value = null;
+      currentWeakPointName.value = "";
+      return;
+    }
+    const hasPreferred = weakPoints.value.some((item) => item.id === preferredId);
+    const activeItem = hasPreferred
+      ? weakPoints.value.find((item) => item.id === preferredId)
+      : weakPoints.value[0];
+    currentWeakPointId.value = activeItem?.id ?? null;
+    currentWeakPointName.value = activeItem?.node_name ?? "";
   } catch (error) {
     handleApiError(error, "加载薄弱点失败。");
   }
 }
 
-async function loadGraph() {
+async function loadGraph(nodeId = currentWeakPointId.value) {
+  if (!nodeId) {
+    graphNodes.value = [];
+    graphEdges.value = [];
+    learningOrder.value = [];
+    recommendationSummary.value = "";
+    recommendedNodes.value = [];
+    selectedNodeId.value = "";
+    return;
+  }
+
   isGraphLoading.value = true;
   try {
-    const { data } = await getWeakPointsGraphApi();
+    const { data } = await getWeakPointsGraphApi(nodeId);
     graphNodes.value = data.nodes || [];
     graphEdges.value = data.edges || [];
+    learningOrder.value = data.learning_order || [];
+    recommendationSummary.value = data.summary || "";
+    recommendedNodes.value = data.recommended_nodes || [];
+    currentWeakPointName.value = data.target?.name || currentWeakPointName.value;
+    selectedNodeId.value = data.target?.id || "";
     await nextTick();
     if (graphCanvas.value && graphNodes.value.length) {
       graphCanvas.value.restartLayout?.();
@@ -214,14 +285,28 @@ async function loadGraph() {
 async function markMastered(nodeId) {
   try {
     const masteredItem = weakPoints.value.find((item) => item.id === nodeId);
+    const wasCurrentTarget = currentWeakPointId.value === nodeId;
     await markMasteredApi(nodeId);
-    weakPoints.value = weakPoints.value.filter((item) => item.id !== nodeId);
     if (masteredItem) {
       handleMastered(masteredItem.node_name);
     }
+    if (wasCurrentTarget) {
+      closeQuizPanel();
+    }
+    await loadWeakPoints({ preferredId: wasCurrentTarget ? null : currentWeakPointId.value });
+    await loadGraph();
   } catch (error) {
     handleApiError(error, "更新薄弱点失败。");
   }
+}
+
+async function selectWeakPoint(item) {
+  if (!item || item.id === currentWeakPointId.value) return;
+  currentWeakPointId.value = item.id;
+  currentWeakPointName.value = item.node_name;
+  selectedNodeId.value = "";
+  closeQuizPanel();
+  await loadGraph(item.id);
 }
 
 function handleNodeSelect(nodeId) {
@@ -447,7 +532,7 @@ function handleApiError(error, fallbackMessage) {
   margin-bottom: 32px;
 }
 
-.main-layout:not(:has(.quiz-panel)) {
+.main-layout:not(:has(.quiz-panel)):not(:has(.recommendation-panel)) {
   grid-template-columns: 1fr;
 }
 
@@ -498,6 +583,10 @@ function handleApiError(error, fallbackMessage) {
   background: #f59e0b;
 }
 
+.legend-dot.recommended {
+  background: #2563eb;
+}
+
 .legend-dot.mastered {
   background: #22c55e;
 }
@@ -534,7 +623,8 @@ function handleApiError(error, fallbackMessage) {
   z-index: 2;
 }
 
-.quiz-panel {
+.quiz-panel,
+.recommendation-panel {
   border: 1px solid #e2ebf4;
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.98);
@@ -542,6 +632,86 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   flex-direction: column;
   max-height: 600px;
+}
+
+.recommendation-panel {
+  padding: 22px 22px 20px;
+  gap: 18px;
+}
+
+.recommendation-header h3 {
+  margin: 6px 0 0;
+  color: #10283d;
+  font-size: 22px;
+}
+
+.recommendation-eyebrow {
+  margin: 0;
+  color: #4f86c6;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.recommendation-summary {
+  margin: 0;
+  color: #52677c;
+  line-height: 1.8;
+}
+
+.recommendation-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recommendation-label {
+  color: #6d8094;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.learning-order {
+  margin: 0;
+  padding-left: 18px;
+  color: #10283d;
+  display: grid;
+  gap: 10px;
+}
+
+.learning-order li {
+  line-height: 1.6;
+}
+
+.recommendation-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.recommendation-list li {
+  padding: 14px 14px 12px;
+  border: 1px solid #e8eef6;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.recommendation-list strong {
+  display: block;
+  color: #12324a;
+  margin-bottom: 6px;
+}
+
+.recommendation-list p,
+.recommendation-empty {
+  margin: 0;
+  color: #61758a;
+  line-height: 1.75;
 }
 
 .quiz-header {
@@ -776,6 +946,14 @@ function handleApiError(error, fallbackMessage) {
   border-radius: 26px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, #f9fbfd 100%);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.weak-card.active {
+  border-color: #c7daf3;
+  box-shadow: 0 20px 46px rgba(37, 99, 235, 0.12);
+  transform: translateY(-2px);
 }
 
 .weak-card-top,
