@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from backend.models.chat import ChatSession
+from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.user import User
 from backend.schemas.weak_point import WeakPointResponse
 from backend.services.knowledge_progress_service import (
@@ -45,6 +46,26 @@ def list_unmastered_weak_points(db: Session, user: User) -> list[WeakPointRespon
             id=node.id,
             node_name=node.node_name,
             status="weak",
+            first_seen_at=weak_point.first_seen_at,
+            last_seen_at=weak_point.last_seen_at,
+        )
+        for weak_point, node in rows
+    ]
+
+
+def list_history_weak_points(db: Session, user: User) -> list[WeakPointResponse]:
+    rows = (
+        db.query(UserWeakPoint, KnowledgeNode)
+        .join(KnowledgeNode, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
+        .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.status != "unmastered")
+        .order_by(UserWeakPoint.last_seen_at.desc())
+        .all()
+    )
+    return [
+        WeakPointResponse(
+            id=node.id,
+            node_name=node.node_name,
+            status=weak_point.status,
             first_seen_at=weak_point.first_seen_at,
             last_seen_at=weak_point.last_seen_at,
         )

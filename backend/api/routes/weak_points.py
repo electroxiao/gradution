@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 from backend.api.deps import get_current_user, get_db
 from backend.models.user import User
 from backend.services.knowledge_state_service import get_weak_points_graph
-from backend.services.weak_point_service import list_unmastered_weak_points, mark_weak_point_mastered
+from backend.services.weak_point_service import (
+    list_history_weak_points,
+    list_unmastered_weak_points,
+    mark_weak_point_mastered,
+)
 
 router = APIRouter(prefix="/api/weak-points", tags=["weak-points"])
 
@@ -12,6 +16,11 @@ router = APIRouter(prefix="/api/weak-points", tags=["weak-points"])
 @router.get("")
 def get_weak_points(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return list_unmastered_weak_points(db, current_user)
+
+
+@router.get("/history")
+def get_weak_point_history(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return list_history_weak_points(db, current_user)
 
 
 @router.get("/graph")

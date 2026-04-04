@@ -15,8 +15,8 @@
         <strong>{{ weakPoints.length }}</strong>
       </article>
       <article class="summary-card muted">
-        <span class="summary-label">推荐方式</span>
-        <strong>先补底层概念，再回到题目</strong>
+        <span class="summary-label">历史薄弱点</span>
+        <strong>{{ historyWeakPoints.length }}</strong>
       </article>
     </section>
 
@@ -131,6 +131,8 @@
             {{ recommendationSummary || "系统正在围绕当前薄弱点收敛推荐学习顺序。" }}
           </p>
 
+          <p class="recommendation-tip">完成全部推荐结点的学习后，当前薄弱点会自动转为已掌握并进入历史记录。</p>
+
           <div class="recommendation-block">
             <span class="recommendation-label">推荐顺序</span>
             <ol class="learning-order">
@@ -170,9 +172,26 @@
         <p class="weak-caption">建议优先围绕这个知识点复盘概念定义、典型错误和与题目的关系。</p>
         <div class="weak-card-bottom">
           <span class="weak-first-seen">首次记录 {{ formatDate(item.first_seen_at) }}</span>
-          <button @click.stop="markMastered(item.id)">已掌握</button>
+          <span class="weak-status-hint">完成推荐学习后自动归档</span>
         </div>
       </article>
+    </section>
+
+    <section v-if="historyWeakPoints.length && !showQuizPanel" class="history-section">
+      <div class="history-header">
+        <h2>历史薄弱点</h2>
+        <p>这里保留已经通过推荐学习完成巩固的知识点，方便回看你的成长轨迹。</p>
+      </div>
+      <div class="history-grid">
+        <article v-for="item in historyWeakPoints" :key="`history-${item.id}`" class="history-card">
+          <div class="history-card-top">
+            <span class="history-badge">已掌握</span>
+            <span class="history-time">最近更新 {{ formatDate(item.last_seen_at) }}</span>
+          </div>
+          <h3>{{ item.node_name }}</h3>
+          <span class="weak-first-seen">首次记录 {{ formatDate(item.first_seen_at) }}</span>
+        </article>
+      </div>
     </section>
 
     <section v-else-if="!errorMessage && !graphNodes.length && !showQuizPanel" class="empty-state">
@@ -190,6 +209,7 @@ import { useRouter } from "vue-router";
 
 import {
   getWeakPointsGraphApi,
+  listWeakPointHistoryApi,
   listWeakPointsApi,
   markMasteredApi,
 } from "../api/weakPoints";
@@ -200,6 +220,7 @@ import { findGraphNodeById, markGraphNodeMastered } from "../features/weak-point
 
 const router = useRouter();
 const weakPoints = ref([]);
+const historyWeakPoints = ref([]);
 const errorMessage = ref("");
 const graphNodes = ref([]);
 const graphEdges = ref([]);
@@ -224,7 +245,7 @@ const isGenerating = ref(false);
 const isSubmitting = ref(false);
 
 onMounted(async () => {
-  await loadWeakPoints();
+  await Promise.all([loadWeakPoints(), loadWeakPointHistory()]);
   await loadGraph();
 });
 
@@ -246,6 +267,15 @@ async function loadWeakPoints(options = {}) {
     currentWeakPointName.value = activeItem?.node_name ?? "";
   } catch (error) {
     handleApiError(error, "加载薄弱点失败。");
+  }
+}
+
+async function loadWeakPointHistory() {
+  try {
+    const { data } = await listWeakPointHistoryApi();
+    historyWeakPoints.value = data || [];
+  } catch (error) {
+    handleApiError(error, "加载历史薄弱点失败。");
   }
 }
 
@@ -282,24 +312,6 @@ async function loadGraph(nodeId = currentWeakPointId.value) {
   }
 }
 
-async function markMastered(nodeId) {
-  try {
-    const masteredItem = weakPoints.value.find((item) => item.id === nodeId);
-    const wasCurrentTarget = currentWeakPointId.value === nodeId;
-    await markMasteredApi(nodeId);
-    if (masteredItem) {
-      handleMastered(masteredItem.node_name);
-    }
-    if (wasCurrentTarget) {
-      closeQuizPanel();
-    }
-    await loadWeakPoints({ preferredId: wasCurrentTarget ? null : currentWeakPointId.value });
-    await loadGraph();
-  } catch (error) {
-    handleApiError(error, "更新薄弱点失败。");
-  }
-}
-
 async function selectWeakPoint(item) {
   if (!item || item.id === currentWeakPointId.value) return;
   currentWeakPointId.value = item.id;
@@ -312,15 +324,14 @@ async function selectWeakPoint(item) {
 function handleNodeSelect(nodeId) {
   selectedNodeId.value = nodeId;
   const node = findGraphNodeById(graphNodes.value, nodeId);
-  if (node) {
-    quizNodeId.value = nodeId;
-    quizNodeName.value = node.name || nodeId;
-    showQuizPanel.value = true;
-    quizStep.value = "intro";
-    quizQuestion.value = "";
-    userAnswer.value = "";
-    feedbackContent.value = "";
-  }
+  if (!node || node.status === "weak") return;
+  quizNodeId.value = nodeId;
+  quizNodeName.value = node.name || nodeId;
+  showQuizPanel.value = true;
+  quizStep.value = "intro";
+  quizQuestion.value = "";
+  userAnswer.value = "";
+  feedbackContent.value = "";
 }
 
 function closeQuizPanel() {
@@ -396,11 +407,18 @@ function resetQuiz() {
 
 async function handleMastered(nodeId) {
   markGraphNodeMastered(graphNodes.value, nodeId);
+  const recommended = recommendedNodes.value.find((item) => String(item.id) === String(nodeId));
+  if (recommended) {
+    recommended.status = "mastered";
+  }
+  if (shouldAutoArchiveCurrentWeakPoint()) {
+    await completeCurrentWeakPoint();
+  }
 }
 
-function handleComplete() {
+async function handleComplete() {
   if (isCorrect.value) {
-    handleMastered(quizNodeId.value);
+    await handleMastered(quizNodeId.value);
   }
   closeQuizPanel();
 }
@@ -413,6 +431,22 @@ function formatDate(value) {
     month: "2-digit",
     day: "2-digit",
   });
+}
+
+function shouldAutoArchiveCurrentWeakPoint() {
+  if (!currentWeakPointId.value || !recommendedNodes.value.length) return false;
+  return recommendedNodes.value.every((item) => item.status === "mastered");
+}
+
+async function completeCurrentWeakPoint() {
+  if (!currentWeakPointId.value) return;
+  await markMasteredApi(currentWeakPointId.value);
+  await Promise.all([
+    loadWeakPoints({ preferredId: null }),
+    loadWeakPointHistory(),
+  ]);
+  await loadGraph();
+  closeQuizPanel();
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -637,6 +671,7 @@ function handleApiError(error, fallbackMessage) {
 .recommendation-panel {
   padding: 22px 22px 20px;
   gap: 18px;
+  overflow-y: auto;
 }
 
 .recommendation-header h3 {
@@ -658,6 +693,16 @@ function handleApiError(error, fallbackMessage) {
   margin: 0;
   color: #52677c;
   line-height: 1.8;
+}
+
+.recommendation-tip {
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f3f8ff;
+  color: #49657f;
+  line-height: 1.65;
+  font-size: 13px;
 }
 
 .recommendation-block {
@@ -993,13 +1038,72 @@ function handleApiError(error, fallbackMessage) {
   line-height: 1.7;
 }
 
-.weak-card button {
-  border: none;
+.weak-status-hint {
+  color: #5f7287;
+  font-size: 12px;
+}
+
+.history-section {
+  margin-top: 14px;
+}
+
+.history-header {
+  margin-bottom: 16px;
+}
+
+.history-header h2 {
+  margin: 0 0 6px;
+  color: #10283d;
+  font-size: 22px;
+}
+
+.history-header p {
+  margin: 0;
+  color: #66788b;
+  line-height: 1.7;
+}
+
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.history-card {
+  padding: 18px 20px;
+  border: 1px solid #e2ebf4;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+}
+
+.history-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
   border-radius: 999px;
-  padding: 10px 14px;
-  background: #10283d;
-  color: #ffffff;
-  cursor: pointer;
+  background: #e8f8ee;
+  color: #20854e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.history-time {
+  color: #8394a7;
+  font-size: 12px;
+}
+
+.history-card h3 {
+  margin: 16px 0 10px;
+  color: #10283d;
+  font-size: 20px;
 }
 
 .empty-state {
@@ -1043,6 +1147,10 @@ function handleApiError(error, fallbackMessage) {
   }
 
   .quiz-panel {
+    max-height: none;
+  }
+
+  .recommendation-panel {
     max-height: none;
   }
 }
