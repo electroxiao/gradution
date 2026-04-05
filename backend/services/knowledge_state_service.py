@@ -11,8 +11,10 @@ from backend.services.knowledge_progress_service import (
     get_graph_node_color,
     list_unmastered_weak_point_rows,
 )
-from backend.services.pending_proposal_service import create_or_reuse_pending_proposal
-from backend.services.pending_proposal_service import list_pending_proposals_for_anchor, serialize_pending_proposal
+from backend.services.pending_batch_service import (
+    create_pending_batch_from_candidates,
+    list_pending_batch_nodes_for_anchor,
+)
 
 NEO4J_URI = settings.neo4j_uri
 NEO4J_AUTH = settings.neo4j_auth
@@ -25,6 +27,9 @@ RECOMMENDATION_STATUS_COLOR_MAP = {
     "mastered": "#22c55e",
     "unknown": "#94a3b8",
 }
+
+WEAK_PAGE_PENDING_LIMIT_WITH_CANDIDATES = 2
+WEAK_PAGE_PENDING_LIMIT_WITHOUT_CANDIDATES = 3
 
 
 def _parse_json_object(text: str) -> dict | None:
@@ -41,6 +46,50 @@ def _parse_json_object(text: str) -> dict | None:
     except Exception:
         return None
     return parsed if isinstance(parsed, dict) else None
+
+
+def _looks_like_method_or_api_name(name: str) -> bool:
+    normalized = str(name or "").strip()
+    if not normalized:
+        return True
+    if "." in normalized or "(" in normalized or ")" in normalized or "::" in normalized:
+        return True
+    lowered = normalized.lower()
+    if "xxx" in lowered:
+        return True
+    method_prefixes = ("get", "set", "execute", "prepare", "create", "open", "close")
+    if any(normalized.startswith(prefix) for prefix in method_prefixes):
+        suffix = normalized[len(next(prefix for prefix in method_prefixes if normalized.startswith(prefix))):]
+        if suffix and suffix[0:1].isupper():
+            return True
+    return False
+
+
+def _sanitize_pending_proposals_for_weak_page(target: dict, candidates: list[dict], proposals: list[dict]) -> list[dict]:
+    candidate_names = {str(item.get("name") or "").strip().lower() for item in candidates}
+    target_name = str(target.get("name") or "").strip().lower()
+    limit = (
+        WEAK_PAGE_PENDING_LIMIT_WITHOUT_CANDIDATES
+        if not candidates
+        else WEAK_PAGE_PENDING_LIMIT_WITH_CANDIDATES
+    )
+
+    sanitized = []
+    seen_names = set()
+    for item in proposals:
+        name = str(item.get("name") or "").strip()
+        normalized = name.lower()
+        if not name or normalized == target_name or normalized in seen_names:
+            continue
+        if normalized in candidate_names:
+            continue
+        if _looks_like_method_or_api_name(name):
+            continue
+        seen_names.add(normalized)
+        sanitized.append(item)
+        if len(sanitized) >= limit:
+            break
+    return sanitized
 
 
 def _load_target_weak_point(db: Session, user: User, weak_point_id: int | None):
@@ -268,11 +317,13 @@ def _recommend_nodes_with_llm(target: dict, candidates: list[dict], state_map: d
 
 
 def _propose_pending_nodes_with_llm(target: dict, candidates: list[dict]) -> list[dict]:
-    if len(candidates) >= 2:
-        return []
-
     client = get_openai_client()
     candidate_names = [item["name"] for item in candidates]
+    max_proposals = (
+        WEAK_PAGE_PENDING_LIMIT_WITHOUT_CANDIDATES
+        if not candidates
+        else WEAK_PAGE_PENDING_LIMIT_WITH_CANDIDATES
+    )
     prompt = f"""
 你是自适应编程辅导系统中的知识图谱扩展助手。
 当前薄弱点是 {target['name']}，描述是：{target.get('desc', '') or '无描述'}。
@@ -282,10 +333,13 @@ def _propose_pending_nodes_with_llm(target: dict, candidates: list[dict]) -> lis
 
 要求：
 1. 如果没有必要，返回空数组 []。
-2. 如果有必要，只返回 1 个候选新结点。
-3. 候选结点必须尽量简洁，不能与当前薄弱点同名。
-4. suggested_edges 只允许使用 DEPENDS_ON。
-5. 只返回 JSON 数组，不要附加解释文字。
+2. 如果有必要，返回 1 到 {max_proposals} 个候选新结点。
+3. 只提对初学者当前阶段真正有帮助的“概念级”结点。
+4. 优先基础概念、前置概念或类级概念，避免方法名、API 调用链、实现细节和过于高级的术语。
+5. 候选结点必须尽量简洁，不能与当前薄弱点同名。
+6. suggested_edges 只允许使用 DEPENDS_ON。
+7. 最多返回 {max_proposals} 个候选新结点。
+8. 只返回 JSON 数组，不要附加解释文字。
 
 返回格式：
 [
@@ -314,16 +368,23 @@ def _propose_pending_nodes_with_llm(target: dict, candidates: list[dict]) -> lis
         if not isinstance(parsed, list):
             return []
         proposals = []
-        for item in parsed[:1]:
+        seen_names = set()
+        for item in parsed[:max_proposals]:
             if not isinstance(item, dict):
                 continue
             name = str(item.get("name") or "").strip()
-            if not name or name == target["name"]:
+            if not name or name == target["name"] or name in seen_names:
                 continue
+            seen_names.add(name)
             proposals.append(
                 {
                     "name": name,
-                    "desc": str(item.get("desc") or "").strip(),
+                    "desc": _build_pending_desc(
+                        name=name,
+                        desc=str(item.get("desc") or "").strip(),
+                        reason=str(item.get("reason") or "").strip(),
+                        anchor_name=target["name"],
+                    ),
                     "reason": str(item.get("reason") or "").strip(),
                     "suggested_edges": [
                         {
@@ -353,6 +414,16 @@ def _select_path_edges(all_edges: list[dict], ordered_node_ids: list[str]) -> li
         if edge:
             selected.append(edge)
     return selected
+
+
+def _build_pending_desc(*, name: str, desc: str, reason: str, anchor_name: str) -> str:
+    normalized_desc = (desc or "").strip()
+    if normalized_desc:
+        return normalized_desc
+    normalized_reason = (reason or "").strip()
+    if normalized_reason:
+        return f"{name}：{normalized_reason}"
+    return f"{name}：围绕 {anchor_name} 的候选补充概念。"
 
 
 def _resolve_recommendation_status(node_id: str, target_id: str, state_map: dict[str, str]) -> str:
@@ -385,7 +456,11 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
             target = _query_node_details(session, target_node.node_name)
             candidates = _query_candidate_nodes(session, target["name"], target.get("desc", ""))
             recommendation = _recommend_nodes_with_llm(target, candidates, state_map)
-            pending_proposals = _propose_pending_nodes_with_llm(target, candidates)
+            pending_proposals = _sanitize_pending_proposals_for_weak_page(
+                target,
+                candidates,
+                _propose_pending_nodes_with_llm(target, candidates),
+            )
 
             recommended_ids = recommendation["recommended_node_ids"]
             selected_node_ids = []
@@ -404,35 +479,43 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
     finally:
         driver.close()
 
-    created_pending_ids = set()
-    for item in pending_proposals:
-        proposal = create_or_reuse_pending_proposal(
+    if pending_proposals:
+        batch = create_pending_batch_from_candidates(
             db,
-            name=item["name"],
-            desc=item.get("desc", ""),
-            node_type="",
-            reason=item.get("reason", ""),
-            source_weak_point_id=weak_point.id,
+            source_type="weak_page",
             source_user_id=user.id,
             source_chat_session_id=weak_point.source_session_id,
-            anchor_node_name=target["name"],
-            suggested_edges=item.get("suggested_edges", []),
+            source_weak_point_id=weak_point.id,
+            anchor_name=target["name"],
+            anchor_status="existing",
+            question_excerpt=f"围绕薄弱点 {target['name']} 的推荐补点",
+            nodes=[
+                {
+                    "name": item["name"],
+                    "desc": item.get("desc", ""),
+                    "reason": item.get("reason", ""),
+                    "status": "pending",
+                    "is_anchor": False,
+                }
+                for item in pending_proposals
+            ],
+            edges=[
+                edge
+                for item in pending_proposals
+                for edge in item.get("suggested_edges", [])
+            ],
         )
-        created_pending_ids.add(proposal.id)
-        pending_nodes.append(serialize_pending_proposal(proposal))
-    if pending_proposals:
-        db.commit()
+        if batch:
+            db.commit()
 
-    reused_pending = list_pending_proposals_for_anchor(
-        db,
-        user_id=user.id,
-        anchor_node_name=target["name"],
-        source_weak_point_id=weak_point.id,
+    pending_nodes.extend(
+        list_pending_batch_nodes_for_anchor(
+            db,
+            user_id=user.id,
+            anchor_name=target["name"],
+            source_weak_point_id=weak_point.id,
+        )
     )
-    for proposal in reused_pending:
-        if proposal.id in created_pending_ids:
-            continue
-        pending_nodes.append(serialize_pending_proposal(proposal))
 
     graph_nodes = []
     recommended_nodes = []

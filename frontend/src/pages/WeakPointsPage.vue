@@ -232,6 +232,7 @@ import { streamGenerateQuizApi, streamSubmitAnswerApi } from "../api/quiz";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
 import { findGraphNodeById, markGraphNodeMastered } from "../features/weak-points/graphState";
+import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
 const weakPoints = ref([]);
@@ -473,8 +474,7 @@ async function completeCurrentWeakPoint() {
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user_role");
+    clearAuthSession();
     router.push("/login");
     return;
   }

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import { meApi } from "../api/auth";
+import { clearAuthSession, getAccessToken, getUserRole, setStoredUserRole } from "../utils/authStorage";
 const ChatPage = () => import("../pages/ChatPage.vue");
 const LoginPage = () => import("../pages/LoginPage.vue");
 const TeacherDashboardPage = () => import("../pages/TeacherDashboardPage.vue");
@@ -10,7 +11,7 @@ const WeakPointsPage = () => import("../pages/WeakPointsPage.vue");
 const TeacherLayout = () => import("../pages/TeacherLayout.vue");
 
 function resolveHomePath() {
-  return localStorage.getItem("user_role") === "teacher" ? "/teacher/dashboard" : "/";
+  return getUserRole() === "teacher" ? "/teacher/dashboard" : "/";
 }
 
 const router = createRouter({
@@ -34,8 +35,8 @@ const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem("access_token");
-  let role = localStorage.getItem("user_role");
+  const token = getAccessToken();
+  let role = getUserRole();
 
   if (!to.meta.public && !token) {
     return "/login";
@@ -45,7 +46,7 @@ router.beforeEach((to) => {
     return meApi()
       .then(({ data }) => {
         const resolvedRole = data?.role || "student";
-        localStorage.setItem("user_role", resolvedRole);
+        setStoredUserRole(resolvedRole);
         if (to.path === "/login") {
           return resolvedRole === "teacher" ? "/teacher/dashboard" : "/";
         }
@@ -55,8 +56,7 @@ router.beforeEach((to) => {
         return true;
       })
       .catch(() => {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("user_role");
+        clearAuthSession();
         return "/login";
       });
   }

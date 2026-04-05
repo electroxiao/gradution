@@ -49,6 +49,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { listTeacherStudentWeakPointsApi, listTeacherStudentsApi } from "../api/teacher";
+import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
 const students = ref([]);
@@ -99,8 +100,7 @@ function formatDate(value) {
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user_role");
+    clearAuthSession();
     router.push("/login");
     return;
   }

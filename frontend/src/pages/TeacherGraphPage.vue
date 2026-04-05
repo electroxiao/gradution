@@ -4,48 +4,58 @@
       <div>
         <p class="eyebrow">Knowledge Graph</p>
         <h2>知识图谱管理</h2>
-        <p class="page-copy">使用 Neo4j NVL 查看图谱，顶部工具栏负责搜索与布局，右侧面板负责节点和关系编辑。</p>
+        <p class="page-copy">在正式图谱编辑和候选批次审核之间切换，用单主图工作台集中完成管理与审核。</p>
       </div>
     </header>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
     <div class="toolbar">
-      <div class="toolbar-search">
-        <input 
-          v-model="keyword" 
-          placeholder="搜索节点名或描述" 
-          @input="handleSearchInput"
-          @focus="handleSearchInput"
-          @blur="hideSearchDropdown"
-          @keydown.enter.prevent="searchGraph" 
-        />
-        <button class="ghost" @click="searchGraph">搜索</button>
-
-        <ul v-if="showSearchResults" class="search-dropdown">
-          <li v-for="res in searchResults" :key="res.id" @mousedown.prevent="selectSearchResult(res)">
-            <strong>{{ res.name }}</strong>
-            <span v-if="res.desc" class="desc-preview">{{ res.desc }}</span>
-          </li>
-        </ul>
-      </div>
+      <input
+        v-model="keyword"
+        class="toolbar-input"
+        placeholder="搜索节点名或描述"
+        @keydown.enter.prevent="searchGraph"
+      />
       <span class="graph-meta">节点 {{ graph.nodes.length }} / 边 {{ graph.edges.length }}</span>
+      <button class="ghost" @click="searchGraph">搜索</button>
       <button class="ghost" @click="toggleFullscreen">全屏</button>
       <button class="ghost" @click="refreshGraph">刷新布局</button>
     </div>
 
-    <div class="graph-layout">
-      <section ref="graphViewport" class="graph-panel">
+    <div class="mode-switch">
+      <button
+        type="button"
+        :class="['mode-tab', { active: activeMode === 'graph' }]"
+        @click="switchMode('graph')"
+      >
+        正式图谱
+      </button>
+      <button
+        type="button"
+        :class="['mode-tab', { active: activeMode === 'review' }]"
+        :disabled="!selectedBatchDetail"
+        @click="switchMode('review')"
+      >
+        候选审核
+      </button>
+    </div>
+
+    <div v-if="activeMode === 'graph'" class="graph-mode-layout">
+      <section ref="graphViewport" class="graph-panel formal-panel">
+        <div class="graph-panel-head">
+          <div>
+            <p class="graph-mode-label">Formal Graph</p>
+            <h3>正式知识图谱</h3>
+          </div>
+          <span class="graph-mode-copy">编辑正式图谱中的节点与关系</span>
+        </div>
+
         <div v-if="isGraphLoading" class="graph-state">图谱加载中...</div>
         <div v-else-if="!graph.nodes.length" class="graph-state">当前没有可展示的知识图谱节点。</div>
-        <div v-else-if="graphRenderError" class="graph-state graph-error">
-          <div>
-            <p>图谱组件加载失败</p>
-            <small>{{ graphRenderError }}</small>
-          </div>
-        </div>
+
         <KnowledgeGraphCanvas
-          v-if="graph.nodes.length > 0 && !isGraphLoading && !graphRenderError"
+          v-if="graph.nodes.length && !isGraphLoading"
           ref="graphCanvas"
           :nodes="graph.nodes"
           :edges="graph.edges"
@@ -57,15 +67,21 @@
         />
       </section>
 
-      <aside class="detail-panel">
-        <div class="panel-card action-bar">
-          <button @click="startCreateNode">➕ 新增节点</button>
-          <button @click="startCreateEdge">➕ 新增关系</button>
+      <aside class="graph-side-panel">
+        <div class="panel-card action-card">
+          <div class="panel-head">
+            <h3>基础操作</h3>
+            <span>正式图谱</span>
+          </div>
+          <div class="action-bar">
+            <button @click="startCreateNode">新增节点</button>
+            <button @click="startCreateEdge">新增关系</button>
+          </div>
         </div>
 
-        <div class="panel-card">
+        <div class="panel-card detail-card">
           <div class="panel-head">
-            <h3>详细信息</h3>
+            <h3>正式图谱编辑</h3>
             <span v-if="selectedNode">节点</span>
             <span v-else-if="selectedEdge">关系</span>
             <span v-else>未选择</span>
@@ -74,7 +90,7 @@
           <div v-if="selectedNode" class="detail-body">
             <label>
               节点名
-              <input v-model="nodeForm.name" placeholder="节点名" disabled title="节点名作为唯一标识不可修改" />
+              <input v-model="nodeForm.name" disabled />
             </label>
             <label>
               描述
@@ -89,11 +105,11 @@
           <div v-else-if="selectedEdge" class="detail-body">
             <label>
               起点
-              <input list="node-list" v-model="edgeForm.source" placeholder="搜索或选择起点" />
+              <input list="node-list" v-model="edgeForm.source" placeholder="起点" />
             </label>
             <label>
               终点
-              <input list="node-list" v-model="edgeForm.target" placeholder="搜索或选择终点" />
+              <input list="node-list" v-model="edgeForm.target" placeholder="终点" />
             </label>
             <div class="detail-actions">
               <button @click="submitEdge">保存修改</button>
@@ -102,98 +118,203 @@
           </div>
 
           <div v-else class="empty-detail">
-            <p>点击左侧图谱中的节点或关系，就能在这里查看详细信息并继续编辑。</p>
-          </div>
-        </div>
-
-        <div class="panel-card pending-card">
-          <div class="panel-head">
-            <h3>候选审核</h3>
-            <span>{{ pendingProposals.length }} 待处理</span>
-          </div>
-
-          <div v-if="isPendingLoading" class="empty-detail">
-            <p>候选审核队列加载中...</p>
-          </div>
-          <template v-else-if="pendingProposals.length">
-            <div class="pending-list">
-              <button
-                v-for="proposal in pendingProposals"
-                :key="proposal.id"
-                type="button"
-                :class="['pending-item', { active: proposal.id === selectedPendingId }]"
-                @click="selectPendingProposal(proposal)"
-              >
-                <strong>{{ proposal.name }}</strong>
-                <span>{{ proposal.source_weak_point || '无来源薄弱点' }}</span>
-              </button>
-            </div>
-
-            <div v-if="selectedPendingProposal" class="detail-body pending-form">
-              <label>
-                节点名
-                <input v-model="pendingForm.name" placeholder="候选节点名" />
-              </label>
-              <label>
-                描述
-                <textarea v-model="pendingForm.desc" rows="4" placeholder="候选节点描述"></textarea>
-              </label>
-              <label>
-                提议原因
-                <textarea :value="selectedPendingProposal.reason || '未提供'" rows="3" disabled />
-              </label>
-              <div class="pending-meta">
-                <span>来源薄弱点：{{ selectedPendingProposal.source_weak_point || '--' }}</span>
-                <button class="ghost" type="button" @click="locatePendingReference(selectedPendingProposal)">定位相关节点</button>
-              </div>
-
-              <div class="pending-edge-editor">
-                <div class="panel-head sub-head">
-                  <h4>建议关系</h4>
-                  <button class="ghost" type="button" @click="addPendingEdgeRow">新增关系</button>
-                </div>
-                <div
-                  v-for="(edge, index) in pendingForm.suggested_edges"
-                  :key="`${selectedPendingProposal.id}-${index}`"
-                  class="pending-edge-row"
-                >
-                  <input v-model="edge.source" placeholder="起点" />
-                  <input v-model="edge.target" placeholder="终点" />
-                  <button class="danger small" type="button" @click="removePendingEdgeRow(index)">删除</button>
-                </div>
-              </div>
-
-              <label>
-                驳回备注
-                <textarea v-model="pendingForm.rejectNote" rows="2" placeholder="可选，记录驳回原因"></textarea>
-              </label>
-
-              <div class="detail-actions">
-                <button type="button" @click="approveSelectedPending">通过并入图</button>
-                <button class="danger" type="button" @click="rejectSelectedPending">驳回</button>
-              </div>
-            </div>
-          </template>
-          <div v-else class="empty-detail">
-            <p>当前没有待教师确认的候选新结点。</p>
+            <p>点击主画布中的节点或关系，在这里继续编辑。</p>
           </div>
         </div>
       </aside>
     </div>
+
+    <section v-else class="review-workbench">
+      <div class="review-header-strip">
+        <div class="panel-card review-strip-card">
+          <div class="panel-head">
+            <h3>候选批次</h3>
+            <span>{{ pendingBatches.length }} 批次</span>
+          </div>
+
+          <div v-if="isPendingLoading" class="empty-detail compact">
+            <p>候选批次加载中...</p>
+          </div>
+          <template v-else-if="pendingBatches.length">
+            <div class="review-batch-list">
+              <button
+                v-for="batch in pendingBatches"
+                :key="batch.id"
+                type="button"
+                :class="['batch-chip', { active: batch.id === selectedBatchId }]"
+                @click="selectPendingBatch(batch.id)"
+              >
+                <strong>{{ batch.anchor_name }}</strong>
+                <small>{{ batch.source_type }} · {{ batch.pending_node_count }} 个结点</small>
+              </button>
+            </div>
+          </template>
+          <div v-else class="empty-detail compact">
+            <p>当前没有待教师确认的候选知识子图。</p>
+          </div>
+        </div>
+
+        <div class="panel-card review-current-card">
+          <div class="panel-head">
+            <h3>当前批次</h3>
+            <span>{{ selectedBatchDetail?.batch.source_type || "未选择" }}</span>
+          </div>
+
+          <div v-if="selectedBatchDetail" class="review-current-body">
+            <div class="review-meta">
+              <span>锚点：{{ selectedBatchDetail.batch.anchor_name }}</span>
+              <span>锚点状态：{{ selectedBatchDetail.batch.anchor_status }}</span>
+              <span>待审结点：{{ selectedNodeDrafts.length }}</span>
+              <span>建议关系：{{ selectedEdgeDrafts.length }}</span>
+              <span v-if="selectedBatchDetail.batch.source_weak_point">薄弱点：{{ selectedBatchDetail.batch.source_weak_point }}</span>
+            </div>
+            <p class="review-summary-text">
+              {{ selectedBatchDetail.batch.question_excerpt || "该批次没有额外问题摘要。" }}
+            </p>
+          </div>
+
+          <div v-else class="empty-detail compact">
+            <p>请先选择一个候选批次开始审核。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="review-mode-layout">
+        <section ref="graphViewport" class="graph-panel review-graph-panel">
+          <div class="graph-panel-head">
+            <div>
+              <p class="graph-mode-label">Pending Review</p>
+              <h3>{{ selectedBatchDetail?.batch.anchor_name || "候选批次审核" }}</h3>
+            </div>
+            <span class="graph-mode-copy">审核当前批次的候选结点、建议关系与锚点上下文</span>
+          </div>
+
+          <div v-if="isReviewLoading" class="graph-state">候选批次图加载中...</div>
+          <div v-else-if="!reviewGraph.nodes.length" class="graph-state">当前批次没有可展示的候选结点。</div>
+
+          <KnowledgeGraphCanvas
+            v-if="reviewGraph.nodes.length && !isReviewLoading"
+            ref="reviewCanvas"
+            :nodes="reviewGraph.nodes"
+            :edges="reviewGraph.edges"
+            :selected-node-id="selectedReviewNodeId"
+            :selected-edge-id="selectedReviewEdgeId"
+            @select-node="handleSelectReviewNode"
+            @select-edge="handleSelectReviewEdge"
+            @clear-selection="clearReviewSelection"
+          />
+        </section>
+
+        <aside class="review-side-panel">
+          <div class="panel-card detail-card">
+            <div class="panel-head">
+              <h3>审核详情</h3>
+              <span>{{ selectedReviewNode ? selectedReviewNode.name : selectedReviewEdge ? selectedReviewEdge.relation : "请选择图中元素" }}</span>
+            </div>
+
+            <div v-if="selectedReviewNode && editableReviewNode" class="detail-body">
+              <label>
+                节点名
+                <input v-model="editableReviewNode.name" :disabled="isContextNode(selectedReviewNode)" />
+              </label>
+              <label>
+                描述
+                <textarea v-model="editableReviewNode.desc" rows="4" :disabled="isContextNode(selectedReviewNode)"></textarea>
+              </label>
+              <label>
+                提议原因
+                <textarea :value="selectedReviewNode.reason || '无'" rows="3" disabled />
+              </label>
+              <label v-if="!isContextNode(selectedReviewNode)" class="checkbox-row">
+                <input v-model="editableReviewNode.keep" type="checkbox" />
+                保留该待审结点
+              </label>
+            </div>
+
+            <div v-else-if="selectedReviewEdge && editableReviewEdge" class="detail-body">
+              <label>
+                关系
+                <input :value="reviewEdgeLabel(selectedReviewEdge)" disabled />
+              </label>
+              <label class="checkbox-row">
+                <input v-model="editableReviewEdge.keep" type="checkbox" />
+                保留该建议关系
+              </label>
+            </div>
+
+            <div v-else class="empty-detail compact">
+              <p>点击候选审核图中的节点或关系，在这里查看详情并决定是否保留。</p>
+            </div>
+          </div>
+
+          <div class="panel-card approval-card">
+            <div class="panel-head">
+              <h3>勾选与审批</h3>
+              <span>保留需要并入正式图谱的内容</span>
+            </div>
+            <div class="review-checklists">
+              <div class="checklist-group">
+                <div class="panel-head sub-head">
+                  <h4>待审结点</h4>
+                  <span>{{ selectedNodeDrafts.length }} 项</span>
+                </div>
+                <label
+                  v-for="node in selectedNodeDrafts"
+                  :key="node.id"
+                  class="check-item"
+                  @click="handleSelectReviewNode(node.id)"
+                >
+                  <input v-model="node.keep" type="checkbox" />
+                  <span>{{ node.name }}</span>
+                </label>
+              </div>
+
+              <div class="checklist-group">
+                <div class="panel-head sub-head">
+                  <h4>建议关系</h4>
+                  <span>{{ selectedEdgeDrafts.length }} 项</span>
+                </div>
+                <label
+                  v-for="edge in selectedEdgeDrafts"
+                  :key="edge.id"
+                  class="check-item"
+                  @click="handleSelectReviewEdge(edge.id)"
+                >
+                  <input v-model="edge.keep" type="checkbox" />
+                  <span>{{ reviewEdgeLabel(edge) }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="approval-footer">
+              <label class="detail-body reject-note">
+                驳回备注
+                <textarea v-model="batchRejectNote" rows="2" placeholder="可选，记录驳回原因"></textarea>
+              </label>
+
+              <div class="detail-actions">
+                <button @click="approveSelectedBatch" :disabled="!selectedBatchDetail">通过所选内容并入图</button>
+                <button class="danger" @click="rejectSelectedBatch" :disabled="!selectedBatchDetail">驳回整批</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
 
     <div v-if="isCreatingNode" class="modal-overlay" @click.self="cancelCreateNode">
       <div class="modal-card">
         <h3>新增节点</h3>
         <div class="detail-body">
           <label>
-            节点名 <span class="required">*</span>
-            <input v-model="nodeForm.name" placeholder="请输入唯一的节点名" />
+            节点名
+            <input v-model="nodeForm.name" placeholder="请输入唯一节点名" />
           </label>
           <label>
             描述
             <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述"></textarea>
           </label>
-          <div class="detail-actions modal-actions">
+          <div class="detail-actions">
             <button class="ghost" @click="cancelCreateNode">取消</button>
             <button @click="submitNode">确认创建</button>
           </div>
@@ -206,14 +327,14 @@
         <h3>新增关系</h3>
         <div class="detail-body">
           <label>
-            起点 <span class="required">*</span>
-            <input list="node-list" v-model="edgeForm.source" placeholder="搜索或选择起点" />
+            起点
+            <input list="node-list" v-model="edgeForm.source" placeholder="起点" />
           </label>
           <label>
-            终点 <span class="required">*</span>
-            <input list="node-list" v-model="edgeForm.target" placeholder="搜索或选择终点" />
+            终点
+            <input list="node-list" v-model="edgeForm.target" placeholder="终点" />
           </label>
-          <div class="detail-actions modal-actions">
+          <div class="detail-actions">
             <button class="ghost" @click="cancelCreateEdge">取消</button>
             <button @click="submitEdge">确认创建</button>
           </div>
@@ -224,100 +345,106 @@
     <datalist id="node-list">
       <option v-for="node in graph.nodes" :key="node.id" :value="node.name"></option>
     </datalist>
-
   </section>
 </template>
 
 <script setup>
-import { computed, nextTick, onErrorCaptured, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import {
-  approvePendingTeacherNodeApi,
+  approvePendingTeacherBatchApi,
   createTeacherEdgeApi,
   createTeacherNodeApi,
   deleteTeacherEdgeApi,
   deleteTeacherNodeApi,
+  getPendingTeacherBatchDetailApi,
   getTeacherGraphApi,
-  listPendingTeacherNodesApi,
-  rejectPendingTeacherNodeApi,
+  listPendingTeacherBatchesApi,
+  rejectPendingTeacherBatchApi,
   updateTeacherEdgeApi,
   updateTeacherNodeApi,
 } from "../api/teacher";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
+import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
 const keyword = ref("");
 const errorMessage = ref("");
-const graphRenderError = ref("");
+const activeMode = ref("graph");
 const isGraphLoading = ref(false);
+const isPendingLoading = ref(false);
+const isReviewLoading = ref(false);
 const fullGraph = ref({ nodes: [], edges: [] });
 const graph = ref({ nodes: [], edges: [] });
+const pendingBatches = ref([]);
+const selectedBatchId = ref("");
+const selectedBatchDetail = ref(null);
+const batchRejectNote = ref("");
 
 const selectedNodeId = ref("");
 const selectedEdgeId = ref("");
-const pendingProposals = ref([]);
-const selectedPendingId = ref(null);
-const isPendingLoading = ref(false);
-
-// 控制弹窗的显示状态
-const isCreatingNode = ref(false);
-const isCreatingEdge = ref(false);
-
-// 搜索下拉相关状态
-const showSearchResults = ref(false);
-const searchResults = ref([]);
+const selectedReviewNodeId = ref("");
+const selectedReviewEdgeId = ref("");
 
 const graphViewport = ref(null);
 const graphCanvas = ref(null);
+const reviewCanvas = ref(null);
 
-const nodeForm = reactive({
-  name: "",
-  desc: "",
-});
+const isCreatingNode = ref(false);
+const isCreatingEdge = ref(false);
 
-const edgeForm = reactive({
-  source: "",
-  relation: "DEPENDS_ON", // 🚀 优化 3：默认为 DEPENDS_ON 且不暴露给用户修改
-  target: "",
-});
+const nodeForm = reactive({ name: "", desc: "" });
+const edgeForm = reactive({ source: "", relation: "DEPENDS_ON", target: "" });
+const reviewNodeDrafts = reactive({});
+const reviewEdgeDrafts = reactive({});
 
-const pendingForm = reactive({
-  name: "",
-  desc: "",
-  node_type: "",
-  suggested_edges: [],
-  rejectNote: "",
-});
-
-const selectedNode = computed(() =>
-  graph.value.nodes.find((node) => node.id === selectedNodeId.value) || null,
+const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value) || null);
+const selectedEdge = computed(() => graph.value.edges.find((edge) => edge.id === selectedEdgeId.value) || null);
+const reviewGraph = computed(() => ({
+  nodes: (selectedBatchDetail.value?.nodes || []).map((node) => ({
+    id: node.id,
+    name: node.name,
+    label: node.name,
+    desc: node.desc || "",
+    status: node.status,
+  })),
+  edges: (selectedBatchDetail.value?.edges || []).map((edge) => ({
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+    relation: edge.relation,
+  })),
+}));
+const selectedReviewNode = computed(() =>
+  (selectedBatchDetail.value?.nodes || []).find((node) => node.id === selectedReviewNodeId.value) || null,
 );
-const selectedEdge = computed(() =>
-  graph.value.edges.find((edge) => edge.id === selectedEdgeId.value) || null,
+const selectedReviewEdge = computed(() =>
+  (selectedBatchDetail.value?.edges || []).find((edge) => edge.id === selectedReviewEdgeId.value) || null,
 );
-const selectedPendingProposal = computed(() =>
-  pendingProposals.value.find((item) => item.id === selectedPendingId.value) || null,
+const selectedNodeDrafts = computed(() =>
+  (selectedBatchDetail.value?.nodes || [])
+    .filter((node) => !isContextNode(node))
+    .map((node) => reviewNodeDrafts[node.id])
+    .filter(Boolean),
 );
+const selectedEdgeDrafts = computed(() =>
+  (selectedBatchDetail.value?.edges || []).map((edge) => reviewEdgeDrafts[edge.id]).filter(Boolean),
+);
+const editableReviewNode = computed(() => (selectedReviewNode.value ? reviewNodeDrafts[selectedReviewNode.value.id] : null));
+const editableReviewEdge = computed(() => (selectedReviewEdge.value ? reviewEdgeDrafts[selectedReviewEdge.value.id] : null));
+const isActiveGraphLoading = computed(() => activeMode.value === "graph" ? isGraphLoading.value : isReviewLoading.value);
 
 onMounted(async () => {
-  await Promise.all([loadGraph(), loadPendingProposals()]);
-});
-
-onErrorCaptured((error) => {
-  graphRenderError.value = error instanceof Error ? error.message : "图谱组件渲染失败。";
-  return false;
+  await Promise.all([loadGraph(), loadPendingBatches()]);
 });
 
 async function loadGraph() {
   isGraphLoading.value = true;
-  errorMessage.value = "";
-  graphRenderError.value = "";
   try {
-    // 修复了隐藏的 bug，将 limit 统一改为 2000
     const { data } = await getTeacherGraphApi({ keyword: "", limit: 2000 });
     fullGraph.value = data;
-    applyGraphData(data);
+    graph.value = data;
   } catch (error) {
     handleApiError(error, "加载图谱失败。");
   } finally {
@@ -325,32 +452,116 @@ async function loadGraph() {
   }
 }
 
-async function loadPendingProposals() {
+async function loadPendingBatches() {
   isPendingLoading.value = true;
   try {
-    const { data } = await listPendingTeacherNodesApi();
-    pendingProposals.value = data || [];
-    if (selectedPendingId.value && !pendingProposals.value.some((item) => item.id === selectedPendingId.value)) {
-      selectedPendingId.value = null;
+    const { data } = await listPendingTeacherBatchesApi();
+    pendingBatches.value = data || [];
+    if (selectedBatchId.value && !pendingBatches.value.some((item) => item.id === selectedBatchId.value)) {
+      selectedBatchId.value = "";
+      selectedBatchDetail.value = null;
+      clearReviewSelection();
+      if (activeMode.value === "review") {
+        activeMode.value = "graph";
+      }
     }
-    if (!selectedPendingId.value && pendingProposals.value.length) {
-      selectPendingProposal(pendingProposals.value[0]);
+    if (!selectedBatchId.value && pendingBatches.value.length) {
+      await selectPendingBatch(pendingBatches.value[0].id, { switchModeToReview: false });
     }
   } catch (error) {
-    handleApiError(error, "加载候选审核队列失败。");
+    handleApiError(error, "加载候选批次失败。");
   } finally {
     isPendingLoading.value = false;
   }
 }
 
-async function refreshGraph() {
-  await Promise.all([loadGraph(), loadPendingProposals()]);
-  if (keyword.value.trim()) {
-    await searchGraph({ useFreshBaseGraph: true });
-    return;
+async function selectPendingBatch(batchId, options = {}) {
+  const { switchModeToReview = true } = options;
+  selectedBatchId.value = batchId;
+  clearReviewSelection();
+  batchRejectNote.value = "";
+  isReviewLoading.value = true;
+  try {
+    const { data } = await getPendingTeacherBatchDetailApi(batchId);
+    selectedBatchDetail.value = data;
+    hydrateReviewDrafts(data);
+    const firstPendingNode = data.nodes.find((node) => !isContextNode(node));
+    if (firstPendingNode) {
+      selectedReviewNodeId.value = firstPendingNode.id;
+    }
+    if (switchModeToReview) {
+      activeMode.value = "review";
+      await nextTick();
+      reviewCanvas.value?.restartLayout?.();
+    }
+  } catch (error) {
+    handleApiError(error, "加载候选批次详情失败。");
+  } finally {
+    isReviewLoading.value = false;
   }
+}
+
+function hydrateReviewDrafts(detail) {
+  Object.keys(reviewNodeDrafts).forEach((key) => delete reviewNodeDrafts[key]);
+  Object.keys(reviewEdgeDrafts).forEach((key) => delete reviewEdgeDrafts[key]);
+
+  (detail.nodes || []).forEach((node) => {
+    reviewNodeDrafts[node.id] = {
+      id: node.id,
+      name: node.name,
+      desc: node.desc || "",
+      node_type: "",
+      keep: node.is_selected_default && !isContextNode(node),
+      status: node.status,
+      reason: node.reason || "",
+    };
+  });
+  (detail.edges || []).forEach((edge) => {
+    reviewEdgeDrafts[edge.id] = {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      relation: edge.relation,
+      keep: !!edge.is_selected_default,
+    };
+  });
+}
+
+function switchMode(mode) {
+  if (mode === "review" && !selectedBatchDetail.value) return;
+  activeMode.value = mode;
+  nextTick(() => {
+    if (mode === "graph") {
+      graphCanvas.value?.restartLayout?.();
+    } else {
+      reviewCanvas.value?.restartLayout?.();
+    }
+  });
+}
+
+function isContextNode(node) {
+  return node?.status === "context_existing" || node?.status === "anchor_existing";
+}
+
+function reviewEdgeLabel(edge) {
+  const source = resolveReviewNodeName(edge.source);
+  const target = resolveReviewNodeName(edge.target);
+  return `${source} -> ${target} (${edge.relation})`;
+}
+
+function resolveReviewNodeName(nodeId) {
+  const node = (selectedBatchDetail.value?.nodes || []).find((item) => item.id === nodeId);
+  return node?.name || nodeId;
+}
+
+async function refreshGraph() {
+  await Promise.all([loadGraph(), loadPendingBatches()]);
   await nextTick();
-  graphCanvas.value?.restartLayout?.();
+  if (activeMode.value === "graph") {
+    graphCanvas.value?.restartLayout?.();
+  } else {
+    reviewCanvas.value?.restartLayout?.();
+  }
 }
 
 async function toggleFullscreen() {
@@ -367,42 +578,9 @@ function clearSelection() {
   selectedEdgeId.value = "";
 }
 
-function selectPendingProposal(proposal) {
-  if (!proposal) return;
-  selectedPendingId.value = proposal.id;
-  pendingForm.name = proposal.name || "";
-  pendingForm.desc = proposal.desc || "";
-  pendingForm.node_type = proposal.node_type || "";
-  pendingForm.rejectNote = "";
-  pendingForm.suggested_edges = (proposal.suggested_edges || []).map((edge) => ({
-    source: edge.source || "",
-    target: edge.target || "",
-    relation: edge.relation || "DEPENDS_ON",
-    direction: edge.direction || "out",
-  }));
-}
-
-function startCreateNode() {
-  isCreatingNode.value = true;
-  nodeForm.name = "";
-  nodeForm.desc = "";
-}
-
-function cancelCreateNode() {
-  isCreatingNode.value = false;
-  if (selectedNodeId.value) handleSelectNode(selectedNodeId.value);
-}
-
-function startCreateEdge() {
-  isCreatingEdge.value = true;
-  edgeForm.source = selectedNode.value ? selectedNode.value.name : "";
-  edgeForm.relation = "DEPENDS_ON"; // 永远固定为 DEPENDS_ON
-  edgeForm.target = "";
-}
-
-function cancelCreateEdge() {
-  isCreatingEdge.value = false;
-  if (selectedEdgeId.value) handleSelectEdge(selectedEdgeId.value);
+function clearReviewSelection() {
+  selectedReviewNodeId.value = "";
+  selectedReviewEdgeId.value = "";
 }
 
 function handleSelectNode(nodeId) {
@@ -424,6 +602,37 @@ function handleSelectEdge(edgeId) {
   edgeForm.target = edge.target_name || edge.target;
 }
 
+function handleSelectReviewNode(nodeId) {
+  selectedReviewNodeId.value = nodeId;
+  selectedReviewEdgeId.value = "";
+}
+
+function handleSelectReviewEdge(edgeId) {
+  selectedReviewEdgeId.value = edgeId;
+  selectedReviewNodeId.value = "";
+}
+
+function startCreateNode() {
+  isCreatingNode.value = true;
+  nodeForm.name = "";
+  nodeForm.desc = "";
+}
+
+function cancelCreateNode() {
+  isCreatingNode.value = false;
+}
+
+function startCreateEdge() {
+  isCreatingEdge.value = true;
+  edgeForm.source = selectedNode.value ? selectedNode.value.name : "";
+  edgeForm.target = "";
+  edgeForm.relation = "DEPENDS_ON";
+}
+
+function cancelCreateEdge() {
+  isCreatingEdge.value = false;
+}
+
 async function submitNode() {
   if (!nodeForm.name.trim()) {
     errorMessage.value = "节点名不能为空";
@@ -437,215 +646,138 @@ async function submitNode() {
       await updateTeacherNodeApi(selectedNode.value.name, { ...nodeForm });
     }
     await refreshGraph();
-    errorMessage.value = "";
   } catch (error) {
     handleApiError(error, "保存节点失败。");
   }
 }
 
 async function submitEdge() {
-  if (!edgeForm.source || !edgeForm.target) {
-    errorMessage.value = "请填写起点和终点信息";
+  if (!edgeForm.source.trim() || !edgeForm.target.trim()) {
+    errorMessage.value = "请填写起点和终点";
     return;
   }
-  // 提交前再次确认关系名称
-  edgeForm.relation = "DEPENDS_ON";
-  
   try {
     if (isCreatingEdge.value) {
-      await createTeacherEdgeApi({ ...edgeForm });
+      await createTeacherEdgeApi({ ...edgeForm, relation: "DEPENDS_ON" });
       isCreatingEdge.value = false;
     } else if (selectedEdge.value) {
-      await updateTeacherEdgeApi(selectedEdge.value.edge_key, { ...edgeForm });
+      await updateTeacherEdgeApi(selectedEdge.value.edge_key, { ...edgeForm, relation: "DEPENDS_ON" });
     }
     await refreshGraph();
-    errorMessage.value = "";
   } catch (error) {
     handleApiError(error, "保存关系失败。");
   }
 }
 
-function asyncDeleteAction(actionFn) {
-    return async () => {
-        try {
-            await actionFn();
-            await refreshGraph();
-            clearSelection();
-        } catch (error) {
-            handleApiError(error, "删除失败。");
-        }
-    }
-}
-
 async function deleteNode() {
   if (!selectedNode.value) return;
-  if(!confirm(`确定要删除节点 "${selectedNode.value.name}" 吗？这可能也会删除关联的边。`)) return;
-  await asyncDeleteAction(() => deleteTeacherNodeApi(selectedNode.value.name))();
+  if (!confirm(`确定删除节点 "${selectedNode.value.name}" 吗？`)) return;
+  try {
+    await deleteTeacherNodeApi(selectedNode.value.name);
+    clearSelection();
+    await refreshGraph();
+  } catch (error) {
+    handleApiError(error, "删除节点失败。");
+  }
 }
 
 async function deleteEdge() {
   if (!selectedEdge.value) return;
-  if(!confirm("确定要删除这条关系吗？")) return;
-  await asyncDeleteAction(() => deleteTeacherEdgeApi(selectedEdge.value.edge_key))();
+  if (!confirm("确定删除这条关系吗？")) return;
+  try {
+    await deleteTeacherEdgeApi(selectedEdge.value.edge_key);
+    clearSelection();
+    await refreshGraph();
+  } catch (error) {
+    handleApiError(error, "删除关系失败。");
+  }
+}
+
+async function searchGraph() {
+  const query = keyword.value.trim();
+  if (!query) {
+    graph.value = fullGraph.value;
+    return;
+  }
+  try {
+    isGraphLoading.value = true;
+    const { data } = await getTeacherGraphApi({ keyword: query, limit: 2000 });
+    graph.value = data;
+    if (data.nodes.length) {
+      handleSelectNode(data.nodes[0].id);
+      await nextTick();
+      graphCanvas.value?.focusNodes?.(data.nodes.map((node) => node.id));
+    }
+  } catch (error) {
+    handleApiError(error, "搜索图谱失败。");
+  } finally {
+    isGraphLoading.value = false;
+  }
+}
+
+async function approveSelectedBatch() {
+  if (!selectedBatchId.value || !selectedBatchDetail.value) return;
+  const nodes = selectedNodeDrafts.value
+    .filter((item) => item.keep)
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      desc: item.desc,
+      node_type: item.node_type || "",
+    }));
+  if (!nodes.length) {
+    errorMessage.value = "至少保留一个待审结点。";
+    return;
+  }
+  const edges = selectedEdgeDrafts.value
+    .filter((item) => item.keep)
+    .map((item) => ({
+      id: item.id,
+      source: resolveReviewNodeName(item.source),
+      target: resolveReviewNodeName(item.target),
+      relation: item.relation,
+    }));
+  try {
+    await approvePendingTeacherBatchApi(selectedBatchId.value, { nodes, edges });
+    await loadPendingBatches();
+    await loadGraph();
+    if (selectedBatchId.value && !pendingBatches.value.some((item) => item.id === selectedBatchId.value)) {
+      if (pendingBatches.value.length) {
+        await selectPendingBatch(pendingBatches.value[0].id, { switchModeToReview: true });
+      } else {
+        activeMode.value = "graph";
+      }
+    }
+  } catch (error) {
+    handleApiError(error, "通过候选批次失败。");
+  }
+}
+
+async function rejectSelectedBatch() {
+  if (!selectedBatchId.value) return;
+  try {
+    const rejectedBatchId = selectedBatchId.value;
+    await rejectPendingTeacherBatchApi(rejectedBatchId, { note: batchRejectNote.value });
+    await loadPendingBatches();
+    if (!pendingBatches.value.length) {
+      activeMode.value = "graph";
+      return;
+    }
+    const nextBatch = pendingBatches.value.find((item) => item.id !== rejectedBatchId) || pendingBatches.value[0];
+    await selectPendingBatch(nextBatch.id, { switchModeToReview: true });
+  } catch (error) {
+    handleApiError(error, "驳回候选批次失败。");
+  }
 }
 
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user_role");
+    clearAuthSession();
     router.push("/login");
     return;
   }
   errorMessage.value = error?.response?.data?.detail || fallbackMessage;
-}
-
-function applyGraphData(data) {
-  graph.value = data;
-  if (selectedNodeId.value && !data.nodes.some((node) => node.id === selectedNodeId.value)) {
-    selectedNodeId.value = "";
-  }
-  if (selectedEdgeId.value && !data.edges.some((edge) => edge.id === selectedEdgeId.value)) {
-    selectedEdgeId.value = "";
-  }
-}
-
-function addPendingEdgeRow() {
-  pendingForm.suggested_edges.push({
-    source: pendingForm.name || "",
-    target: "",
-    relation: "DEPENDS_ON",
-    direction: "out",
-  });
-}
-
-function removePendingEdgeRow(index) {
-  pendingForm.suggested_edges.splice(index, 1);
-}
-
-async function approveSelectedPending() {
-  if (!selectedPendingProposal.value) return;
-  if (!pendingForm.name.trim()) {
-    errorMessage.value = "候选节点名不能为空";
-    return;
-  }
-  try {
-    await approvePendingTeacherNodeApi(selectedPendingProposal.value.id, {
-      name: pendingForm.name,
-      desc: pendingForm.desc,
-      node_type: pendingForm.node_type,
-      suggested_edges: pendingForm.suggested_edges.map((edge) => ({
-        source: edge.source,
-        target: edge.target,
-        relation: "DEPENDS_ON",
-        direction: edge.direction || "out",
-      })),
-    });
-    await refreshGraph();
-    errorMessage.value = "";
-  } catch (error) {
-    handleApiError(error, "通过候选失败。");
-  }
-}
-
-async function rejectSelectedPending() {
-  if (!selectedPendingProposal.value) return;
-  try {
-    await rejectPendingTeacherNodeApi(selectedPendingProposal.value.id, {
-      note: pendingForm.rejectNote,
-    });
-    await loadPendingProposals();
-    errorMessage.value = "";
-  } catch (error) {
-    handleApiError(error, "驳回候选失败。");
-  }
-}
-
-async function locatePendingReference(proposal) {
-  const firstEdge = proposal?.suggested_edges?.[0];
-  const relatedNodeName = firstEdge
-    ? (firstEdge.source === proposal.name ? firstEdge.target : firstEdge.source)
-    : proposal?.name;
-  if (!relatedNodeName) return;
-  keyword.value = relatedNodeName;
-  await searchGraph();
-}
-
-function findLocalMatches(query) {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return [];
-  return fullGraph.value.nodes.filter((node) => {
-    const name = String(node.name || "").toLowerCase();
-    const desc = String(node.desc || "").toLowerCase();
-    return name.includes(normalized) || desc.includes(normalized);
-  });
-}
-
-// 🚀 搜索与下拉框逻辑
-function handleSearchInput() {
-  const query = keyword.value.trim();
-  if (!query) {
-    showSearchResults.value = false;
-    searchResults.value = [];
-    return;
-  }
-  searchResults.value = findLocalMatches(query);
-  showSearchResults.value = searchResults.value.length > 0;
-}
-
-function hideSearchDropdown() {
-  // 延迟关闭，以确保点击事件能触发
-  setTimeout(() => { showSearchResults.value = false; }, 150);
-}
-
-async function selectSearchResult(node) {
-  keyword.value = node.name; // 将输入框内容替换为选中的节点名
-  showSearchResults.value = false;
-  handleSelectNode(node.id);
-  await focusNodeIds([node.id]);
-}
-
-async function focusNodeIds(nodeIds) {
-  await nextTick();
-  graphCanvas.value?.focusNodes?.(nodeIds);
-}
-
-async function searchGraph(options = {}) {
-  showSearchResults.value = false;
-  const query = keyword.value.trim();
-  errorMessage.value = "";
-  graphRenderError.value = "";
-  if (!query) {
-    applyGraphData(fullGraph.value);
-    clearSelection();
-    await focusNodeIds(graph.value.nodes.map((node) => node.id));
-    return;
-  }
-
-  const localMatches = findLocalMatches(query);
-  if (localMatches.length) {
-    applyGraphData(fullGraph.value);
-    handleSelectNode(localMatches[0].id);
-    await focusNodeIds(localMatches.map((node) => node.id));
-    return;
-  }
-
-  if (!options.useFreshBaseGraph) isGraphLoading.value = true;
-
-  try {
-    const { data } = await getTeacherGraphApi({ keyword: query, limit: 2000 });
-    applyGraphData(data);
-    if (data.nodes.length) {
-      handleSelectNode(data.nodes[0].id);
-      await focusNodeIds(data.nodes.map((node) => node.id));
-    } else {
-      clearSelection();
-    }
-  } catch (error) {
-    handleApiError(error, "搜索图谱失败。");
-  } finally {
-    if (!options.useFreshBaseGraph) isGraphLoading.value = false;
-  }
 }
 </script>
 
@@ -688,61 +820,20 @@ async function searchGraph(options = {}) {
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.05);
 }
 
-/* 🚀 搜索框布局调整 */
-.toolbar-search {
-  display: flex;
+.toolbar-input,
+.detail-body input,
+.detail-body textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d8e2ee;
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+}
+
+.toolbar-input {
   flex: 1;
   min-width: 260px;
-  gap: 10px;
-  position: relative; /* 为绝对定位的下拉框做基准 */
-}
-
-/* 🚀 新增下拉菜单样式 */
-.search-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 80px; /* 避开右侧的搜索按钮 */
-  margin-top: 8px;
-  background: #ffffff;
-  border: 1px solid #e2ebf4;
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(15, 40, 64, 0.15);
-  list-style: none;
-  padding: 8px 0;
-  max-height: 280px;
-  overflow-y: auto;
-  z-index: 1000;
-}
-
-.search-dropdown li {
-  padding: 10px 16px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border-bottom: 1px solid #f0f5fa;
-}
-
-.search-dropdown li:last-child {
-  border-bottom: none;
-}
-
-.search-dropdown li:hover {
-  background: #f8fbff;
-}
-
-.search-dropdown li strong {
-  color: #10283d;
-  font-size: 14px;
-}
-
-.desc-preview {
-  color: #6f8297;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .graph-meta {
@@ -751,124 +842,248 @@ async function searchGraph(options = {}) {
   white-space: nowrap;
 }
 
-.toolbar button,
-.toolbar input,
-.detail-body input,
-.detail-body textarea,
-.detail-actions button,
-.action-bar button {
-  font: inherit;
-}
-
-.toolbar input,
-.detail-body input,
-.detail-body textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #d8e2ee;
-  border-radius: 14px;
-  background: #fff;
-}
-
-.toolbar button,
-.detail-actions button,
-.action-bar button {
+button {
   border: none;
   border-radius: 14px;
   padding: 12px 16px;
   background: #10283d;
   color: #fff;
   cursor: pointer;
-  transition: all 0.2s ease;
+  font: inherit;
 }
 
-.toolbar button:hover,
-.detail-actions button:hover,
-.action-bar button:hover {
+button:hover {
   background: #1c3d5a;
 }
 
-.toolbar .ghost,
-.detail-actions .ghost,
-.panel-head .ghost {
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ghost {
   background: #edf4ff;
   color: #2d5278;
 }
 
-.toolbar .ghost:hover,
-.detail-actions .ghost:hover {
+.ghost:hover:not(:disabled) {
   background: #d8e6fa;
 }
 
-.graph-layout {
+.mode-switch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  width: fit-content;
+  border: 1px solid #e2ebf4;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
+}
+
+.mode-tab {
+  min-width: 116px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: transparent;
+  color: #526b84;
+}
+
+.mode-tab.active {
+  background: #10283d;
+  color: #fff;
+}
+
+.graph-mode-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 18px;
+  align-items: start;
 }
 
-.graph-panel,
-.detail-panel {
+.review-workbench {
+  display: grid;
+  gap: 16px;
+}
+
+.review-header-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  gap: 14px;
+}
+
+.review-mode-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.94fr) minmax(380px, 0.86fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.graph-panel {
   border: 1px solid #e2ebf4;
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+  position: relative;
+  padding: 16px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
 }
 
-.graph-panel {
-  position: relative;
-  min-height: 680px;
-  padding: 10px;
+.formal-panel {
+  min-height: 760px;
+}
+
+.formal-panel :deep(.graph-canvas) {
+  height: 660px;
+  min-height: 660px;
+}
+
+.review-graph-panel {
+  min-height: 590px;
+}
+
+.review-graph-panel :deep(.graph-canvas) {
+  height: 470px;
+  min-height: 470px;
+}
+
+.graph-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.graph-panel-head h3 {
+  margin: 4px 0 0;
+  color: #10283d;
+  font-size: 24px;
+}
+
+.graph-mode-label {
+  margin: 0;
+  color: #5b86b3;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.graph-mode-copy {
+  max-width: 250px;
+  color: #6f8297;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: right;
 }
 
 .graph-state {
   position: absolute;
-  inset: 0;
+  inset: 16px;
+  top: 88px;
   display: grid;
   place-items: center;
   color: #6f8297;
   font-size: 14px;
   background: rgba(255, 255, 255, 0.88);
-  border-radius: 26px;
+  border-radius: 20px;
   z-index: 2;
 }
 
-.graph-error p {
-  margin: 0 0 8px;
-  font-weight: 700;
-  color: #8b1e1e;
-}
-
-.graph-error small {
-  color: #7c8a99;
-}
-
-.detail-panel {
+.graph-side-panel {
   display: grid;
   gap: 14px;
-  align-self: start;
-  padding: 16px;
+  grid-template-rows: auto minmax(440px, 1fr);
+}
+
+.review-side-panel {
+  min-height: 590px;
+  display: grid;
+  grid-template-rows: minmax(250px, 0.9fr) minmax(320px, 1.1fr);
+  gap: 14px;
 }
 
 .panel-card {
+  min-height: 0;
   padding: 18px;
   border-radius: 22px;
   background: #f8fbff;
+  border: 1px solid #ebf1f7;
+  display: grid;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.detail-card {
+  grid-template-rows: auto 1fr;
+}
+
+.approval-card {
+  grid-template-rows: auto 1fr auto;
+}
+
+.review-strip-card,
+.review-current-card,
+.action-card {
+  align-content: start;
 }
 
 .action-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  padding: 14px;
-  background: #fff;
-  border: 1px solid #e2ebf4;
 }
+
 .action-bar button {
-  flex: 1;
   background: #2563eb;
-  font-weight: 500;
 }
-.action-bar button:hover {
-  background: #1d4ed8;
+
+.review-batch-list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(190px, 220px);
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.batch-chip {
+  min-height: 88px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid #d9e6f3;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #10283d;
+  display: grid;
+  gap: 6px;
+}
+
+.batch-chip.active {
+  border-color: #8b5cf6;
+  background: #f6f1ff;
+}
+
+.batch-chip:hover:not(:disabled) {
+  background: #f8fbff;
+}
+
+.batch-chip.active:hover:not(:disabled) {
+  background: #f6f1ff;
+}
+
+.batch-chip small,
+.review-meta span {
+  color: #6f8297;
+  font-size: 12px;
+}
+
+.review-current-body {
+  display: grid;
+  gap: 10px;
+  align-content: start;
 }
 
 .panel-head {
@@ -879,7 +1094,8 @@ async function searchGraph(options = {}) {
   margin-bottom: 14px;
 }
 
-.panel-head h3 {
+.panel-head h3,
+.panel-head h4 {
   margin: 0;
   color: #10283d;
 }
@@ -892,6 +1108,9 @@ async function searchGraph(options = {}) {
 .detail-body {
   display: grid;
   gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .detail-body label {
@@ -902,10 +1121,6 @@ async function searchGraph(options = {}) {
   font-weight: 500;
 }
 
-.required {
-  color: #e11d48;
-}
-
 .detail-body textarea {
   resize: vertical;
 }
@@ -914,15 +1129,87 @@ async function searchGraph(options = {}) {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 6px;
 }
 
-.detail-actions .danger {
+.danger {
   background: #f97316;
 }
 
-.detail-actions .danger:hover {
+.danger:hover:not(:disabled) {
   background: #ea580c;
+}
+
+.review-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.review-summary-text {
+  margin: 4px 0 0;
+  color: #5f7287;
+  line-height: 1.7;
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.review-checklists {
+  display: grid;
+  gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.checklist-group {
+  padding: 14px;
+  border: 1px solid #e6edf5;
+  border-radius: 16px;
+  background: #fff;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.sub-head {
+  margin-bottom: 8px;
+}
+
+.check-item,
+.checkbox-row {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.check-item + .check-item {
+  margin-top: 10px;
+}
+
+.check-item input,
+.checkbox-row input {
+  width: auto;
+}
+
+.reject-note {
+  margin-top: 0;
+}
+
+.approval-footer {
+  display: grid;
+  gap: 14px;
+  padding-top: 6px;
+  border-top: 1px solid #e6edf5;
+}
+
+.approval-footer .detail-body {
+  overflow: visible;
+  padding-right: 0;
 }
 
 .empty-detail {
@@ -933,80 +1220,8 @@ async function searchGraph(options = {}) {
   padding: 20px 0;
 }
 
-.pending-card {
-  display: grid;
-  gap: 14px;
-}
-
-.pending-list {
-  display: grid;
-  gap: 10px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.pending-item {
-  width: 100%;
-  text-align: left;
-  padding: 12px 14px;
-  border: 1px solid #d9e6f3;
-  border-radius: 14px;
-  background: #ffffff;
-  cursor: pointer;
-  display: grid;
-  gap: 4px;
-}
-
-.pending-item.active {
-  border-color: #8b5cf6;
-  background: #f6f1ff;
-}
-
-.pending-item strong {
-  color: #10283d;
-}
-
-.pending-item span,
-.pending-meta span {
-  color: #6f8297;
-  font-size: 12px;
-}
-
-.pending-form {
-  border-top: 1px solid #e6edf5;
-  padding-top: 14px;
-}
-
-.pending-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.sub-head {
-  margin-bottom: 8px;
-}
-
-.sub-head h4 {
-  margin: 0;
-  color: #10283d;
-  font-size: 14px;
-}
-
-.pending-edge-editor {
-  display: grid;
-  gap: 10px;
-}
-
-.pending-edge-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 8px;
-}
-
-.detail-actions .small {
-  padding: 10px 12px;
+.empty-detail.compact {
+  padding: 8px 0;
 }
 
 .feedback.error {
@@ -1025,7 +1240,6 @@ async function searchGraph(options = {}) {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: fadeIn 0.2s ease;
 }
 
 .modal-card {
@@ -1035,28 +1249,69 @@ async function searchGraph(options = {}) {
   padding: 28px;
   border-radius: 24px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
-  transform: translateY(-5vh);
 }
 
 .modal-card h3 {
-  margin: 0 0 20px 0;
-  font-size: 20px;
+  margin: 0 0 20px;
   color: #0f2840;
 }
 
-.modal-actions {
-  justify-content: flex-end;
-  margin-top: 12px;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@media (max-width: 1120px) {
-  .graph-layout {
+@media (max-width: 1200px) {
+  .graph-mode-layout,
+  .review-header-strip,
+  .review-mode-layout {
     grid-template-columns: 1fr;
+  }
+
+  .formal-panel {
+    min-height: 640px;
+  }
+
+  .formal-panel :deep(.graph-canvas) {
+    height: 560px;
+    min-height: 560px;
+  }
+
+  .review-graph-panel {
+    min-height: 540px;
+  }
+
+  .review-graph-panel :deep(.graph-canvas) {
+    height: 440px;
+    min-height: 440px;
+  }
+
+  .graph-side-panel,
+  .review-side-panel {
+    min-height: auto;
+    grid-template-rows: auto auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .graph-panel-head {
+    flex-direction: column;
+  }
+
+  .graph-mode-copy {
+    max-width: none;
+    text-align: left;
+  }
+
+  .action-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .review-batch-list {
+    grid-auto-columns: minmax(180px, 78vw);
+  }
+
+  .mode-switch {
+    width: 100%;
+  }
+
+  .mode-tab {
+    flex: 1;
   }
 }
 </style>

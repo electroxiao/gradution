@@ -3,7 +3,7 @@ from neo4j import GraphDatabase
 from openai import OpenAI
 
 from backend.core.config import settings
-from backend.services.pending_proposal_service import get_pending_proposal_context
+from backend.services.pending_batch_service import get_pending_node_context
 from backend.services.knowledge_progress_service import mark_node_mastered
 
 API_KEY = settings.llm_api_key
@@ -15,12 +15,13 @@ DB_NAME = settings.neo4j_db_name
 
 
 def get_node_context(node_id: str, db=None, user=None) -> dict:
-    if isinstance(node_id, str) and node_id.startswith("pending:"):
-        proposal_id = node_id.split(":", 1)[1]
-        if proposal_id.isdigit():
-            context = get_pending_proposal_context(db, int(proposal_id), getattr(user, "id", None))
-            if context:
-                return context
+    if isinstance(node_id, str) and (
+        node_id.startswith("pending:")
+        or node_id.startswith("pending-batch-node:")
+    ):
+        context = get_pending_node_context(db, node_id, getattr(user, "id", None))
+        if context:
+            return context
     return get_node_context_from_neo4j(node_id)
 
 

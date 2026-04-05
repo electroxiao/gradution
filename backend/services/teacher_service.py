@@ -13,17 +13,18 @@ from backend.schemas.teacher import (
     GraphEdgeUpdateRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
+    PendingBatchApproveRequest,
+    PendingBatchRejectRequest,
     GraphQueryResponse,
-    PendingNodeApproveRequest,
-    PendingNodeRejectRequest,
     TeacherStudentResponse,
     TeacherStudentWeakPointResponse,
 )
 from backend.services.chat_service import get_neo4j_driver
-from backend.services.pending_proposal_service import (
-    approve_pending_proposal,
-    list_pending_proposals,
-    reject_pending_proposal,
+from backend.services.pending_batch_service import (
+    approve_pending_batch,
+    get_pending_batch_detail,
+    list_pending_batches,
+    reject_pending_batch,
 )
 
 
@@ -193,26 +194,33 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
     return GraphQueryResponse(nodes=node_rows, edges=edge_rows)
 
 
-def list_pending_graph_nodes(db: Session):
-    return list_pending_proposals(db)
+def list_pending_graph_batches(db: Session):
+    return list_pending_batches(db)
 
 
-def approve_pending_graph_node(
+def get_pending_graph_batch_detail(
+    db: Session,
+    batch_id: str,
+):
+    return get_pending_batch_detail(db, batch_id)
+
+
+def approve_pending_graph_batch(
     db: Session,
     current_user: User,
-    proposal_id: int,
-    payload: PendingNodeApproveRequest,
+    batch_id: str,
+    payload: PendingBatchApproveRequest,
 ):
-    return approve_pending_proposal(db, current_user, proposal_id, payload)
+    return approve_pending_batch(db, current_user, batch_id, payload)
 
 
-def reject_pending_graph_node(
+def reject_pending_graph_batch(
     db: Session,
     current_user: User,
-    proposal_id: int,
-    payload: PendingNodeRejectRequest,
+    batch_id: str,
+    payload: PendingBatchRejectRequest,
 ):
-    return reject_pending_proposal(db, current_user, proposal_id, payload)
+    return reject_pending_batch(db, current_user, batch_id, payload)
 
 
 def create_graph_node(payload: GraphNodeCreateRequest) -> dict:

@@ -1,4 +1,5 @@
 import http from "./http";
+import { getAccessToken } from "../utils/authStorage";
 
 export const listSessionsApi = () => http.get("/api/chat/sessions");
 export const createSessionApi = (payload) => http.post("/api/chat/sessions", payload);
@@ -9,7 +10,7 @@ export const sendMessageApi = (sessionId, payload) =>
   http.post(`/api/chat/sessions/${sessionId}/messages`, payload);
 
 export async function streamMessageApi(sessionId, payload, handlers = {}) {
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
   const response = await fetch(`http://127.0.0.1:8000/api/chat/sessions/${sessionId}/messages/stream`, {
     method: "POST",
     headers: {

@@ -53,6 +53,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { getTeacherDashboardApi } from "../api/teacher";
+import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
 const dashboard = ref(null);
@@ -80,8 +81,7 @@ function barWidth(markCount) {
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user_role");
+    clearAuthSession();
     router.push("/login");
     return;
   }

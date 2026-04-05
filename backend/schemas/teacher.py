@@ -80,6 +80,7 @@ class PendingNodeProposalResponse(BaseModel):
     node_type: str
     reason: str
     status: str
+    anchor_node_name: str | None = None
     source_weak_point: str | None = None
     source_user_id: int | None = None
     source_chat_session_id: int | None = None
@@ -102,6 +103,83 @@ class PendingNodeApproveRequest(BaseModel):
 
 
 class PendingNodeRejectRequest(BaseModel):
+    note: str = Field(default="", max_length=1000)
+
+
+class PendingBatchSummaryResponse(BaseModel):
+    id: str
+    status: str
+    source_type: str
+    anchor_name: str
+    anchor_status: str
+    question_excerpt: str
+    source_weak_point: str | None = None
+    source_user_id: int | None = None
+    source_chat_session_id: int | None = None
+    created_at: datetime
+    pending_node_count: int
+    pending_edge_count: int
+    node_names: list[str]
+
+
+class PendingBatchGraphNodeResponse(BaseModel):
+    id: str
+    name: str
+    desc: str
+    reason: str = ""
+    status: str
+    is_anchor: bool = False
+    is_selected_default: bool = True
+
+
+class PendingBatchGraphEdgeResponse(BaseModel):
+    id: str
+    source: str
+    target: str
+    relation: str
+    status: str
+    is_selected_default: bool = True
+
+
+class PendingBatchDetailBatchResponse(BaseModel):
+    id: str
+    status: str
+    source_type: str
+    anchor_name: str
+    anchor_status: str
+    question_excerpt: str
+    source_weak_point: str | None = None
+    source_user_id: int | None = None
+    source_chat_session_id: int | None = None
+    created_at: datetime
+
+
+class PendingBatchDetailResponse(BaseModel):
+    batch: PendingBatchDetailBatchResponse
+    nodes: list[PendingBatchGraphNodeResponse]
+    edges: list[PendingBatchGraphEdgeResponse]
+
+
+class PendingBatchApproveNodeInput(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=255)
+    desc: str = Field(default="")
+    node_type: str | None = Field(default=None, max_length=64)
+
+
+class PendingBatchApproveEdgeInput(BaseModel):
+    id: str = Field(min_length=1)
+    source: str = Field(min_length=1, max_length=255)
+    target: str = Field(min_length=1, max_length=255)
+    relation: str = Field(default="DEPENDS_ON", min_length=1, max_length=64)
+
+
+class PendingBatchApproveRequest(BaseModel):
+    nodes: list[PendingBatchApproveNodeInput] = Field(default_factory=list)
+    edges: list[PendingBatchApproveEdgeInput] = Field(default_factory=list)
+
+
+class PendingBatchRejectRequest(BaseModel):
     note: str = Field(default="", max_length=1000)
 
 

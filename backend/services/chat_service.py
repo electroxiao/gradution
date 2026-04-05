@@ -20,7 +20,7 @@ from backend.schemas.chat import (
     SessionUpdateRequest,
 )
 from backend.services import rag_engine
-from backend.services.pending_proposal_service import propose_pending_from_chat
+from backend.services.pending_batch_service import propose_pending_batch_from_chat
 from backend.services.weak_point_service import extract_core_nodes, upsert_weak_points
 
 PENDING_PROPOSAL_EXECUTOR = ThreadPoolExecutor(max_workers=2)
@@ -175,7 +175,7 @@ def send_message(db: Session, user: User, session_id: int, payload: MessageCreat
     answer_started_at = perf_counter()
     answer = "".join(rag_engine.ask_deepseek_stream(client, payload.content, facts, history=history))
     answer_elapsed = perf_counter() - answer_started_at
-    pending_notice = _run_pending_chat_proposal(payload.content, facts, user.id, session.id)
+    pending_notice = _run_pending_chat_proposal(payload.content, facts, keywords, user.id, session.id)
 
     print(
         "[chat_timing] "
@@ -273,6 +273,7 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
         _run_pending_chat_proposal,
         payload.content,
         facts,
+        keywords,
         user.id,
         session.id,
     )
@@ -374,13 +375,20 @@ def _sse_event(event: str, payload: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-def _run_pending_chat_proposal(question: str, facts: list, user_id: int, session_id: int) -> dict | None:
+def _run_pending_chat_proposal(
+    question: str,
+    facts: list,
+    keywords: list[str] | None,
+    user_id: int,
+    session_id: int,
+) -> dict | None:
     db = SessionLocal()
     try:
-        return propose_pending_from_chat(
+        return propose_pending_batch_from_chat(
             db,
             question=question,
             facts=facts,
+            keywords=keywords,
             user_id=user_id,
             session_id=session_id,
         )

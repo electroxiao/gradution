@@ -12,11 +12,13 @@ export const updateTeacherEdgeApi = (edgeId, payload) =>
   http.patch(`/api/teacher/graph/edges/${encodeURIComponent(edgeId)}`, payload);
 export const deleteTeacherEdgeApi = (edgeId) =>
   http.delete(`/api/teacher/graph/edges/${encodeURIComponent(edgeId)}`);
-export const listPendingTeacherNodesApi = () => http.get("/api/teacher/graph/pending-nodes");
-export const approvePendingTeacherNodeApi = (proposalId, payload) =>
-  http.post(`/api/teacher/graph/pending-nodes/${proposalId}/approve`, payload);
-export const rejectPendingTeacherNodeApi = (proposalId, payload) =>
-  http.post(`/api/teacher/graph/pending-nodes/${proposalId}/reject`, payload);
+export const listPendingTeacherBatchesApi = () => http.get("/api/teacher/graph/pending-batches");
+export const getPendingTeacherBatchDetailApi = (batchId) =>
+  http.get(`/api/teacher/graph/pending-batches/${encodeURIComponent(batchId)}`);
+export const approvePendingTeacherBatchApi = (batchId, payload) =>
+  http.post(`/api/teacher/graph/pending-batches/${encodeURIComponent(batchId)}/approve`, payload);
+export const rejectPendingTeacherBatchApi = (batchId, payload) =>
+  http.post(`/api/teacher/graph/pending-batches/${encodeURIComponent(batchId)}/reject`, payload);
 
 export const listTeacherStudentsApi = () => http.get("/api/teacher/students");
 export const listTeacherStudentWeakPointsApi = (studentId) =>

@@ -8,20 +8,21 @@ from backend.schemas.teacher import (
     GraphEdgeUpdateRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
-    PendingNodeApproveRequest,
-    PendingNodeRejectRequest,
+    PendingBatchApproveRequest,
+    PendingBatchRejectRequest,
 )
 from backend.services.teacher_service import (
-    approve_pending_graph_node,
+    approve_pending_graph_batch,
     create_graph_edge,
     create_graph_node,
     delete_graph_edge,
     delete_graph_node,
     get_graph,
+    get_pending_graph_batch_detail,
     get_weak_point_dashboard,
-    list_pending_graph_nodes,
+    list_pending_graph_batches,
     list_student_weak_points,
-    reject_pending_graph_node,
+    reject_pending_graph_batch,
     list_students_with_weak_points,
     update_graph_edge,
     update_graph_node,
@@ -39,32 +40,41 @@ def get_teacher_graph(
     return get_graph(keyword=keyword, limit=limit)
 
 
-@router.get("/graph/pending-nodes")
-def get_pending_graph_nodes(
+@router.get("/graph/pending-batches")
+def get_pending_graph_batches(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return list_pending_graph_nodes(db)
+    return list_pending_graph_batches(db)
 
 
-@router.post("/graph/pending-nodes/{proposal_id}/approve")
-def approve_pending_node(
-    proposal_id: int,
-    payload: PendingNodeApproveRequest,
+@router.get("/graph/pending-batches/{batch_id:path}")
+def get_pending_batch_detail(
+    batch_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return approve_pending_graph_node(db, current_user, proposal_id, payload)
+    return get_pending_graph_batch_detail(db, batch_id)
 
 
-@router.post("/graph/pending-nodes/{proposal_id}/reject")
-def reject_pending_node(
-    proposal_id: int,
-    payload: PendingNodeRejectRequest,
+@router.post("/graph/pending-batches/{batch_id:path}/approve")
+def approve_pending_batch(
+    batch_id: str,
+    payload: PendingBatchApproveRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return reject_pending_graph_node(db, current_user, proposal_id, payload)
+    return approve_pending_graph_batch(db, current_user, batch_id, payload)
+
+
+@router.post("/graph/pending-batches/{batch_id:path}/reject")
+def reject_pending_batch(
+    batch_id: str,
+    payload: PendingBatchRejectRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return reject_pending_graph_batch(db, current_user, batch_id, payload)
 
 
 @router.post("/graph/nodes")

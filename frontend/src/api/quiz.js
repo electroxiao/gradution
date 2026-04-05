@@ -1,4 +1,5 @@
 import http from "./http";
+import { getAccessToken } from "../utils/authStorage";
 
 const BASE_URL = "http://127.0.0.1:8000";
 
@@ -13,7 +14,7 @@ export const submitQuizAnswerApi = (nodeId, payload) =>
   });
 
 export async function streamGenerateQuizApi(nodeId, onChunk) {
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
   const response = await fetch(`${BASE_URL}/api/quiz/generate/stream`, {
     method: "POST",
     headers: {
@@ -60,7 +61,7 @@ export async function streamGenerateQuizApi(nodeId, onChunk) {
 }
 
 export async function streamSubmitAnswerApi(nodeId, question, answer, handlers = {}) {
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
   const response = await fetch(`${BASE_URL}/api/quiz/submit/stream`, {
     method: "POST",
     headers: {

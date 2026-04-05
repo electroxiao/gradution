@@ -89,3 +89,87 @@ class PendingNodeProposalEdge(Base):
     direction: Mapped[str] = mapped_column(String(16), default="out")
 
     proposal = relationship("PendingNodeProposal", back_populates="suggested_edges")
+
+
+class PendingProposalBatch(Base):
+    __tablename__ = "pending_proposal_batches"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    source_type: Mapped[str] = mapped_column(String(32), default="chat", index=True)
+    source_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_chat_session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chat_sessions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_weak_point_id: Mapped[int | None] = mapped_column(
+        ForeignKey("user_weak_points.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    anchor_name: Mapped[str] = mapped_column(String(255), index=True)
+    anchor_status: Mapped[str] = mapped_column(String(32), default="existing")
+    question_excerpt: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    review_note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reviewed_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    nodes = relationship(
+        "PendingProposalBatchNode",
+        back_populates="batch",
+        cascade="all, delete-orphan",
+    )
+    edges = relationship(
+        "PendingProposalBatchEdge",
+        back_populates="batch",
+        cascade="all, delete-orphan",
+    )
+
+
+class PendingProposalBatchNode(Base):
+    __tablename__ = "pending_proposal_batch_nodes"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    batch_id: Mapped[int] = mapped_column(
+        ForeignKey("pending_proposal_batches.id", ondelete="CASCADE"),
+        index=True,
+    )
+    node_name: Mapped[str] = mapped_column(String(255), index=True)
+    desc: Mapped[str] = mapped_column(Text, default="")
+    reason: Mapped[str] = mapped_column(Text, default="")
+    node_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    is_anchor: Mapped[bool] = mapped_column(default=False)
+    is_selected_default: Mapped[bool] = mapped_column(default=True)
+    review_state: Mapped[str] = mapped_column(String(32), default="pending")
+
+    batch = relationship("PendingProposalBatch", back_populates="nodes")
+
+
+class PendingProposalBatchEdge(Base):
+    __tablename__ = "pending_proposal_batch_edges"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    batch_id: Mapped[int] = mapped_column(
+        ForeignKey("pending_proposal_batches.id", ondelete="CASCADE"),
+        index=True,
+    )
+    source_name: Mapped[str] = mapped_column(String(255))
+    target_name: Mapped[str] = mapped_column(String(255))
+    relation: Mapped[str] = mapped_column(String(64), default="DEPENDS_ON")
+    direction: Mapped[str] = mapped_column(String(16), default="out")
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    is_selected_default: Mapped[bool] = mapped_column(default=True)
+    review_state: Mapped[str] = mapped_column(String(32), default="pending")
+
+    batch = relationship("PendingProposalBatch", back_populates="edges")
