@@ -184,14 +184,21 @@ def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) 
 
 请判断：
 1. 学生回答是否正确（理解了核心概念）
-2. 给出详细的反馈和解释
+2. 反馈要简洁但有用，保留最关键的判断理由和必要纠正
 
 {'' if not is_pending_node else '这是待教师确认的候选知识点。即使学生回答正确，也不要调用 mark_node_mastered。'}
 
 如果学生回答正确，请调用 mark_node_mastered 函数来标记该知识点已掌握。
 
 返回 JSON 格式：
-{{"is_correct": true/false, "feedback": "详细反馈", "mastered": true/false}}
+{{"is_correct": true/false, "feedback": "简短反馈，1到2句话，建议不超过60个字", "mastered": true/false}}
+
+额外要求：
+1. feedback 控制在 1 到 2 句话
+2. 不要复述题目
+3. 不要长篇展开讲解
+4. 正确时说明“回答正确”并点出 1 个关键依据
+5. 错误时指出 1 到 2 个关键问题，并给出最短纠正
 """
 
     client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
@@ -268,7 +275,7 @@ def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
         ]
 
     prompt = f"""
-你是一名 Java 编程教学专家。请判断学生的回答是否正确，并给出详细的反馈。
+你是一名 Java 编程教学专家。请判断学生的回答是否正确，并给出简洁清楚的反馈。
 
 知识点：{context['name']}
 描述：{context['desc'] or '无详细描述'}
@@ -279,10 +286,12 @@ def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
 
 请：
 1. 首先明确判断学生回答是否正确（用"正确"或"错误"开头）
-2. 然后给出详细的解释和反馈
-3. 如果回答正确，解释为什么正确
-4. 如果回答错误，指出错误之处并给出正确答案
-5. 如果这是待教师确认的候选知识点，不要调用 mark_node_mastered，也不要声称已经正式掌握
+2. 然后补充 1 到 2 句关键解释
+3. 总长度尽量控制在 2 句话内，建议不超过 60 个字
+4. 不要复述题目，不要长篇讲解，不要分点
+5. 如果回答正确，简短说明关键依据
+6. 如果回答错误，指出 1 到 2 个关键问题并给出最短纠正
+7. 如果这是待教师确认的候选知识点，不要调用 mark_node_mastered，也不要声称已经正式掌握
 
 直接输出反馈内容，不需要JSON格式。
 """
