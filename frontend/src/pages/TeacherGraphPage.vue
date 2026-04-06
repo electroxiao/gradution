@@ -401,6 +401,8 @@ const reviewEdgeDrafts = reactive({});
 
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value) || null);
 const selectedEdge = computed(() => graph.value.edges.find((edge) => edge.id === selectedEdgeId.value) || null);
+// The review canvas reuses the shared graph component, so pending-batch detail
+// is normalized into the same node/edge shape as the formal graph here.
 const reviewGraph = computed(() => ({
   nodes: (selectedBatchDetail.value?.nodes || []).map((node) => ({
     id: node.id,
@@ -502,6 +504,8 @@ async function selectPendingBatch(batchId, options = {}) {
 }
 
 function hydrateReviewDrafts(detail) {
+  // Drafts intentionally decouple teacher edits and keep-flags from the raw API
+  // payload, which makes partial approval and UI rollbacks much easier to reason about.
   Object.keys(reviewNodeDrafts).forEach((key) => delete reviewNodeDrafts[key]);
   Object.keys(reviewEdgeDrafts).forEach((key) => delete reviewEdgeDrafts[key]);
 
@@ -531,6 +535,8 @@ function switchMode(mode) {
   if (mode === "review" && !selectedBatchDetail.value) return;
   activeMode.value = mode;
   nextTick(() => {
+    // Each mode has a different visual layout, so the canvas gets a fresh
+    // layout pass after switching to avoid stale viewport sizing.
     if (mode === "graph") {
       graphCanvas.value?.restartLayout?.();
     } else {
@@ -717,6 +723,8 @@ async function searchGraph() {
 
 async function approveSelectedBatch() {
   if (!selectedBatchId.value || !selectedBatchDetail.value) return;
+  // The approval payload only carries items still checked in the local drafts,
+  // which is how the teacher can partially approve a candidate subgraph.
   const nodes = selectedNodeDrafts.value
     .filter((item) => item.keep)
     .map((item) => ({

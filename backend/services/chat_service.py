@@ -23,6 +23,8 @@ from backend.services import rag_engine
 from backend.services.pending_batch_service import propose_pending_batch_from_chat
 from backend.services.weak_point_service import extract_core_nodes, upsert_weak_points
 
+# Pending proposals should not delay the main tutoring response, so chat uses a
+# small background pool to prepare candidate batches after retrieval facts exist.
 PENDING_PROPOSAL_EXECUTOR = ThreadPoolExecutor(max_workers=2)
 
 
@@ -269,6 +271,8 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     db.flush()
 
     yield _sse_event("user_message", _message_to_schema(user_message).model_dump(mode="json"))
+    # Once facts are ready, pending-batch generation can run independently of
+    # answer streaming. The result is emitted later as a separate SSE notice.
     pending_future = PENDING_PROPOSAL_EXECUTOR.submit(
         _run_pending_chat_proposal,
         payload.content,
@@ -382,6 +386,8 @@ def _run_pending_chat_proposal(
     user_id: int,
     session_id: int,
 ) -> dict | None:
+    # The background worker must open its own SQLAlchemy session because the
+    # streaming request keeps using the request-scoped session on the main thread.
     db = SessionLocal()
     try:
         return propose_pending_batch_from_chat(

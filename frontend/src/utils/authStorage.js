@@ -1,6 +1,8 @@
 const TOKEN_KEY = "access_token";
 const ROLE_KEY = "user_role";
 
+// Auth state is intentionally stored per browser tab so a teacher tab and a
+// student tab can stay logged in at the same time on the same machine.
 function getSessionStore() {
   if (typeof window === "undefined") return null;
   return window.sessionStorage;
@@ -11,6 +13,8 @@ function getLegacyStore() {
   return window.localStorage;
 }
 
+// Older builds used localStorage. We migrate lazily on read so users do not
+// need to manually clear storage after the session-scoped auth change.
 function migrateKey(key) {
   const sessionStore = getSessionStore();
   const legacyStore = getLegacyStore();

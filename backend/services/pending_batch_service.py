@@ -347,6 +347,9 @@ def create_pending_batch_from_candidates(
     nodes: list[dict],
     edges: list[dict],
 ) -> PendingProposalBatch | None:
+    # Candidate creation must filter against both Neo4j and all still-pending
+    # queues, otherwise repeated chat / weak-page triggers would generate many
+    # duplicate review batches for the same anchor concept.
     existing_pending_names = _pending_batch_node_name_set(
         db,
         user_id=source_user_id,
@@ -503,6 +506,9 @@ def _build_batch_detail(
     batch: PendingProposalBatch,
     weak_name_map: dict[int, str | None],
 ) -> PendingBatchDetailResponse:
+    # Teacher review uses a hybrid graph: pending nodes and edges come from
+    # MySQL, while already-existing context nodes are fetched from Neo4j so the
+    # reviewer can see how the candidate subgraph connects to the formal graph.
     pending_names = {node.node_name for node in batch.nodes}
     context_names = set()
     if batch.anchor_status == "existing" and batch.anchor_name:
@@ -679,6 +685,9 @@ def approve_pending_batch(
     batch_id: str,
     payload: PendingBatchApproveRequest,
 ) -> dict:
+    # Approval is intentionally partial. Teachers may keep only part of a batch,
+    # and omitted items stay recorded as review results instead of being forced
+    # into Neo4j just because they were proposed together.
     if batch_id.startswith("legacy:"):
         proposal_id = batch_id.split(":", 1)[1]
         if not proposal_id.isdigit():
@@ -953,6 +962,8 @@ def _keyword_batch_fallback(
     max_nodes: int,
     excluded_names: set[str],
 ) -> tuple[list[dict], list[dict]]:
+    # This fallback keeps the review path alive even when graph recall is empty
+    # or the LLM fails to return valid JSON for the batch proposal.
     question_excerpt = _build_question_excerpt(question)
     nodes = []
     seen_names = set(excluded_names)
@@ -1021,6 +1032,9 @@ def propose_pending_batch_from_chat(
     user_id: int,
     session_id: int | None = None,
 ) -> dict | None:
+    # Chat proposals are model-assisted but still guarded locally: anchor
+    # resolution, duplicate filtering, and fallback batch assembly all happen in
+    # service code so the queue remains stable even with imperfect LLM output.
     normalized_keywords = [item.strip() for item in (keywords or []) if isinstance(item, str) and item.strip()]
     anchor_name, anchor_exists = _resolve_chat_anchor(question, facts, normalized_keywords)
     if not anchor_name:
