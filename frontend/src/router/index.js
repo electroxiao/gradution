@@ -4,6 +4,8 @@ import { meApi } from "../api/auth";
 import { clearAuthSession, getAccessToken, getUserRole, setStoredUserRole } from "../utils/authStorage";
 const ChatPage = () => import("../pages/ChatPage.vue");
 const LoginPage = () => import("../pages/LoginPage.vue");
+const StudentLayout = () => import("../pages/StudentLayout.vue");
+const StudentDashboardPage = () => import("../pages/StudentDashboardPage.vue");
 const TeacherDashboardPage = () => import("../pages/TeacherDashboardPage.vue");
 const TeacherGraphPage = () => import("../pages/TeacherGraphPage.vue");
 const TeacherStudentsPage = () => import("../pages/TeacherStudentsPage.vue");
@@ -23,10 +25,22 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/login", component: LoginPage, meta: { public: true } },
-    { path: "/", component: ChatPage, meta: { roles: ["student"] } },
-    { path: "/weak-points", component: WeakPointsPage, meta: { roles: ["student"] } },
-    { path: "/assignments", component: StudentAssignmentsPage, meta: { roles: ["student"] } },
-    { path: "/assignments/:assignmentId", component: StudentAssignmentDetailPage, meta: { roles: ["student"] } },
+    {
+      path: "/",
+      component: StudentLayout,
+      meta: { roles: ["student"] },
+      children: [
+        { path: "", component: StudentDashboardPage, meta: { roles: ["student"] } },
+        { path: "chat", component: ChatPage, meta: { roles: ["student"], collapseStudentSidebar: true } },
+        { path: "weak-points", component: WeakPointsPage, meta: { roles: ["student"] } },
+        { path: "assignments", component: StudentAssignmentsPage, meta: { roles: ["student"] } },
+        {
+          path: "assignments/:assignmentId",
+          component: StudentAssignmentDetailPage,
+          meta: { roles: ["student"], hideStudentSidebar: true },
+        },
+      ],
+    },
     {
       path: "/teacher",
       component: TeacherLayout,

@@ -6,7 +6,6 @@
         <h1>我的薄弱点</h1>
         <p class="hero-text">系统会根据已选路径收敛出最值得优先补齐的 1 到 2 个核心节点，帮助你把复习重点压缩到真正关键的地方。</p>
       </div>
-      <router-link class="back-link" to="/">返回聊天</router-link>
     </header>
 
     <section class="summary-strip">
@@ -213,7 +212,7 @@
       <div class="empty-orbit" />
       <h2>当前没有待补齐的薄弱点</h2>
       <p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识节点。</p>
-      <router-link class="empty-link" to="/">去聊天页继续提问</router-link>
+      <router-link class="empty-link" to="/chat">去聊天页继续提问</router-link>
     </section>
   </div>
 </template>
@@ -532,7 +531,9 @@ function handleApiError(error, fallbackMessage) {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.88);
   color: #274863;
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 

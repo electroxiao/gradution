@@ -1,6 +1,7 @@
 <template>
-  <div class="page-shell app-shell">
+  <div class="page-shell app-shell" :class="{ embedded }">
     <SessionSidebar
+      v-if="!embedded"
       :sessions="sessions"
       :active-session-id="activeSessionId"
       @create-session="createSession"
@@ -14,11 +15,6 @@
         <div class="topbar-copy">
           <h1><AnimatedTitle :text="activeSessionTitle" /></h1>
           <p>内容由知识图谱与 AI 联合生成</p>
-        </div>
-        <div class="topbar-actions">
-          <router-link class="weak-link" to="/assignments">作业</router-link>
-          <router-link class="weak-link" to="/weak-points">薄弱点</router-link>
-          <button class="logout-btn" type="button" @click="logout">退出登录</button>
         </div>
       </header>
 
@@ -109,6 +105,14 @@ import MarkdownContent from "../components/MarkdownContent.vue";
 import SelectedPathGraph from "../components/SelectedPathGraph.vue";
 import SessionSidebar from "../components/SessionSidebar.vue";
 import { useAuthStore } from "../stores/auth";
+
+defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+});
+defineEmits(["close"]);
 
 const DEFAULT_RAG_DEPTH = 2;
 const DEFAULT_RAG_WIDTH = 3;
@@ -324,6 +328,12 @@ async function scrollToBottom() {
   grid-template-columns: 286px minmax(0, 1fr);
   gap: 0;
   height: 100vh;
+  min-width: 0;
+}
+
+.app-shell.embedded {
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
 }
 
 .chat-stage {
@@ -335,12 +345,22 @@ async function scrollToBottom() {
   background: #ffffff;
 }
 
+.embedded .chat-stage {
+  height: 100%;
+}
+
 .topbar {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
   padding: 22px 42px 16px;
   border-bottom: 1px solid #edf2f7;
+  min-width: 0;
+}
+
+.embedded .topbar {
+  padding: 16px;
 }
 
 .topbar-copy h1 {
@@ -356,26 +376,6 @@ async function scrollToBottom() {
   font-size: 13px;
 }
 
-.weak-link {
-  color: #47627c;
-  text-decoration: none;
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.logout-btn {
-  border: none;
-  border-radius: 999px;
-  padding: 10px 14px;
-  background: #eef4fb;
-  color: #34526f;
-  cursor: pointer;
-}
-
 .message-stream {
   flex: 1;
   overflow: auto;
@@ -383,6 +383,11 @@ async function scrollToBottom() {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #d8e2ee transparent;
+  min-width: 0;
+}
+
+.embedded .message-stream {
+  padding: 18px 16px 150px;
 }
 
 .message-stream::-webkit-scrollbar {
@@ -425,6 +430,15 @@ async function scrollToBottom() {
 .assistant-stack {
   width: min(760px, calc(100% - 160px));
   align-items: stretch;
+}
+
+.embedded .assistant-stack,
+.embedded .system-stack {
+  width: 100%;
+}
+
+.embedded .user-stack {
+  max-width: 88%;
 }
 
 .user-stack {
@@ -509,6 +523,16 @@ async function scrollToBottom() {
   padding: 18px 42px 24px;
   pointer-events: none;
   z-index: 4;
+  min-width: 0;
+}
+
+.embedded .composer-shell {
+  padding: 12px 14px 14px;
+}
+
+.embedded .composer-shell::before {
+  right: 14px;
+  left: 14px;
 }
 
 .composer-shell::before {
@@ -526,7 +550,7 @@ async function scrollToBottom() {
 .composer-card {
   position: relative;
   z-index: 1;
-  width: min(860px, calc(100% - 140px));
+  width: min(860px, 100%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -537,6 +561,12 @@ async function scrollToBottom() {
   background: #ffffff;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 0 6px 18px rgba(15, 23, 42, 0.05);
   pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.embedded .composer-card {
+  width: 100%;
+  border-radius: 8px;
 }
 
 .composer-card:focus-within {
@@ -608,11 +638,6 @@ async function scrollToBottom() {
   .topbar {
     flex-direction: column;
     gap: 14px;
-  }
-
-  .topbar-actions {
-    width: 100%;
-    justify-content: space-between;
   }
 
   .message-stream {

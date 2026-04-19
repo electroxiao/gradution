@@ -35,7 +35,8 @@ from backend.schemas.assignment import (
     AssignmentTestCaseInput,
     AssignmentUpdateRequest,
 )
-from backend.services.chat_service import get_openai_client
+from backend.services import rag_engine
+from backend.services.chat_service import get_neo4j_driver, get_openai_client
 from backend.services.sandbox_service import run_java_submission
 
 
@@ -348,43 +349,178 @@ def assignment_ai_help(
     question_id: int,
     payload: AssignmentAiHelpRequest,
 ) -> AssignmentAiHelpResponse:
+    client, help_context, keywords, facts, reasoning_trace, retrieval_trace = _prepare_assignment_rag_help(
+        db,
+        student,
+        assignment_id,
+        question_id,
+        payload,
+    )
+
+    try:
+        answer = _generate_assignment_rag_help(client, help_context, facts)
+        return AssignmentAiHelpResponse(
+            answer=answer,
+            keywords=[str(item) for item in keywords],
+            facts=facts,
+            reasoning_trace=reasoning_trace,
+            retrieval_trace=retrieval_trace,
+        )
+    except Exception as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"AI 帮助失败：{error}") from error
+
+
+def assignment_ai_help_stream(
+    db: Session,
+    student: User,
+    assignment_id: int,
+    question_id: int,
+    payload: AssignmentAiHelpRequest,
+):
+    client, help_context, keywords, facts, reasoning_trace, retrieval_trace = _prepare_assignment_rag_help(
+        db,
+        student,
+        assignment_id,
+        question_id,
+        payload,
+    )
+    yield _sse_event(
+        "metadata",
+        {
+            "keywords": [str(item) for item in keywords],
+            "facts": facts,
+            "reasoning_trace": reasoning_trace,
+            "retrieval_trace": retrieval_trace,
+        },
+    )
+
+    chunks: list[str] = []
+    try:
+        for chunk in _stream_assignment_rag_help(client, help_context, facts):
+            chunks.append(chunk)
+            yield _sse_event("answer_delta", {"content": chunk})
+        yield _sse_event("answer_done", {"answer": "".join(chunks)})
+    except Exception as error:
+        yield _sse_event("error", {"detail": f"AI 帮助失败：{error}"})
+
+
+def _prepare_assignment_rag_help(
+    db: Session,
+    student: User,
+    assignment_id: int,
+    question_id: int,
+    payload: AssignmentAiHelpRequest,
+):
     assignment = _get_student_assignment(db, student, assignment_id)
     question = _get_assignment_question(assignment, question_id)
-    prompt = f"""
-你是一名 Java 编程作业助教。学生可以随时提问，请根据题目、学生代码和最近运行结果给出循序渐进的帮助。
+    client = get_openai_client()
+    reasoning_trace: list = []
+    retrieval_trace: list = []
+    help_context = _build_assignment_help_context(assignment, question, payload)
 
-要求：
-1. 优先指出思路、错误位置和调试方法。
-2. 不要直接给完整可复制的标准答案。
-3. 如果代码有明显语法或运行错误，先解释原因，再给最小修改建议。
-4. 回答使用中文，简洁具体。
+    try:
+        driver = get_neo4j_driver()
+        keywords = rag_engine.extract_keywords_with_llm(
+            client,
+            help_context,
+            history=[],
+            trace=reasoning_trace,
+        )
+        facts = rag_engine.query_graph_with_reasoning(
+            driver,
+            client,
+            help_context,
+            keywords=keywords,
+            max_depth=2,
+            width=3,
+            reasoning_trace=reasoning_trace,
+            retrieval_trace=retrieval_trace,
+        )
+    except Exception as error:
+        print(f"[assignment_ai_help] 图谱检索失败: {error}")
+        keywords = []
+        facts = []
+        retrieval_trace.append(
+            {
+                "type": "retrieval",
+                "title": "图谱检索失败",
+                "summary": "本次未能完成知识图谱检索，已退回到作业上下文辅导。",
+                "details": [str(error)],
+                "stage": "assignment_rag",
+                "mode": "student",
+            }
+        )
+    return client, help_context, keywords, facts, reasoning_trace, retrieval_trace
 
+
+def _build_assignment_help_context(assignment: Assignment, question: AssignmentQuestion, payload: AssignmentAiHelpRequest) -> str:
+    return f"""
 作业：{assignment.title}
+作业说明：{assignment.description or "无"}
 题目：{question.title or "编程题"}
 题目描述：
 {question.prompt}
 
-学生代码：
+学生问题：
+{payload.message}
+
+学生当前代码：
 ```java
 {payload.code or "学生暂未提供代码"}
 ```
 
 最近运行结果：
 {json.dumps(payload.last_result or {}, ensure_ascii=False)}
-
-学生问题：
-{payload.message}
 """
-    client = get_openai_client()
-    try:
-        response = client.chat.completions.create(
-            model=settings.llm_model_name,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.4,
-        )
-        return AssignmentAiHelpResponse(answer=(response.choices[0].message.content or "").strip())
-    except Exception as error:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"AI 帮助失败：{error}") from error
+
+
+def _build_assignment_help_prompt(help_context: str, facts: list) -> str:
+    knowledge_text = rag_engine.build_knowledge_text(facts) if facts else "本次没有检索到明确的图谱知识点。"
+    return f"""
+你是一名 Java 编程作业助教。请基于【知识图谱检索结果】和【作业上下文】帮助学生学习。
+
+要求：
+1. 优先基于检索到的知识点解释，不要脱离题目空泛讲解。
+2. 不要直接给出完整可复制的标准答案。
+3. 如果代码有编译或运行错误，先解释错误类型，再给最小修改方向。
+4. 如果测试输出不匹配，指出可能相关的概念误区和下一步排查方法。
+5. 回答要中文、具体、分步骤，建议控制在 4 到 8 句话。
+6. 可以给短小代码片段或伪代码，但不要提供整题完整答案。
+
+【知识图谱检索结果】
+{knowledge_text}
+
+【作业上下文】
+{help_context}
+"""
+
+
+def _generate_assignment_rag_help(client, help_context: str, facts: list) -> str:
+    prompt = _build_assignment_help_prompt(help_context, facts)
+    response = client.chat.completions.create(
+        model=settings.llm_model_name,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.35,
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
+def _stream_assignment_rag_help(client, help_context: str, facts: list):
+    prompt = _build_assignment_help_prompt(help_context, facts)
+    stream = client.chat.completions.create(
+        model=settings.llm_model_name,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.35,
+        stream=True,
+    )
+    for chunk in stream:
+        content = chunk.choices[0].delta.content if chunk.choices else None
+        if content:
+            yield content
+
+
+def _sse_event(event: str, payload: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
 def _validate_status(status_value: str) -> None:

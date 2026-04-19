@@ -140,6 +140,10 @@ class AssignmentRunResultResponse(BaseModel):
 
 class AssignmentAiHelpResponse(BaseModel):
     answer: str
+    keywords: list[str] = Field(default_factory=list)
+    facts: list[Any] = Field(default_factory=list)
+    reasoning_trace: list[Any] = Field(default_factory=list)
+    retrieval_trace: list[Any] = Field(default_factory=list)
 
 
 class AssignmentGeneratedQuestionResponse(BaseModel):

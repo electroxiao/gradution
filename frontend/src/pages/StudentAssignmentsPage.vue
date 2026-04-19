@@ -6,8 +6,22 @@
         <h1>我的作业</h1>
         <p>查看教师发布的 Java 编程作业，提交代码并查看测试结果。</p>
       </div>
-      <router-link class="back-link" to="/">返回聊天</router-link>
     </header>
+
+    <section class="summary-row">
+      <article>
+        <span>作业总数</span>
+        <strong>{{ assignments.length }}</strong>
+      </article>
+      <article>
+        <span>待完成</span>
+        <strong>{{ pendingCount }}</strong>
+      </article>
+      <article>
+        <span>已通过题目</span>
+        <strong>{{ acceptedTotal }}</strong>
+      </article>
+    </section>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
@@ -20,8 +34,8 @@
         <h2>{{ item.title }}</h2>
         <p>{{ item.description || "暂无说明" }}</p>
         <div class="stats">
-          <span>已提交 {{ item.submitted_count }}</span>
-          <span>通过 {{ item.accepted_count }}</span>
+          <span>已提交 {{ item.submitted_count }}/{{ item.question_count }}</span>
+          <span>通过 {{ item.accepted_count }}/{{ item.question_count }}</span>
         </div>
         <router-link class="open-link" :to="`/assignments/${item.id}`">进入作业</router-link>
       </article>
@@ -30,12 +44,16 @@
     <section v-else-if="!errorMessage" class="empty">
       <h2>当前没有作业</h2>
       <p>教师发布作业后会出现在这里。</p>
+      <div class="empty-actions">
+        <router-link class="primary-link" to="/chat">去问 AI</router-link>
+        <router-link class="back-link" to="/weak-points">查看薄弱点</router-link>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { listStudentAssignmentsApi } from "../api/assignments";
@@ -44,6 +62,10 @@ import { clearAuthSession } from "../utils/authStorage";
 const router = useRouter();
 const assignments = ref([]);
 const errorMessage = ref("");
+const pendingCount = computed(() => {
+  return assignments.value.filter((item) => (item.accepted_count || 0) < (item.question_count || 0)).length;
+});
+const acceptedTotal = computed(() => assignments.value.reduce((sum, item) => sum + (item.accepted_count || 0), 0));
 
 onMounted(loadAssignments);
 
@@ -84,7 +106,7 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .hero h1 {
@@ -114,7 +136,8 @@ function handleApiError(error, fallbackMessage) {
 
 .assignment-card,
 .empty,
-.feedback {
+.feedback,
+.summary-row article {
   padding: 18px;
   border: 1px solid #e2ebf4;
   border-radius: 8px;
@@ -125,6 +148,26 @@ function handleApiError(error, fallbackMessage) {
 .assignment-card {
   display: grid;
   gap: 12px;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summary-row article {
+  display: grid;
+  gap: 6px;
+}
+
+.summary-row span {
+  color: #6f8297;
+}
+
+.summary-row strong {
+  color: #10283d;
+  font-size: 26px;
 }
 
 .assignment-card h2,
@@ -161,12 +204,20 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .open-link,
-.back-link {
+.back-link,
+.primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
   padding: 10px 12px;
   border-radius: 8px;
   background: #10283d;
   color: #fff;
+  border: none;
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .back-link {
@@ -175,8 +226,29 @@ function handleApiError(error, fallbackMessage) {
   border: 1px solid #d7e5f3;
 }
 
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .feedback.error {
   color: #b42318;
   background: #fff8f8;
+}
+
+@media (max-width: 720px) {
+  .student-page {
+    padding: 16px;
+  }
+
+  .hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .summary-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

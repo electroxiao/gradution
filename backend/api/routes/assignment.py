@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.api.deps import get_current_teacher, get_current_user, get_db
@@ -13,6 +14,7 @@ from backend.schemas.assignment import (
 )
 from backend.services.assignment_service import (
     assignment_ai_help,
+    assignment_ai_help_stream,
     create_assignment,
     generate_assignment_question,
     get_student_assignment_detail,
@@ -150,3 +152,22 @@ def post_assignment_ai_help(
     current_user: User = Depends(get_current_user),
 ):
     return assignment_ai_help(db, current_user, assignment_id, question_id, payload)
+
+
+@student_router.post("/{assignment_id}/questions/{question_id}/ai-help/stream")
+def post_assignment_ai_help_stream(
+    assignment_id: int,
+    question_id: int,
+    payload: AssignmentAiHelpRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return StreamingResponse(
+        assignment_ai_help_stream(db, current_user, assignment_id, question_id, payload),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

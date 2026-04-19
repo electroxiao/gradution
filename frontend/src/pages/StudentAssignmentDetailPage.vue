@@ -1,46 +1,32 @@
 <template>
-  <div class="detail-page">
-    <header class="detail-toolbar">
-      <div>
-        <p class="eyebrow">Java Practice</p>
-        <h1>{{ assignment?.title || "作业" }}</h1>
-        <p>{{ assignment?.description || "完成题目后提交代码查看测试结果。" }}</p>
-      </div>
-      <router-link class="back-link" to="/assignments">返回作业</router-link>
-    </header>
-
+  <div class="detail-page" :class="{ 'ai-open': showAiPanel }">
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <main v-if="assignment" class="workbench">
-      <aside class="question-list">
-        <div class="panel-title">
-          <h2>题目</h2>
-          <span>{{ assignment.questions.length }} 题</span>
-        </div>
-        <button
-          v-for="(question, index) in assignment.questions"
-          :key="question.id"
-          :class="{ active: activeQuestion?.id === question.id }"
-          @click="selectQuestion(question)"
-        >
-          <span>第 {{ index + 1 }} 题</span>
-          <strong>{{ question.title || `题目 ${index + 1}` }}</strong>
-          <small>{{ question.language }}</small>
-        </button>
-      </aside>
+    <main v-if="assignment" class="assignment-lab" :style="labGridStyle">
+      <aside class="problem-pane">
+        <header class="problem-header">
+          <router-link class="back-link" to="/assignments">返回作业</router-link>
+          <p class="eyebrow">Java Practice</p>
+          <h1>{{ assignment.title }}</h1>
+          <p>{{ assignment.description || "完成题目后提交代码查看测试结果。" }}</p>
+        </header>
 
-      <section v-if="activeQuestion" class="coding-panel">
-        <article class="prompt-card">
-          <div class="section-title">
-            <div>
-              <span>题目说明</span>
-              <h2>{{ activeQuestion.title || "编程题" }}</h2>
-            </div>
-            <button type="button" :disabled="submitting || !activeCode.trim()" @click="submitCode">
-              {{ submitting ? "运行中..." : "提交运行" }}
-            </button>
-          </div>
+        <div class="question-tabs">
+          <button
+            v-for="(question, index) in assignment.questions"
+            :key="question.id"
+            :class="{ active: activeQuestion?.id === question.id }"
+            type="button"
+            @click="selectQuestion(question)"
+          >
+            第 {{ index + 1 }} 题
+          </button>
+        </div>
+
+        <section v-if="activeQuestion" class="problem-content">
+          <h2>{{ activeQuestion.title || "编程题" }}</h2>
           <MarkdownContent :content="activeQuestion.prompt" />
+
           <div v-if="sampleCases.length" class="sample-list">
             <article v-for="item in sampleCases" :key="item.id" class="sample-card">
               <strong>示例输入</strong>
@@ -49,28 +35,38 @@
               <pre>{{ item.expected_output || "(空)" }}</pre>
             </article>
           </div>
-        </article>
+        </section>
+      </aside>
 
-        <article class="code-card">
-          <div class="section-title">
-            <div>
-              <span>Main.java</span>
-              <h3>代码编辑</h3>
-            </div>
-            <button type="button" :disabled="submitting || !activeCode.trim()" @click="submitCode">
+      <div class="resize-handle" @pointerdown="startProblemResize" />
+
+      <section v-if="activeQuestion" class="editor-pane">
+        <header class="editor-toolbar">
+          <div>
+            <p class="eyebrow">Code</p>
+            <h2>Main.java</h2>
+          </div>
+          <div class="toolbar-actions">
+            <span class="language-pill">Java</span>
+            <span class="draft-pill">已自动保存</span>
+            <button type="button" class="secondary-btn" @click="showAiPanel = !showAiPanel">
+              {{ showAiPanel ? "收起 AI" : "AI 助教" }}
+            </button>
+            <button type="button" class="primary-btn" :disabled="submitting || !activeCode.trim()" @click="submitCode">
               {{ submitting ? "运行中..." : "提交运行" }}
             </button>
           </div>
-          <textarea v-model="activeCode" rows="20" spellcheck="false" />
-        </article>
-      </section>
+        </header>
 
-      <aside v-if="activeQuestion" class="assist-panel">
-        <article class="result-card">
-          <div class="panel-title">
-            <h2>运行结果</h2>
-            <span v-if="lastResult">{{ statusText(lastResult.status) }}</span>
-          </div>
+        <div class="editor-shell">
+          <CodeEditor v-model="activeCode" />
+        </div>
+
+        <section class="result-console">
+          <header>
+            <h3>测试结果</h3>
+            <span v-if="lastResult" :class="['result-status', lastResult.status]">{{ statusText(lastResult.status) }}</span>
+          </header>
           <div v-if="lastResult" class="result-list">
             <div v-for="item in lastResult.results" :key="item.case_index" class="result-item" :class="item.status">
               <strong>用例 {{ item.case_index || "编译" }}：{{ statusText(item.status) }}</strong>
@@ -87,20 +83,64 @@
             </div>
           </div>
           <p v-else class="muted">提交运行后，测试结果会显示在这里。</p>
-        </article>
+        </section>
+      </section>
 
-        <article class="ai-card">
-          <div class="panel-title">
+      <div v-if="activeQuestion && showAiPanel" class="resize-handle ai-resize-handle" @pointerdown="startAiResize" />
+
+      <aside v-if="activeQuestion && showAiPanel" class="ai-pane">
+        <header class="ai-header">
+          <div>
+            <p class="eyebrow">AI Tutor</p>
             <h2>作业助教</h2>
-            <button type="button" :disabled="asking || !aiMessage.trim()" @click="askAi">
+          </div>
+          <button type="button" class="icon-btn" @click="showAiPanel = false">关闭</button>
+        </header>
+
+        <div v-if="helpModalReason" class="ai-summary">
+          <strong>{{ statusText(lastResult?.status) }}</strong>
+          <p>{{ helpModalReason }}</p>
+        </div>
+
+        <div class="ai-composer">
+          <textarea ref="aiInput" v-model="aiMessage" rows="4" placeholder="描述你卡住的地方，或询问某个报错原因。" />
+          <button type="button" :disabled="asking || !aiMessage.trim()" @click="askAi">
               {{ asking ? "思考中..." : "提问" }}
-            </button>
+          </button>
+        </div>
+
+        <div v-if="asking" class="ai-state">正在结合题目、代码和图谱知识点分析...</div>
+        <p v-if="aiHelpError" class="ai-error">{{ aiHelpError }}</p>
+
+        <div v-if="aiAnswer" class="ai-answer">
+          <MarkdownContent :content="aiAnswer" />
+        </div>
+        <div v-if="aiConcepts.length" class="concept-block">
+          <strong>相关知识点</strong>
+          <div class="concept-list">
+            <span v-for="concept in aiConcepts" :key="concept">{{ concept }}</span>
           </div>
-          <textarea v-model="aiMessage" rows="4" placeholder="描述你卡住的地方，或询问某个报错原因。" />
-          <div v-if="aiAnswer" class="ai-answer">
-            <MarkdownContent :content="aiAnswer" />
+        </div>
+
+        <details v-if="aiReasoningTrace.length || aiRetrievalTrace.length" class="trace-box">
+          <summary>查看检索过程</summary>
+          <div v-if="aiReasoningTrace.length" class="trace-group">
+            <strong>推理轨迹</strong>
+            <ul>
+              <li v-for="(item, index) in aiReasoningTrace" :key="`reason-${index}`">
+                {{ item.title }}：{{ item.summary }}
+              </li>
+            </ul>
           </div>
-        </article>
+          <div v-if="aiRetrievalTrace.length" class="trace-group">
+            <strong>检索轨迹</strong>
+            <ul>
+              <li v-for="(item, index) in aiRetrievalTrace" :key="`retrieval-${index}`">
+                {{ item.title }}：{{ item.summary }}
+              </li>
+            </ul>
+          </div>
+        </details>
       </aside>
     </main>
   </div>
@@ -111,10 +151,11 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
-  askAssignmentAiHelpApi,
   getStudentAssignmentApi,
+  streamAssignmentAiHelpApi,
   submitAssignmentQuestionApi,
 } from "../api/assignments";
+import CodeEditor from "../components/CodeEditor.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
@@ -124,6 +165,7 @@ const STARTER_CODE = `public class Main {
     }
 }
 `;
+const DRAFT_PREFIX = "assignment-code-draft";
 
 const route = useRoute();
 const router = useRouter();
@@ -134,14 +176,42 @@ const startedAtByQuestion = ref({});
 const lastResultByQuestion = ref({});
 const aiMessage = ref("");
 const aiAnswer = ref("");
+const aiKeywords = ref([]);
+const aiFacts = ref([]);
+const aiReasoningTrace = ref([]);
+const aiRetrievalTrace = ref([]);
+const aiHelpError = ref("");
 const errorMessage = ref("");
 const submitting = ref(false);
 const asking = ref(false);
+const showAiPanel = ref(false);
+const helpModalReason = ref("");
+const aiInput = ref(null);
+const problemPaneWidth = ref(320);
+const aiPaneWidth = ref(360);
 
 const sampleCases = computed(() => activeQuestion.value?.test_cases?.filter((item) => item.is_sample) || []);
+const aiConcepts = computed(() => {
+  const names = new Set(aiKeywords.value.map((item) => String(item)).filter(Boolean));
+  for (const fact of aiFacts.value) {
+    for (const key of ["seed", "target", "node_name", "frontier_entity"]) {
+      if (fact?.[key]) names.add(String(fact[key]));
+    }
+    if (Array.isArray(fact?.nodes)) {
+      fact.nodes.filter(Boolean).forEach((name) => names.add(String(name)));
+    }
+  }
+  return Array.from(names).slice(0, 8);
+});
 const lastResult = computed(() => {
   if (!activeQuestion.value) return null;
   return lastResultByQuestion.value[activeQuestion.value.id] || null;
+});
+const labGridStyle = computed(() => {
+  return {
+    "--problem-pane-width": `${problemPaneWidth.value}px`,
+    "--ai-pane-width": `${aiPaneWidth.value}px`,
+  };
 });
 const activeCode = computed({
   get() {
@@ -151,6 +221,7 @@ const activeCode = computed({
   set(value) {
     if (!activeQuestion.value) return;
     codeByQuestion.value[activeQuestion.value.id] = value;
+    saveCodeDraft(activeQuestion.value.id, value);
   },
 });
 
@@ -170,14 +241,15 @@ async function loadAssignment() {
 
 function selectQuestion(question) {
   activeQuestion.value = question;
-  if (!codeByQuestion.value[question.id]) {
-    codeByQuestion.value[question.id] = STARTER_CODE;
+  if (!(question.id in codeByQuestion.value)) {
+    codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? STARTER_CODE;
   }
   if (!startedAtByQuestion.value[question.id]) {
     startedAtByQuestion.value[question.id] = new Date().toISOString();
   }
   aiMessage.value = "";
-  aiAnswer.value = "";
+  closeAiPanelSummary();
+  clearAiHelp();
 }
 
 async function submitCode() {
@@ -189,6 +261,11 @@ async function submitCode() {
       started_at: startedAtByQuestion.value[activeQuestion.value.id],
     });
     lastResultByQuestion.value[activeQuestion.value.id] = data;
+    if (isFailureStatus(data.status)) {
+      await openFailureHelp(data);
+    } else {
+      closeAiPanelSummary();
+    }
   } catch (error) {
     handleApiError(error, "提交运行失败。");
   } finally {
@@ -197,20 +274,144 @@ async function submitCode() {
 }
 
 async function askAi() {
+  await requestAiHelp(aiMessage.value, false);
+}
+
+async function requestAiHelp(message, keepModalOnFailure) {
+  if (!message?.trim() || asking.value) return;
   asking.value = true;
   errorMessage.value = "";
+  aiHelpError.value = "";
   try {
-    const { data } = await askAssignmentAiHelpApi(assignment.value.id, activeQuestion.value.id, {
-      message: aiMessage.value,
-      code: activeCode.value,
-      last_result: lastResult.value,
-    });
-    aiAnswer.value = data.answer;
+    aiAnswer.value = "";
+    await streamAssignmentAiHelpApi(
+      assignment.value.id,
+      activeQuestion.value.id,
+      {
+        message,
+        code: activeCode.value,
+        last_result: lastResult.value,
+      },
+      {
+        onMetadata(data) {
+          aiKeywords.value = data.keywords || [];
+          aiFacts.value = data.facts || [];
+          aiReasoningTrace.value = data.reasoning_trace || [];
+          aiRetrievalTrace.value = data.retrieval_trace || [];
+        },
+        onAnswerDelta(data) {
+          aiAnswer.value += data.content || "";
+        },
+        onAnswerDone(data) {
+          aiAnswer.value = data.answer || aiAnswer.value;
+        },
+        onError(data) {
+          throw new Error(data.detail || "AI 帮助失败。");
+        },
+      },
+    );
   } catch (error) {
-    handleApiError(error, "AI 帮助失败。");
+    if (keepModalOnFailure) {
+      aiHelpError.value = error?.response?.data?.detail || error?.message || "AI 辅导暂时不可用，可以先根据运行结果继续修改。";
+    } else {
+      handleApiError(error, "AI 帮助失败。");
+    }
   } finally {
     asking.value = false;
   }
+}
+
+function clearAiHelp() {
+  aiAnswer.value = "";
+  aiKeywords.value = [];
+  aiFacts.value = [];
+  aiReasoningTrace.value = [];
+  aiRetrievalTrace.value = [];
+  aiHelpError.value = "";
+}
+
+async function openFailureHelp(result) {
+  clearAiHelp();
+  helpModalReason.value = summarizeRunResult(result);
+  aiMessage.value = buildFailureHelpMessage(result);
+  showAiPanel.value = true;
+  await requestAiHelp(aiMessage.value, true);
+}
+
+function closeAiPanelSummary() {
+  helpModalReason.value = "";
+}
+
+function isFailureStatus(status) {
+  return ["wrong_answer", "runtime_error", "timeout", "sandbox_error"].includes(status);
+}
+
+function summarizeRunResult(result) {
+  const firstProblem = result?.results?.find((item) => item.status && item.status !== "accepted") || result?.results?.[0];
+  return firstProblem?.summary || firstProblem?.stderr || "本次运行结果没有通过测试。";
+}
+
+function buildFailureHelpMessage(result) {
+  const summary = summarizeRunResult(result);
+  return `我这道题提交后是${statusText(result.status)}，运行结果提示：${summary}。请结合题目和我的代码，引导我找出相关知识点和下一步修改方向。`;
+}
+
+function getDraftKey(questionId) {
+  return `${DRAFT_PREFIX}:${route.params.assignmentId}:${questionId}`;
+}
+
+function loadCodeDraft(questionId) {
+  try {
+    return window.localStorage.getItem(getDraftKey(questionId));
+  } catch {
+    return null;
+  }
+}
+
+function saveCodeDraft(questionId, code) {
+  try {
+    window.localStorage.setItem(getDraftKey(questionId), code);
+  } catch {
+    // Ignore storage failures so editing and submission are not blocked.
+  }
+}
+
+function startProblemResize(event) {
+  const startX = event.clientX;
+  const startWidth = problemPaneWidth.value;
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+
+  function handleMove(moveEvent) {
+    const nextWidth = startWidth + moveEvent.clientX - startX;
+    problemPaneWidth.value = Math.min(Math.max(nextWidth, 260), 560);
+  }
+
+  function handleUp() {
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+  }
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+}
+
+function startAiResize(event) {
+  const startX = event.clientX;
+  const startWidth = aiPaneWidth.value;
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+
+  function handleMove(moveEvent) {
+    const nextWidth = startWidth - (moveEvent.clientX - startX);
+    aiPaneWidth.value = Math.min(Math.max(nextWidth, 300), 620);
+  }
+
+  function handleUp() {
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+  }
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
 }
 
 function statusText(status) {
@@ -239,30 +440,78 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .detail-page {
   min-height: 100vh;
-  padding: 24px;
+  background: #f3f6fa;
+}
+
+.assignment-lab {
   display: grid;
-  gap: 16px;
-  background: #f7fbff;
+  grid-template-columns: var(--problem-pane-width, 320px) 8px minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-.detail-toolbar,
-.section-title,
-.panel-title {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
+.detail-page.ai-open .assignment-lab {
+  grid-template-columns: var(--problem-pane-width, 320px) 8px minmax(0, 1fr) 8px var(--ai-pane-width, 360px);
 }
 
-.detail-toolbar h1 {
+.problem-pane,
+.editor-pane,
+.ai-pane {
+  min-width: 0;
+  border-right: 1px solid #dfe7ef;
+  background: #fff;
+}
+
+.problem-pane {
+  height: 100vh;
+  overflow: auto;
+  padding: 18px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  margin-bottom: 14px;
+  padding: 0 12px;
+  border: 1px solid #d7e5f3;
+  border-radius: 8px;
+  color: #18344f;
+  text-decoration: none;
+}
+
+.resize-handle {
+  width: 8px;
+  height: 100vh;
+  cursor: col-resize;
+  background: #eef3f8;
+  border-right: 1px solid #dfe7ef;
+}
+
+.resize-handle:hover {
+  background: #dbe8f5;
+}
+
+.ai-resize-handle {
+  border-left: 1px solid #dfe7ef;
+  border-right: none;
+}
+
+.problem-header h1,
+.problem-content h2,
+.editor-toolbar h2,
+.ai-header h2,
+.result-console h3 {
+  margin: 0;
+  color: #10283d;
+}
+
+.problem-header h1 {
   margin: 6px 0 8px;
-  color: #0f2840;
-  font-size: 34px;
+  font-size: 26px;
 }
 
-.detail-toolbar p,
-.section-title span,
-.panel-title span,
+.problem-header p,
 .muted {
   margin: 0;
   color: #6f8297;
@@ -277,117 +526,66 @@ function handleApiError(error, fallbackMessage) {
   text-transform: uppercase;
 }
 
-.workbench {
-  display: grid;
-  grid-template-columns: 230px minmax(0, 1fr) 360px;
-  gap: 14px;
-  align-items: start;
+.question-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
 }
 
-.question-list,
-.prompt-card,
-.code-card,
-.result-card,
-.ai-card,
-.feedback {
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
-}
-
-.question-list,
-.result-card,
-.ai-card {
-  padding: 14px;
-}
-
-.question-list,
-.assist-panel,
-.coding-panel {
-  display: grid;
-  gap: 14px;
-}
-
-.question-list,
-.assist-panel {
-  position: sticky;
-  top: 18px;
-}
-
-.question-list button {
-  display: grid;
-  gap: 4px;
-  width: 100%;
-  padding: 10px;
-  text-align: left;
-  border: 1px solid #e2ebf4;
+button,
+.question-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d7e5f3;
   border-radius: 8px;
   background: #fff;
   color: #18344f;
   cursor: pointer;
 }
 
-.question-list button.active {
-  border-color: #9cc7ef;
-  background: #f3f9ff;
+.question-tabs button.active,
+.primary-btn {
+  background: #10283d;
+  border-color: #10283d;
+  color: #fff;
 }
 
-.question-list button span,
-.question-list button small {
-  color: #6f8297;
-  font-size: 12px;
+.secondary-btn,
+.icon-btn {
+  background: #fff;
 }
 
-.question-list button strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.prompt-card,
-.code-card {
-  padding: 16px;
-}
-
-.section-title h2,
-.section-title h3,
-.panel-title h2 {
-  margin: 0;
-  color: #10283d;
+.problem-content {
+  display: grid;
+  gap: 14px;
 }
 
 .sample-list,
 .result-list {
   display: grid;
   gap: 10px;
-  margin-top: 14px;
 }
 
 .sample-card,
 .result-item,
-.ai-answer {
+.ai-answer,
+.concept-block,
+.trace-box,
+.ai-summary,
+.ai-state,
+.ai-error {
   padding: 12px;
   border-radius: 8px;
   background: #f8fbff;
-}
-
-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
-  font-family: Consolas, "Courier New", monospace;
-  resize: none;
-}
-
-.code-card textarea {
-  min-height: clamp(360px, 54vh, 640px);
-  margin-top: 12px;
-}
-
-.ai-card textarea {
-  min-height: clamp(96px, 16vh, 150px);
 }
 
 pre {
@@ -399,35 +597,80 @@ pre {
   color: #fff;
 }
 
-.back-link,
-button {
-  display: inline-flex;
+.editor-pane {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) minmax(180px, 30vh);
+  height: 100vh;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.editor-toolbar,
+.result-console header,
+.ai-header {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  padding: 0 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-toolbar {
+  padding: 12px 16px;
+  border-bottom: 1px solid #dfe7ef;
   background: #fff;
-  color: #18344f;
-  cursor: pointer;
-  text-decoration: none;
 }
 
-.section-title button,
-.panel-title button {
-  background: #10283d;
-  border-color: #10283d;
-  color: #fff;
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+.language-pill,
+.draft-pill,
+.result-status {
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #1f5f99;
+  font-size: 13px;
 }
 
-.result-item.accepted {
+.draft-pill {
+  background: #f2f4f7;
+  color: #667085;
+}
+
+.editor-shell {
+  min-height: 0;
+  padding: 10px;
+}
+
+.editor-shell :deep(.code-editor) {
+  height: 100%;
+  min-height: 0;
+}
+
+.editor-shell :deep(.cm-editor) {
+  min-height: 0;
+}
+
+.result-console {
+  overflow: auto;
+  padding: 14px 16px;
+  border-top: 1px solid #dfe7ef;
+  background: #fff;
+}
+
+.result-console header {
+  margin-bottom: 10px;
+}
+
+.result-item.accepted,
+.result-status.accepted {
   background: #ecfdf3;
+  color: #027a48;
 }
 
 .result-item.wrong_answer,
@@ -440,29 +683,136 @@ button:disabled {
 }
 
 .feedback {
+  margin: 12px;
   padding: 12px 14px;
+  border: 1px solid #e2ebf4;
+  border-radius: 8px;
+  background: #fff;
 }
 
-@media (max-width: 1180px) {
-  .workbench {
+.ai-pane {
+  height: 100vh;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+  border-right: none;
+  border-left: 1px solid #dfe7ef;
+}
+
+.ai-summary {
+  background: #fff8f1;
+  color: #9a4a00;
+}
+
+.ai-summary p {
+  margin: 6px 0 0;
+}
+
+.ai-composer {
+  display: grid;
+  gap: 10px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 118px;
+  padding: 12px;
+  border: 1px solid #d7e5f3;
+  border-radius: 8px;
+  resize: none;
+  font: inherit;
+}
+
+.ai-error {
+  background: #fff8f8;
+  color: #b42318;
+}
+
+.concept-block,
+.trace-box {
+  display: grid;
+  gap: 10px;
+}
+
+.concept-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.concept-list span {
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #edf6ff;
+  color: #1f5f99;
+  font-size: 13px;
+}
+
+.trace-box summary {
+  color: #18344f;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.trace-group ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #5f7287;
+}
+
+@media (max-width: 1220px) {
+  .assignment-lab,
+  .detail-page.ai-open .assignment-lab {
     grid-template-columns: 1fr;
   }
 
-  .question-list,
-  .assist-panel {
-    position: static;
+  .problem-pane,
+  .resize-handle,
+  .editor-pane,
+  .ai-pane {
+    height: auto;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid #dfe7ef;
+  }
+
+  .resize-handle {
+    display: none;
+  }
+
+  .ai-pane {
+    max-height: none;
+  }
+
+  .editor-pane {
+    grid-template-rows: auto minmax(440px, 58vh) auto;
   }
 }
 
 @media (max-width: 720px) {
-  .detail-page {
-    padding: 16px;
+  .problem-pane,
+  .ai-pane,
+  .result-console {
+    padding: 12px;
   }
 
-  .detail-toolbar,
-  .section-title,
-  .panel-title {
-    display: grid;
+  .editor-toolbar,
+  .ai-header,
+  .result-console header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+  }
+
+  .toolbar-actions button,
+  .toolbar-actions .language-pill,
+  .ai-composer button {
+    width: 100%;
   }
 }
 </style>
