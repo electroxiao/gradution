@@ -1,6 +1,6 @@
 <template>
   <section class="assignment-page">
-    <header class="page-header">
+    <header class="page-toolbar">
       <div>
         <p class="eyebrow">Assignments</p>
         <h2>作业管理</h2>
@@ -11,29 +11,59 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="assignments.length" class="assignment-grid">
-      <article v-for="item in assignments" :key="item.id" class="assignment-card">
-        <div class="card-top">
-          <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
-          <span>{{ item.question_count }} 题</span>
-        </div>
-        <h3>{{ item.title }}</h3>
-        <p>{{ item.description || "暂无说明" }}</p>
-        <div class="stats">
-          <span>学生 {{ item.assignee_count }}</span>
-          <span>提交 {{ item.submitted_count }}</span>
-          <span>通过 {{ item.accepted_count }}</span>
-        </div>
-        <router-link class="open-link" :to="`/teacher/assignments/${item.id}`">编辑作业</router-link>
+    <section class="summary-row">
+      <article class="summary-item">
+        <span>全部作业</span>
+        <strong>{{ assignments.length }}</strong>
+      </article>
+      <article class="summary-item">
+        <span>已发布</span>
+        <strong>{{ publishedCount }}</strong>
+      </article>
+      <article class="summary-item">
+        <span>学生覆盖</span>
+        <strong>{{ totalAssignees }}</strong>
+      </article>
+      <article class="summary-item">
+        <span>通过提交</span>
+        <strong>{{ totalAccepted }}</strong>
       </article>
     </section>
 
-    <div v-else-if="!errorMessage" class="empty">还没有作业，先创建一份 Java 编程作业。</div>
+    <section v-if="assignments.length" class="assignment-table">
+      <div class="table-head">
+        <span>作业</span>
+        <span>状态</span>
+        <span>题目</span>
+        <span>学生</span>
+        <span>提交</span>
+        <span>通过</span>
+        <span>操作</span>
+      </div>
+      <article v-for="item in assignments" :key="item.id" class="assignment-row">
+        <div class="title-cell">
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.description || "暂无说明" }}</p>
+        </div>
+        <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
+        <span>{{ item.question_count }}</span>
+        <span>{{ item.assignee_count }}</span>
+        <span>{{ item.submitted_count }}</span>
+        <span>{{ item.accepted_count }}</span>
+        <router-link class="open-link" :to="`/teacher/assignments/${item.id}`">编辑</router-link>
+      </article>
+    </section>
+
+    <div v-else-if="!errorMessage" class="empty">
+      <strong>还没有作业</strong>
+      <p>新建一份 Java 编程作业后，可以在这里跟踪发布和提交情况。</p>
+      <router-link class="primary-link" to="/teacher/assignments/new">创建第一份作业</router-link>
+    </div>
   </section>
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { listTeacherAssignmentsApi } from "../api/assignments";
@@ -42,6 +72,14 @@ import { clearAuthSession } from "../utils/authStorage";
 const router = useRouter();
 const assignments = ref([]);
 const errorMessage = ref("");
+
+const publishedCount = computed(() => assignments.value.filter((item) => item.status === "published").length);
+const totalAssignees = computed(() =>
+  assignments.value.reduce((total, item) => total + Number(item.assignee_count || 0), 0),
+);
+const totalAccepted = computed(() =>
+  assignments.value.reduce((total, item) => total + Number(item.accepted_count || 0), 0),
+);
 
 onMounted(loadAssignments);
 
@@ -72,32 +110,33 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .assignment-page {
   display: grid;
-  gap: 22px;
+  gap: 18px;
 }
 
-.page-header {
+.page-toolbar {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
 }
 
-.page-header h2 {
-  margin: 8px 0 10px;
-  font-size: 34px;
+.page-toolbar h2 {
+  margin: 6px 0 8px;
+  font-size: 32px;
   color: #0f2840;
 }
 
-.page-header p {
+.page-toolbar p {
   margin: 0;
   color: #6f8297;
 }
 
 .eyebrow {
+  margin: 0;
   color: #5b86b3;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -106,59 +145,106 @@ function handleApiError(error, fallbackMessage) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 11px 14px;
+  min-height: 40px;
+  padding: 0 14px;
   border-radius: 8px;
   background: #10283d;
   color: #fff;
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.assignment-grid {
+.open-link {
+  min-height: 36px;
+  background: #edf6ff;
+  color: #1f5f99;
+}
+
+.summary-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-}
-
-.assignment-card,
-.empty,
-.feedback {
-  padding: 18px;
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
-}
-
-.assignment-card {
-  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
-.assignment-card h3 {
-  margin: 0;
-  color: #10283d;
+.summary-item,
+.assignment-table,
+.empty,
+.feedback {
+  border: 1px solid #e2ebf4;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 
-.assignment-card p {
-  margin: 0;
-  color: #6f8297;
-  min-height: 44px;
+.summary-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
 }
 
-.card-top,
-.stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.summary-item span {
   color: #6f8297;
   font-size: 13px;
 }
 
+.summary-item strong {
+  color: #10283d;
+  font-size: 24px;
+}
+
+.assignment-table {
+  overflow: hidden;
+}
+
+.table-head,
+.assignment-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 92px 70px 70px 70px 70px 72px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+}
+
+.table-head {
+  background: #f8fbff;
+  color: #6f8297;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.assignment-row {
+  border-top: 1px solid #eef3f8;
+  color: #31465c;
+}
+
+.title-cell {
+  min-width: 0;
+}
+
+.title-cell strong {
+  display: block;
+  color: #10283d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-cell p {
+  margin: 4px 0 0;
+  color: #7b8da0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status {
-  padding: 3px 8px;
+  justify-self: start;
+  padding: 4px 8px;
   border-radius: 8px;
   background: #edf6ff;
   color: #1f5f99;
+  font-size: 13px;
 }
 
 .status.published {
@@ -171,8 +257,58 @@ function handleApiError(error, fallbackMessage) {
   color: #475467;
 }
 
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 22px;
+  color: #6f8297;
+}
+
+.empty strong {
+  color: #10283d;
+  font-size: 20px;
+}
+
+.empty p {
+  margin: 0;
+}
+
+.feedback {
+  padding: 12px 14px;
+}
+
 .feedback.error {
   color: #b42318;
   background: #fff8f8;
+}
+
+@media (max-width: 980px) {
+  .summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .table-head {
+    display: none;
+  }
+
+  .assignment-row {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .assignment-row > span:not(.status) {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-toolbar {
+    display: grid;
+  }
+
+  .summary-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

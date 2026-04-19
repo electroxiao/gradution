@@ -1,4 +1,4 @@
-import http from "./http";
+import http, { API_BASE_URL } from "./http";
 import { getAccessToken } from "../utils/authStorage";
 
 export const listSessionsApi = () => http.get("/api/chat/sessions");
@@ -11,7 +11,7 @@ export const sendMessageApi = (sessionId, payload) =>
 
 export async function streamMessageApi(sessionId, payload, handlers = {}) {
   const token = getAccessToken();
-  const response = await fetch(`http://127.0.0.1:8000/api/chat/sessions/${sessionId}/messages/stream`, {
+  const response = await fetch(`${API_BASE_URL}/api/chat/sessions/${sessionId}/messages/stream`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

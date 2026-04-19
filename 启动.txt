@@ -1,5 +1,5 @@
 后端启动：
-uvicorn backend.main:app --reload
+uvicorn backend.main:app --host 127.0.0.1 --port 9000 --reload
 
 前端启动：
 npm --prefix frontend install

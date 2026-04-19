@@ -1,6 +1,6 @@
 <template>
   <div class="detail-page">
-    <header class="hero">
+    <header class="detail-toolbar">
       <div>
         <p class="eyebrow">Java Practice</p>
         <h1>{{ assignment?.title || "作业" }}</h1>
@@ -13,27 +13,39 @@
 
     <main v-if="assignment" class="workbench">
       <aside class="question-list">
+        <div class="panel-title">
+          <h2>题目</h2>
+          <span>{{ assignment.questions.length }} 题</span>
+        </div>
         <button
-          v-for="question in assignment.questions"
+          v-for="(question, index) in assignment.questions"
           :key="question.id"
           :class="{ active: activeQuestion?.id === question.id }"
           @click="selectQuestion(question)"
         >
-          <strong>{{ question.title || `第 ${question.sort_order + 1} 题` }}</strong>
-          <span>{{ question.language }}</span>
+          <span>第 {{ index + 1 }} 题</span>
+          <strong>{{ question.title || `题目 ${index + 1}` }}</strong>
+          <small>{{ question.language }}</small>
         </button>
       </aside>
 
-      <section v-if="activeQuestion" class="question-panel">
+      <section v-if="activeQuestion" class="coding-panel">
         <article class="prompt-card">
-          <h2>{{ activeQuestion.title || "编程题" }}</h2>
+          <div class="section-title">
+            <div>
+              <span>题目说明</span>
+              <h2>{{ activeQuestion.title || "编程题" }}</h2>
+            </div>
+            <button type="button" :disabled="submitting || !activeCode.trim()" @click="submitCode">
+              {{ submitting ? "运行中..." : "提交运行" }}
+            </button>
+          </div>
           <MarkdownContent :content="activeQuestion.prompt" />
           <div v-if="sampleCases.length" class="sample-list">
-            <h3>示例测试</h3>
             <article v-for="item in sampleCases" :key="item.id" class="sample-card">
-              <strong>输入</strong>
+              <strong>示例输入</strong>
               <pre>{{ item.input_data || "(空)" }}</pre>
-              <strong>期望输出</strong>
+              <strong>示例输出</strong>
               <pre>{{ item.expected_output || "(空)" }}</pre>
             </article>
           </div>
@@ -41,17 +53,25 @@
 
         <article class="code-card">
           <div class="section-title">
-            <h3>代码</h3>
-            <button type="button" :disabled="submitting || !code.trim()" @click="submitCode">
+            <div>
+              <span>Main.java</span>
+              <h3>代码编辑</h3>
+            </div>
+            <button type="button" :disabled="submitting || !activeCode.trim()" @click="submitCode">
               {{ submitting ? "运行中..." : "提交运行" }}
             </button>
           </div>
-          <textarea v-model="code" rows="16" spellcheck="false" />
+          <textarea v-model="activeCode" rows="20" spellcheck="false" />
         </article>
+      </section>
 
-        <article v-if="lastResult" class="result-card">
-          <h3>运行结果：{{ statusText(lastResult.status) }}</h3>
-          <div class="result-list">
+      <aside v-if="activeQuestion" class="assist-panel">
+        <article class="result-card">
+          <div class="panel-title">
+            <h2>运行结果</h2>
+            <span v-if="lastResult">{{ statusText(lastResult.status) }}</span>
+          </div>
+          <div v-if="lastResult" class="result-list">
             <div v-for="item in lastResult.results" :key="item.case_index" class="result-item" :class="item.status">
               <strong>用例 {{ item.case_index || "编译" }}：{{ statusText(item.status) }}</strong>
               <p v-if="item.summary">{{ item.summary }}</p>
@@ -66,21 +86,22 @@
               <pre v-if="item.stderr">{{ item.stderr }}</pre>
             </div>
           </div>
+          <p v-else class="muted">提交运行后，测试结果会显示在这里。</p>
         </article>
 
         <article class="ai-card">
-          <div class="section-title">
-            <h3>作业助教</h3>
+          <div class="panel-title">
+            <h2>作业助教</h2>
             <button type="button" :disabled="asking || !aiMessage.trim()" @click="askAi">
               {{ asking ? "思考中..." : "提问" }}
             </button>
           </div>
-          <textarea v-model="aiMessage" rows="3" placeholder="描述你卡住的地方，或询问某个报错原因。" />
+          <textarea v-model="aiMessage" rows="4" placeholder="描述你卡住的地方，或询问某个报错原因。" />
           <div v-if="aiAnswer" class="ai-answer">
             <MarkdownContent :content="aiAnswer" />
           </div>
         </article>
-      </section>
+      </aside>
     </main>
   </div>
 </template>
@@ -97,17 +118,19 @@ import {
 import MarkdownContent from "../components/MarkdownContent.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
-const route = useRoute();
-const router = useRouter();
-const assignment = ref(null);
-const activeQuestion = ref(null);
-const code = ref(`public class Main {
+const STARTER_CODE = `public class Main {
     public static void main(String[] args) {
         // 在这里编写你的代码
     }
 }
-`);
-const lastResult = ref(null);
+`;
+
+const route = useRoute();
+const router = useRouter();
+const assignment = ref(null);
+const activeQuestion = ref(null);
+const codeByQuestion = ref({});
+const lastResultByQuestion = ref({});
 const aiMessage = ref("");
 const aiAnswer = ref("");
 const errorMessage = ref("");
@@ -115,6 +138,20 @@ const submitting = ref(false);
 const asking = ref(false);
 
 const sampleCases = computed(() => activeQuestion.value?.test_cases?.filter((item) => item.is_sample) || []);
+const lastResult = computed(() => {
+  if (!activeQuestion.value) return null;
+  return lastResultByQuestion.value[activeQuestion.value.id] || null;
+});
+const activeCode = computed({
+  get() {
+    if (!activeQuestion.value) return "";
+    return codeByQuestion.value[activeQuestion.value.id] ?? STARTER_CODE;
+  },
+  set(value) {
+    if (!activeQuestion.value) return;
+    codeByQuestion.value[activeQuestion.value.id] = value;
+  },
+});
 
 onMounted(loadAssignment);
 
@@ -132,7 +169,10 @@ async function loadAssignment() {
 
 function selectQuestion(question) {
   activeQuestion.value = question;
-  lastResult.value = null;
+  if (!codeByQuestion.value[question.id]) {
+    codeByQuestion.value[question.id] = STARTER_CODE;
+  }
+  aiMessage.value = "";
   aiAnswer.value = "";
 }
 
@@ -141,9 +181,9 @@ async function submitCode() {
   errorMessage.value = "";
   try {
     const { data } = await submitAssignmentQuestionApi(assignment.value.id, activeQuestion.value.id, {
-      code: code.value,
+      code: activeCode.value,
     });
-    lastResult.value = data;
+    lastResultByQuestion.value[activeQuestion.value.id] = data;
   } catch (error) {
     handleApiError(error, "提交运行失败。");
   } finally {
@@ -157,7 +197,7 @@ async function askAi() {
   try {
     const { data } = await askAssignmentAiHelpApi(assignment.value.id, activeQuestion.value.id, {
       message: aiMessage.value,
-      code: code.value,
+      code: activeCode.value,
       last_result: lastResult.value,
     });
     aiAnswer.value = data.answer;
@@ -194,65 +234,49 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .detail-page {
   min-height: 100vh;
-  padding: 28px;
+  padding: 24px;
   display: grid;
-  gap: 22px;
+  gap: 16px;
   background: #f7fbff;
 }
 
-.hero,
-.section-title {
+.detail-toolbar,
+.section-title,
+.panel-title {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   align-items: flex-start;
 }
 
-.hero h1 {
-  margin: 8px 0 10px;
-  font-size: 38px;
+.detail-toolbar h1 {
+  margin: 6px 0 8px;
   color: #0f2840;
+  font-size: 34px;
 }
 
-.hero p {
+.detail-toolbar p,
+.section-title span,
+.panel-title span,
+.muted {
   margin: 0;
   color: #6f8297;
 }
 
 .eyebrow {
+  margin: 0;
   color: #5b86b3;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.back-link,
-button {
-  padding: 10px 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
-  background: #fff;
-  color: #18344f;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.section-title button {
-  background: #10283d;
-  border-color: #10283d;
-  color: #fff;
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .workbench {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 230px minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
 }
 
 .question-list,
@@ -261,45 +285,71 @@ button:disabled {
 .result-card,
 .ai-card,
 .feedback {
-  padding: 18px;
   border: 1px solid #e2ebf4;
   border-radius: 8px;
   background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
 }
 
-.question-list {
+.question-list,
+.result-card,
+.ai-card {
+  padding: 14px;
+}
+
+.question-list,
+.assist-panel,
+.coding-panel {
   display: grid;
-  gap: 8px;
-  align-self: start;
+  gap: 14px;
+}
+
+.question-list,
+.assist-panel {
+  position: sticky;
+  top: 18px;
 }
 
 .question-list button {
   display: grid;
   gap: 4px;
+  width: 100%;
+  padding: 10px;
   text-align: left;
+  border: 1px solid #e2ebf4;
+  border-radius: 8px;
+  background: #fff;
+  color: #18344f;
+  cursor: pointer;
 }
 
 .question-list button.active {
-  background: #edf6ff;
+  border-color: #9cc7ef;
+  background: #f3f9ff;
 }
 
-.question-panel {
-  display: grid;
-  gap: 16px;
+.question-list button span,
+.question-list button small {
+  color: #6f8297;
+  font-size: 12px;
 }
 
-.prompt-card h2,
+.question-list button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-card,
+.code-card {
+  padding: 16px;
+}
+
+.section-title h2,
 .section-title h3,
-.result-card h3 {
+.panel-title h2 {
   margin: 0;
-}
-
-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
-  font-family: Consolas, "Courier New", monospace;
+  color: #10283d;
 }
 
 .sample-list,
@@ -317,6 +367,20 @@ textarea {
   background: #f8fbff;
 }
 
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d7e5f3;
+  border-radius: 8px;
+  font-family: Consolas, "Courier New", monospace;
+  resize: vertical;
+}
+
+.code-card textarea {
+  min-height: 430px;
+  margin-top: 12px;
+}
+
 pre {
   overflow: auto;
   margin: 6px 0 10px;
@@ -324,6 +388,30 @@ pre {
   border-radius: 8px;
   background: #10283d;
   color: #fff;
+}
+
+.back-link,
+button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #d7e5f3;
+  border-radius: 8px;
+  background: #fff;
+  color: #18344f;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.section-title button,
+.panel-title button {
+  background: #10283d;
+  border-color: #10283d;
+  color: #fff;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .result-item.accepted {
@@ -339,9 +427,30 @@ pre {
   color: #b42318;
 }
 
-@media (max-width: 900px) {
+.feedback {
+  padding: 12px 14px;
+}
+
+@media (max-width: 1180px) {
   .workbench {
     grid-template-columns: 1fr;
+  }
+
+  .question-list,
+  .assist-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .detail-page {
+    padding: 16px;
+  }
+
+  .detail-toolbar,
+  .section-title,
+  .panel-title {
+    display: grid;
   }
 }
 </style>

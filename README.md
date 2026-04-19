@@ -167,12 +167,12 @@ docker run --rm eclipse-temurin:17-jdk java -version
 ### 启动后端
 
 ```powershell
-uvicorn backend.main:app --reload
+uvicorn backend.main:app --host 127.0.0.1 --port 9000 --reload
 ```
 
 默认地址：
 
-- 后端 API：`http://127.0.0.1:8000`
+- 后端 API：`http://127.0.0.1:9000`
 - 健康检查：`GET /api/health`
 
 ### 启动前端
