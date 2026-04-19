@@ -69,9 +69,9 @@
           </header>
           <div v-if="lastResult" class="result-list">
             <div v-for="item in lastResult.results" :key="item.case_index" class="result-item" :class="item.status">
-              <strong>用例 {{ item.case_index || "编译" }}：{{ statusText(item.status) }}</strong>
+              <strong>{{ resultTitle(item) }}</strong>
               <p v-if="item.summary">{{ item.summary }}</p>
-              <template v-if="item.is_sample || item.case_index === 0">
+              <template v-if="shouldShowCaseIo(item)">
                 <span>输入</span>
                 <pre>{{ item.input || "(空)" }}</pre>
                 <span>期望输出</span>
@@ -96,11 +96,6 @@
           </div>
           <button type="button" class="icon-btn" @click="showAiPanel = false">关闭</button>
         </header>
-
-        <div v-if="helpModalReason" class="ai-summary">
-          <strong>{{ statusText(lastResult?.status) }}</strong>
-          <p>{{ helpModalReason }}</p>
-        </div>
 
         <div class="ai-composer">
           <textarea ref="aiInput" v-model="aiMessage" rows="4" placeholder="描述你卡住的地方，或询问某个报错原因。" />
@@ -185,7 +180,6 @@ const errorMessage = ref("");
 const submitting = ref(false);
 const asking = ref(false);
 const showAiPanel = ref(false);
-const helpModalReason = ref("");
 const aiInput = ref(null);
 const problemPaneWidth = ref(320);
 const aiPaneWidth = ref(360);
@@ -248,7 +242,6 @@ function selectQuestion(question) {
     startedAtByQuestion.value[question.id] = new Date().toISOString();
   }
   aiMessage.value = "";
-  closeAiPanelSummary();
   clearAiHelp();
 }
 
@@ -261,11 +254,6 @@ async function submitCode() {
       started_at: startedAtByQuestion.value[activeQuestion.value.id],
     });
     lastResultByQuestion.value[activeQuestion.value.id] = data;
-    if (isFailureStatus(data.status)) {
-      await openFailureHelp(data);
-    } else {
-      closeAiPanelSummary();
-    }
   } catch (error) {
     handleApiError(error, "提交运行失败。");
   } finally {
@@ -328,32 +316,6 @@ function clearAiHelp() {
   aiReasoningTrace.value = [];
   aiRetrievalTrace.value = [];
   aiHelpError.value = "";
-}
-
-async function openFailureHelp(result) {
-  clearAiHelp();
-  helpModalReason.value = summarizeRunResult(result);
-  aiMessage.value = buildFailureHelpMessage(result);
-  showAiPanel.value = true;
-  await requestAiHelp(aiMessage.value, true);
-}
-
-function closeAiPanelSummary() {
-  helpModalReason.value = "";
-}
-
-function isFailureStatus(status) {
-  return ["wrong_answer", "runtime_error", "timeout", "sandbox_error"].includes(status);
-}
-
-function summarizeRunResult(result) {
-  const firstProblem = result?.results?.find((item) => item.status && item.status !== "accepted") || result?.results?.[0];
-  return firstProblem?.summary || firstProblem?.stderr || "本次运行结果没有通过测试。";
-}
-
-function buildFailureHelpMessage(result) {
-  const summary = summarizeRunResult(result);
-  return `我这道题提交后是${statusText(result.status)}，运行结果提示：${summary}。请结合题目和我的代码，引导我找出相关知识点和下一步修改方向。`;
 }
 
 function getDraftKey(questionId) {
@@ -424,6 +386,17 @@ function statusText(status) {
     published: "已发布",
     closed: "已关闭",
   }[status] || status;
+}
+
+function resultTitle(item) {
+  if (item?.case_index === 0) {
+    return `编译阶段：${statusText(item.status)}`;
+  }
+  return `用例 ${item?.case_index || "-"}：${statusText(item?.status)}`;
+}
+
+function shouldShowCaseIo(item) {
+  return item?.case_index !== 0 && item?.is_sample;
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -580,7 +553,6 @@ button:disabled {
 .ai-answer,
 .concept-block,
 .trace-box,
-.ai-summary,
 .ai-state,
 .ai-error {
   padding: 12px;
@@ -699,15 +671,6 @@ pre {
   padding: 14px;
   border-right: none;
   border-left: 1px solid #dfe7ef;
-}
-
-.ai-summary {
-  background: #fff8f1;
-  color: #9a4a00;
-}
-
-.ai-summary p {
-  margin: 6px 0 0;
 }
 
 .ai-composer {
