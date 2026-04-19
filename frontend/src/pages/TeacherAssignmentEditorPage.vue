@@ -8,6 +8,13 @@
       </div>
       <div class="toolbar-actions">
         <router-link class="secondary-link" to="/teacher/assignments">返回列表</router-link>
+        <router-link
+          v-if="!isNew"
+          class="secondary-link"
+          :to="`/teacher/assignments/${assignmentId}/progress`"
+        >
+          完成情况
+        </router-link>
         <button type="button" class="primary-btn" :disabled="saving" @click="saveAssignment">
           {{ saving ? "保存中..." : "保存作业" }}
         </button>
@@ -116,7 +123,7 @@
             <textarea
               v-model="activeQuestion.prompt"
               class="prompt-input"
-              rows="7"
+              rows="10"
               placeholder="题目描述、输入输出要求"
             />
           </label>
@@ -133,8 +140,8 @@
               :key="testCase.localKey"
               class="case-row"
             >
-              <textarea v-model="testCase.input_data" rows="3" placeholder="stdin 输入" />
-              <textarea v-model="testCase.expected_output" rows="3" placeholder="期望 stdout" />
+              <textarea v-model="testCase.input_data" rows="2" placeholder="stdin 输入" />
+              <textarea v-model="testCase.expected_output" rows="2" placeholder="期望 stdout" />
               <label class="sample-check">
                 <input v-model="testCase.is_sample" type="checkbox" />
                 <span>示例</span>
@@ -594,7 +601,7 @@ select {
 }
 
 textarea {
-  resize: vertical;
+  resize: none;
 }
 
 .prompt-input,
@@ -602,9 +609,25 @@ textarea {
   font-family: Consolas, "Courier New", monospace;
 }
 
+.description-field textarea {
+  min-height: clamp(72px, 9vh, 108px);
+}
+
+.prompt-input {
+  min-height: clamp(240px, 34vh, 420px);
+}
+
+.case-row textarea {
+  min-height: clamp(54px, 8vh, 82px);
+  max-height: 120px;
+}
+
 button,
 .secondary-link,
 .primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 38px;
   padding: 0 12px;
   border: 1px solid #d7e5f3;

@@ -97,6 +97,8 @@ class AssignmentSubmission(Base):
     status: Mapped[str] = mapped_column(String(32), default="submitted", index=True)
     results_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     ai_context_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     assignment = relationship("Assignment")

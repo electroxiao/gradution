@@ -17,6 +17,8 @@ from backend.services.assignment_service import (
     generate_assignment_question,
     get_student_assignment_detail,
     get_teacher_assignment_detail,
+    get_teacher_assignment_progress,
+    get_teacher_submission_detail,
     list_student_assignments,
     list_student_submissions,
     list_teacher_assignments,
@@ -52,6 +54,25 @@ def post_generate_assignment_question(
     current_user: User = Depends(get_current_teacher),
 ):
     return generate_assignment_question(payload)
+
+
+@teacher_router.get("/{assignment_id}/progress")
+def get_teacher_assignment_progress_view(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return get_teacher_assignment_progress(db, current_user, assignment_id)
+
+
+@teacher_router.get("/{assignment_id}/submissions/{submission_id}")
+def get_teacher_assignment_submission(
+    assignment_id: int,
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return get_teacher_submission_detail(db, current_user, assignment_id, submission_id)
 
 
 @teacher_router.get("/{assignment_id}")
@@ -117,7 +138,7 @@ def post_assignment_submission(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return submit_assignment_question(db, current_user, assignment_id, question_id, payload.code)
+    return submit_assignment_question(db, current_user, assignment_id, question_id, payload.code, payload.started_at)
 
 
 @student_router.post("/{assignment_id}/questions/{question_id}/ai-help")

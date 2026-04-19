@@ -3,6 +3,10 @@ import http from "./http";
 export const listTeacherAssignmentsApi = () => http.get("/api/teacher/assignments");
 export const createTeacherAssignmentApi = (payload) => http.post("/api/teacher/assignments", payload);
 export const getTeacherAssignmentApi = (assignmentId) => http.get(`/api/teacher/assignments/${assignmentId}`);
+export const getTeacherAssignmentProgressApi = (assignmentId) =>
+  http.get(`/api/teacher/assignments/${assignmentId}/progress`);
+export const getTeacherAssignmentSubmissionApi = (assignmentId, submissionId) =>
+  http.get(`/api/teacher/assignments/${assignmentId}/submissions/${submissionId}`);
 export const updateTeacherAssignmentApi = (assignmentId, payload) =>
   http.patch(`/api/teacher/assignments/${assignmentId}`, payload);
 export const updateTeacherAssignmentQuestionsApi = (assignmentId, payload) =>

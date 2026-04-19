@@ -50,7 +50,10 @@
         <span>{{ item.assignee_count }}</span>
         <span>{{ item.submitted_count }}</span>
         <span>{{ item.accepted_count }}</span>
-        <router-link class="open-link" :to="`/teacher/assignments/${item.id}`">编辑</router-link>
+        <div class="action-cell">
+          <router-link class="open-link" :to="`/teacher/assignments/${item.id}/progress`">完成情况</router-link>
+          <router-link class="open-link edit-link" :to="`/teacher/assignments/${item.id}`">编辑</router-link>
+        </div>
       </article>
     </section>
 
@@ -160,6 +163,17 @@ function handleApiError(error, fallbackMessage) {
   color: #1f5f99;
 }
 
+.edit-link {
+  background: #10283d;
+  color: #fff;
+}
+
+.action-cell {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -199,7 +213,7 @@ function handleApiError(error, fallbackMessage) {
 .table-head,
 .assignment-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 92px 70px 70px 70px 70px 72px;
+  grid-template-columns: minmax(260px, 1fr) 92px 70px 70px 70px 70px 170px;
   gap: 12px;
   align-items: center;
   padding: 12px 16px;
@@ -295,6 +309,11 @@ function handleApiError(error, fallbackMessage) {
   .assignment-row {
     grid-template-columns: 1fr auto;
     align-items: start;
+  }
+
+  .action-cell {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 
   .assignment-row > span:not(.status) {

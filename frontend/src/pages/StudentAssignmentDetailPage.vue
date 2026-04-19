@@ -130,6 +130,7 @@ const router = useRouter();
 const assignment = ref(null);
 const activeQuestion = ref(null);
 const codeByQuestion = ref({});
+const startedAtByQuestion = ref({});
 const lastResultByQuestion = ref({});
 const aiMessage = ref("");
 const aiAnswer = ref("");
@@ -172,6 +173,9 @@ function selectQuestion(question) {
   if (!codeByQuestion.value[question.id]) {
     codeByQuestion.value[question.id] = STARTER_CODE;
   }
+  if (!startedAtByQuestion.value[question.id]) {
+    startedAtByQuestion.value[question.id] = new Date().toISOString();
+  }
   aiMessage.value = "";
   aiAnswer.value = "";
 }
@@ -182,6 +186,7 @@ async function submitCode() {
   try {
     const { data } = await submitAssignmentQuestionApi(assignment.value.id, activeQuestion.value.id, {
       code: activeCode.value,
+      started_at: startedAtByQuestion.value[activeQuestion.value.id],
     });
     lastResultByQuestion.value[activeQuestion.value.id] = data;
   } catch (error) {
@@ -373,12 +378,16 @@ textarea {
   border: 1px solid #d7e5f3;
   border-radius: 8px;
   font-family: Consolas, "Courier New", monospace;
-  resize: vertical;
+  resize: none;
 }
 
 .code-card textarea {
-  min-height: 430px;
+  min-height: clamp(360px, 54vh, 640px);
   margin-top: 12px;
+}
+
+.ai-card textarea {
+  min-height: clamp(96px, 16vh, 150px);
 }
 
 pre {
@@ -392,6 +401,9 @@ pre {
 
 .back-link,
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 38px;
   padding: 0 12px;
   border: 1px solid #d7e5f3;

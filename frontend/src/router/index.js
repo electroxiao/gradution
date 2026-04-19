@@ -9,6 +9,7 @@ const TeacherGraphPage = () => import("../pages/TeacherGraphPage.vue");
 const TeacherStudentsPage = () => import("../pages/TeacherStudentsPage.vue");
 const TeacherAssignmentsPage = () => import("../pages/TeacherAssignmentsPage.vue");
 const TeacherAssignmentEditorPage = () => import("../pages/TeacherAssignmentEditorPage.vue");
+const TeacherAssignmentProgressPage = () => import("../pages/TeacherAssignmentProgressPage.vue");
 const StudentAssignmentsPage = () => import("../pages/StudentAssignmentsPage.vue");
 const StudentAssignmentDetailPage = () => import("../pages/StudentAssignmentDetailPage.vue");
 const WeakPointsPage = () => import("../pages/WeakPointsPage.vue");
@@ -37,6 +38,7 @@ const router = createRouter({
         { path: "students", component: TeacherStudentsPage, meta: { roles: ["teacher"] } },
         { path: "assignments", component: TeacherAssignmentsPage, meta: { roles: ["teacher"] } },
         { path: "assignments/new", component: TeacherAssignmentEditorPage, meta: { roles: ["teacher"] } },
+        { path: "assignments/:assignmentId/progress", component: TeacherAssignmentProgressPage, meta: { roles: ["teacher"] } },
         { path: "assignments/:assignmentId", component: TeacherAssignmentEditorPage, meta: { roles: ["teacher"] } },
       ],
     },

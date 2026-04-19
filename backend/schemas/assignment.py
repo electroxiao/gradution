@@ -49,6 +49,7 @@ class AssignmentGenerateQuestionRequest(BaseModel):
 
 class AssignmentSubmitRequest(BaseModel):
     code: str = Field(min_length=1)
+    started_at: datetime | None = None
 
 
 class AssignmentAiHelpRequest(BaseModel):
@@ -93,6 +94,8 @@ class AssignmentSubmissionResponse(BaseModel):
     code: str
     status: str
     results_json: Any = None
+    started_at: datetime | None = None
+    duration_seconds: int | None = None
     submitted_at: datetime
 
     model_config = {"from_attributes": True}
@@ -144,3 +147,49 @@ class AssignmentGeneratedQuestionResponse(BaseModel):
     prompt: str
     language: str = "java"
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
+
+
+class AssignmentProgressQuestionResponse(BaseModel):
+    id: int
+    title: str
+    sort_order: int
+
+
+class AssignmentProgressStudentResponse(BaseModel):
+    id: int
+    username: str
+
+
+class AssignmentProgressCellResponse(BaseModel):
+    student_id: int
+    question_id: int
+    status: str
+    submission_count: int = 0
+    latest_submission_id: int | None = None
+    submitted_at: datetime | None = None
+    run_time_ms: int | None = None
+    duration_seconds: int | None = None
+
+
+class AssignmentProgressResponse(BaseModel):
+    assignment_id: int
+    title: str
+    questions: list[AssignmentProgressQuestionResponse]
+    students: list[AssignmentProgressStudentResponse]
+    cells: list[AssignmentProgressCellResponse]
+
+
+class AssignmentSubmissionDetailResponse(BaseModel):
+    id: int
+    assignment_id: int
+    question_id: int
+    question_title: str
+    student_id: int
+    student_username: str
+    code: str
+    status: str
+    results_json: Any = None
+    run_time_ms: int | None = None
+    started_at: datetime | None = None
+    duration_seconds: int | None = None
+    submitted_at: datetime

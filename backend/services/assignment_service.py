@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
@@ -20,10 +21,15 @@ from backend.schemas.assignment import (
     AssignmentDetailResponse,
     AssignmentGeneratedQuestionResponse,
     AssignmentGenerateQuestionRequest,
+    AssignmentProgressCellResponse,
+    AssignmentProgressQuestionResponse,
+    AssignmentProgressResponse,
+    AssignmentProgressStudentResponse,
     AssignmentQuestionInput,
     AssignmentQuestionsUpdateRequest,
     AssignmentRunResultResponse,
     AssignmentStudentRef,
+    AssignmentSubmissionDetailResponse,
     AssignmentSubmissionResponse,
     AssignmentSummaryResponse,
     AssignmentTestCaseInput,
@@ -183,6 +189,7 @@ def submit_assignment_question(
     assignment_id: int,
     question_id: int,
     code: str,
+    started_at: datetime | None = None,
 ) -> AssignmentRunResultResponse:
     assignment = _get_student_assignment(db, student, assignment_id)
     question = _get_assignment_question(assignment, question_id)
@@ -192,6 +199,8 @@ def submit_assignment_question(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该题目尚未配置测试用例。")
 
     status_value, results = run_java_submission(code, list(question.test_cases))
+    started_at = _strip_timezone(started_at)
+    submitted_at = datetime.now()
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
         question_id=question.id,
@@ -199,6 +208,9 @@ def submit_assignment_question(
         code=code,
         status=status_value,
         results_json=results,
+        started_at=started_at,
+        duration_seconds=_duration_seconds(started_at, submitted_at),
+        submitted_at=submitted_at,
     )
     db.add(submission)
     db.commit()
@@ -222,6 +234,111 @@ def list_student_submissions(db: Session, student: User, assignment_id: int) -> 
         .all()
     )
     return [AssignmentSubmissionResponse.model_validate(item) for item in submissions]
+
+
+def get_teacher_assignment_progress(db: Session, teacher: User, assignment_id: int) -> AssignmentProgressResponse:
+    assignment = _get_teacher_assignment(db, teacher, assignment_id)
+    questions = sorted(assignment.questions, key=lambda item: (item.sort_order, item.id))
+    assignees = sorted(
+        [item for item in assignment.assignees if item.student],
+        key=lambda item: (item.student.username, item.student_id),
+    )
+
+    submissions = (
+        db.query(AssignmentSubmission)
+        .filter(AssignmentSubmission.assignment_id == assignment.id)
+        .order_by(AssignmentSubmission.submitted_at.asc(), AssignmentSubmission.id.asc())
+        .all()
+    )
+
+    grouped: dict[tuple[int, int], dict] = {}
+    for submission in submissions:
+        key = (submission.student_id, submission.question_id)
+        item = grouped.setdefault(key, {"count": 0, "latest": None})
+        item["count"] += 1
+        latest = item["latest"]
+        if latest is None or (submission.submitted_at, submission.id) >= (latest.submitted_at, latest.id):
+            item["latest"] = submission
+
+    cells = []
+    for assignee in assignees:
+        for question in questions:
+            group = grouped.get((assignee.student_id, question.id), {"count": 0, "latest": None})
+            latest = group["latest"]
+            if latest:
+                cells.append(
+                    AssignmentProgressCellResponse(
+                        student_id=assignee.student_id,
+                        question_id=question.id,
+                        status=latest.status,
+                        submission_count=group["count"],
+                        latest_submission_id=latest.id,
+                        submitted_at=latest.submitted_at,
+                        run_time_ms=_sum_run_time_ms(latest.results_json),
+                        duration_seconds=latest.duration_seconds,
+                    )
+                )
+            else:
+                cells.append(
+                    AssignmentProgressCellResponse(
+                        student_id=assignee.student_id,
+                        question_id=question.id,
+                        status="not_submitted",
+                    )
+                )
+
+    return AssignmentProgressResponse(
+        assignment_id=assignment.id,
+        title=assignment.title,
+        questions=[
+            AssignmentProgressQuestionResponse(id=question.id, title=question.title or f"第 {index + 1} 题", sort_order=question.sort_order)
+            for index, question in enumerate(questions)
+        ],
+        students=[
+            AssignmentProgressStudentResponse(id=assignee.student_id, username=assignee.student.username)
+            for assignee in assignees
+        ],
+        cells=cells,
+    )
+
+
+def get_teacher_submission_detail(
+    db: Session,
+    teacher: User,
+    assignment_id: int,
+    submission_id: int,
+) -> AssignmentSubmissionDetailResponse:
+    assignment = _get_teacher_assignment(db, teacher, assignment_id)
+    submission = (
+        db.query(AssignmentSubmission)
+        .options(
+            selectinload(AssignmentSubmission.question),
+            selectinload(AssignmentSubmission.student),
+        )
+        .filter(
+            AssignmentSubmission.id == submission_id,
+            AssignmentSubmission.assignment_id == assignment.id,
+        )
+        .first()
+    )
+    if not submission:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="提交记录不存在。")
+
+    return AssignmentSubmissionDetailResponse(
+        id=submission.id,
+        assignment_id=submission.assignment_id,
+        question_id=submission.question_id,
+        question_title=submission.question.title if submission.question else "",
+        student_id=submission.student_id,
+        student_username=submission.student.username if submission.student else "",
+        code=submission.code,
+        status=submission.status,
+        results_json=submission.results_json,
+        run_time_ms=_sum_run_time_ms(submission.results_json),
+        started_at=submission.started_at,
+        duration_seconds=submission.duration_seconds,
+        submitted_at=submission.submitted_at,
+    )
 
 
 def assignment_ai_help(
@@ -479,3 +596,30 @@ def _parse_json_object(content: str) -> dict:
     if start == -1 or end <= start:
         raise ValueError("大模型未返回 JSON。")
     return json.loads(content[start:end])
+
+
+def _duration_seconds(started_at: datetime | None, submitted_at: datetime) -> int | None:
+    if not started_at:
+        return None
+    started_at = _strip_timezone(started_at)
+    submitted_at = _strip_timezone(submitted_at) or submitted_at
+    return max(0, int((submitted_at - started_at).total_seconds()))
+
+
+def _strip_timezone(value: datetime | None) -> datetime | None:
+    if value and value.tzinfo is not None:
+        return value.replace(tzinfo=None)
+    return value
+
+
+def _sum_run_time_ms(results_json) -> int | None:
+    if not isinstance(results_json, list):
+        return None
+    values = [
+        int(item.get("elapsed_ms", 0))
+        for item in results_json
+        if isinstance(item, dict) and item.get("elapsed_ms") is not None
+    ]
+    if not values:
+        return None
+    return sum(values)
