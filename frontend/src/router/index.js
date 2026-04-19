@@ -7,6 +7,10 @@ const LoginPage = () => import("../pages/LoginPage.vue");
 const TeacherDashboardPage = () => import("../pages/TeacherDashboardPage.vue");
 const TeacherGraphPage = () => import("../pages/TeacherGraphPage.vue");
 const TeacherStudentsPage = () => import("../pages/TeacherStudentsPage.vue");
+const TeacherAssignmentsPage = () => import("../pages/TeacherAssignmentsPage.vue");
+const TeacherAssignmentEditorPage = () => import("../pages/TeacherAssignmentEditorPage.vue");
+const StudentAssignmentsPage = () => import("../pages/StudentAssignmentsPage.vue");
+const StudentAssignmentDetailPage = () => import("../pages/StudentAssignmentDetailPage.vue");
 const WeakPointsPage = () => import("../pages/WeakPointsPage.vue");
 const TeacherLayout = () => import("../pages/TeacherLayout.vue");
 
@@ -20,6 +24,8 @@ const router = createRouter({
     { path: "/login", component: LoginPage, meta: { public: true } },
     { path: "/", component: ChatPage, meta: { roles: ["student"] } },
     { path: "/weak-points", component: WeakPointsPage, meta: { roles: ["student"] } },
+    { path: "/assignments", component: StudentAssignmentsPage, meta: { roles: ["student"] } },
+    { path: "/assignments/:assignmentId", component: StudentAssignmentDetailPage, meta: { roles: ["student"] } },
     {
       path: "/teacher",
       component: TeacherLayout,
@@ -29,6 +35,9 @@ const router = createRouter({
         { path: "dashboard", component: TeacherDashboardPage, meta: { roles: ["teacher"] } },
         { path: "graph", component: TeacherGraphPage, meta: { roles: ["teacher"] } },
         { path: "students", component: TeacherStudentsPage, meta: { roles: ["teacher"] } },
+        { path: "assignments", component: TeacherAssignmentsPage, meta: { roles: ["teacher"] } },
+        { path: "assignments/new", component: TeacherAssignmentEditorPage, meta: { roles: ["teacher"] } },
+        { path: "assignments/:assignmentId", component: TeacherAssignmentEditorPage, meta: { roles: ["teacher"] } },
       ],
     },
   ],

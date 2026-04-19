@@ -16,6 +16,7 @@
 - 弱点推荐图谱：围绕薄弱点展示推荐学习结点与待审核候选结点
 - 针对性训练：支持正式推荐结点与 pending 候选结点的做题练习
 - 教师图谱管理：正式图谱编辑、候选批次审核、知识结点补充入图
+- 作业管理：教师布置 Java 编程作业、选择学生发布、Docker 沙箱运行学生提交并提供 AI 辅导
 - 同浏览器多角色并存：前端登录态按标签页隔离，教师和学生可同时在线
 
 ## 技术栈
@@ -59,6 +60,7 @@ docs/      维护文档
 - Node.js 18+
 - MySQL
 - Neo4j
+- Docker（用于运行学生提交的 Java 作业代码）
 
 ## 安装依赖
 
@@ -91,6 +93,10 @@ LLM_BASE_URL=https://api.deepseek.com
 CORS_ORIGINS=http://localhost:5173
 TEACHER_SEED_USERNAME=teacher
 TEACHER_SEED_PASSWORD=teacher123
+SANDBOX_DOCKER_IMAGE=eclipse-temurin:17-jdk
+SANDBOX_TIMEOUT_SECONDS=5
+SANDBOX_MEMORY_LIMIT=256m
+SANDBOX_CPU_LIMIT=1
 ```
 
 说明：
@@ -99,6 +105,62 @@ TEACHER_SEED_PASSWORD=teacher123
 - `NEO4J_*`：正式知识图谱数据库连接
 - `LLM_*`：大模型 API 配置
 - `TEACHER_SEED_*`：系统初始化时自动创建的教师账号
+- `SANDBOX_*`：学生编程作业 Docker 沙箱配置
+
+## Docker 沙箱配置与启动
+
+编程作业的代码运行依赖 Docker。后端不会自动启动 Docker Desktop，它只会在学生提交代码时调用系统里的 `docker run` 命令创建一次性 Java 容器。
+
+Windows 本地开发时，启动顺序建议如下：
+
+```text
+1. 打开 Docker Desktop
+2. 等待 Docker Desktop 显示 Running / Engine running
+3. 启动 MySQL 和 Neo4j
+4. 启动 FastAPI 后端
+5. 启动 Vue 前端
+```
+
+确认 Docker 后台服务已经可用：
+
+```powershell
+docker info
+```
+
+首次使用编程作业前，拉取默认 Java 镜像：
+
+```powershell
+docker pull eclipse-temurin:17-jdk
+```
+
+也可以用下面命令确认镜像能正常运行：
+
+```powershell
+docker run --rm eclipse-temurin:17-jdk java -version
+```
+
+后端沙箱运行学生代码时会执行类似下面的容器策略：
+
+```text
+docker run --rm --network none --memory 256m --cpus 1 ...
+```
+
+含义：
+
+- `--rm`：代码运行结束后自动删除容器
+- `--network none`：容器不能访问网络
+- `--memory`：限制容器内存
+- `--cpus`：限制容器 CPU
+- `SANDBOX_TIMEOUT_SECONDS`：后端对子进程设置超时，避免死循环长期占用资源
+
+如果学生提交代码时出现 Docker 相关沙箱错误，先在启动后端的同一个 PowerShell 里执行：
+
+```powershell
+docker info
+docker run --rm eclipse-temurin:17-jdk java -version
+```
+
+如果这两个命令失败，通常是 Docker Desktop 没启动完成、Docker Engine 未运行，或当前终端找不到 `docker` 命令。重启 Docker Desktop 和 PowerShell 后再启动后端即可。
 
 ## 启动方式
 
@@ -152,11 +214,13 @@ npm --prefix frontend run dev
 
 - Chat：编程问答与图谱辅助解释
 - Weak Points：薄弱点、推荐学习路径、pending 候选学习点
+- Assignments：查看作业、提交 Java 代码、查看测试结果、向作业助教提问
 
 ### 教师端
 
 - TeacherGraphPage：正式图谱维护与候选批次审核
 - TeacherDashboard / TeacherStudents：学生与班级概览
+- TeacherAssignmentsPage：创建和维护编程作业、发布给指定学生
 
 ## 维护建议
 

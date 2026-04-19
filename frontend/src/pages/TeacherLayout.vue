@@ -11,6 +11,7 @@
         <router-link to="/teacher/dashboard">数据看板</router-link>
         <router-link to="/teacher/graph">知识图谱</router-link>
         <router-link to="/teacher/students">学生薄弱点</router-link>
+        <router-link to="/teacher/assignments">作业管理</router-link>
       </nav>
 
       <button class="logout-btn" @click="logout">退出登录</button>

@@ -1,3 +1,3 @@
-from backend.models import chat, knowledge, user
+from backend.models import assignment, chat, knowledge, user
 
-__all__ = ["chat", "knowledge", "user"]
+__all__ = ["assignment", "chat", "knowledge", "user"]

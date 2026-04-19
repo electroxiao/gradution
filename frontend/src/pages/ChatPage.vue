@@ -16,6 +16,7 @@
           <p>内容由知识图谱与 AI 联合生成</p>
         </div>
         <div class="topbar-actions">
+          <router-link class="weak-link" to="/assignments">作业</router-link>
           <router-link class="weak-link" to="/weak-points">薄弱点</router-link>
           <button class="logout-btn" type="button" @click="logout">退出登录</button>
         </div>

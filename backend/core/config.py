@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     teacher_seed_username: str = "teacher"
     teacher_seed_password: str = "teacher123"
+    sandbox_docker_image: str = "eclipse-temurin:17-jdk"
+    sandbox_timeout_seconds: int = 5
+    sandbox_memory_limit: str = "256m"
+    sandbox_cpu_limit: str = "1"
 
     model_config = SettingsConfigDict(
         env_file=".env",
