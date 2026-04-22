@@ -83,6 +83,44 @@
             </div>
           </div>
           <p v-else class="muted">提交运行后，测试结果会显示在这里。</p>
+
+          <section v-if="lastResult?.ai_review" class="ai-review-block">
+            <header>
+              <h3>AI 评审</h3>
+              <span class="review-badge">{{ decisionSourceText(lastResult.decision_source) }}</span>
+            </header>
+            <p class="review-summary">{{ lastResult.ai_review.summary || "AI 未返回总结。" }}</p>
+            <dl class="review-metrics">
+              <div>
+                <dt>AI 决策</dt>
+                <dd>{{ statusText(lastResult.ai_review.decision || lastResult.status) }}</dd>
+              </div>
+              <div>
+                <dt>评分</dt>
+                <dd>{{ lastResult.ai_review.score ?? "--" }}</dd>
+              </div>
+              <div>
+                <dt>置信度</dt>
+                <dd>{{ formatConfidence(lastResult.ai_review.confidence) }}</dd>
+              </div>
+              <div>
+                <dt>人工复核</dt>
+                <dd>{{ lastResult.manual_review_required ? "需要" : "无需" }}</dd>
+              </div>
+            </dl>
+            <div v-if="lastResult.ai_review.issues?.length" class="review-list">
+              <strong>风险点</strong>
+              <ul>
+                <li v-for="(item, index) in lastResult.ai_review.issues" :key="`issue-${index}`">{{ item }}</li>
+              </ul>
+            </div>
+            <div v-if="lastResult.ai_review.strengths?.length" class="review-list">
+              <strong>实现优点</strong>
+              <ul>
+                <li v-for="(item, index) in lastResult.ai_review.strengths" :key="`strength-${index}`">{{ item }}</li>
+              </ul>
+            </div>
+          </section>
         </section>
       </section>
 
@@ -210,7 +248,7 @@ const labGridStyle = computed(() => {
 const activeCode = computed({
   get() {
     if (!activeQuestion.value) return "";
-    return codeByQuestion.value[activeQuestion.value.id] ?? STARTER_CODE;
+    return codeByQuestion.value[activeQuestion.value.id] ?? resolveStarterCode(activeQuestion.value);
   },
   set(value) {
     if (!activeQuestion.value) return;
@@ -236,7 +274,7 @@ async function loadAssignment() {
 function selectQuestion(question) {
   activeQuestion.value = question;
   if (!(question.id in codeByQuestion.value)) {
-    codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? STARTER_CODE;
+    codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? resolveStarterCode(question);
   }
   if (!startedAtByQuestion.value[question.id]) {
     startedAtByQuestion.value[question.id] = new Date().toISOString();
@@ -322,6 +360,11 @@ function getDraftKey(questionId) {
   return `${DRAFT_PREFIX}:${route.params.assignmentId}:${questionId}`;
 }
 
+function resolveStarterCode(question) {
+  const starterCode = String(question?.starter_code || "").trim();
+  return starterCode || STARTER_CODE;
+}
+
 function loadCodeDraft(questionId) {
   try {
     return window.localStorage.getItem(getDraftKey(questionId));
@@ -383,9 +426,28 @@ function statusText(status) {
     runtime_error: "运行错误",
     timeout: "超时",
     sandbox_error: "沙箱错误",
+    needs_manual_review: "待人工复核",
+    ai_rejected: "AI 判定未通过",
     published: "已发布",
     closed: "已关闭",
   }[status] || status;
+}
+
+function decisionSourceText(value) {
+  return {
+    testcase: "测试用例结果",
+    ai_review: "AI 评审结果",
+    hybrid: "混合判题结果",
+    ai_with_testcases: "AI + 测试用例",
+    ai_only: "AI 判题结果",
+    teacher_override: "教师改判",
+  }[value] || "系统判定";
+}
+
+function formatConfidence(value) {
+  const number = Number(value);
+  if (Number.isNaN(number)) return "--";
+  return `${Math.round(number * 100)}%`;
 }
 
 function resultTitle(item) {
@@ -543,7 +605,8 @@ button:disabled {
 }
 
 .sample-list,
-.result-list {
+.result-list,
+.review-list {
   display: grid;
   gap: 10px;
 }
@@ -579,7 +642,8 @@ pre {
 
 .editor-toolbar,
 .result-console header,
-.ai-header {
+.ai-header,
+.ai-review-block header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -639,6 +703,62 @@ pre {
   margin-bottom: 10px;
 }
 
+.ai-review-block {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.review-badge {
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #1f5f99;
+  font-size: 13px;
+}
+
+.review-summary {
+  margin: 0;
+  color: #34495f;
+}
+
+.review-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.review-metrics div {
+  padding: 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.review-metrics dt {
+  color: #6f8297;
+  font-size: 12px;
+}
+
+.review-metrics dd {
+  margin: 4px 0 0;
+  color: #10283d;
+  font-weight: 700;
+}
+
+.review-list strong {
+  color: #10283d;
+}
+
+.review-list ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #475467;
+}
+
 .result-item.accepted,
 .result-status.accepted {
   background: #ecfdf3;
@@ -649,6 +769,8 @@ pre {
 .result-item.runtime_error,
 .result-item.timeout,
 .result-item.sandbox_error,
+.result-item.needs_manual_review,
+.result-item.ai_rejected,
 .feedback.error {
   background: #fff8f8;
   color: #b42318;
@@ -763,13 +885,18 @@ textarea {
 
   .editor-toolbar,
   .ai-header,
-  .result-console header {
+  .result-console header,
+  .ai-review-block header {
     align-items: stretch;
     flex-direction: column;
   }
 
   .toolbar-actions {
     width: 100%;
+  }
+
+  .review-metrics {
+    grid-template-columns: 1fr 1fr;
   }
 
   .toolbar-actions button,

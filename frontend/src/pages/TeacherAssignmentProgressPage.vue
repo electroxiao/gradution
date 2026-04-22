@@ -1,10 +1,10 @@
 <template>
   <section class="progress-page">
-    <header class="progress-toolbar">
+    <header class="progress-toolbar shell-card">
       <div>
         <p class="eyebrow">Assignment Progress</p>
         <h2>{{ progress?.title || "作业完成情况" }}</h2>
-        <p>按学生和题目查看最新提交、运行耗时和作答耗时。</p>
+        <p>按学生和题目查看最新提交、运行耗时、AI 评审与教师复核结果。</p>
       </div>
       <div class="toolbar-actions">
         <router-link class="secondary-link" :to="`/teacher/assignments/${assignmentId}`">编辑作业</router-link>
@@ -15,26 +15,34 @@
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
     <section v-if="progress" class="summary-row">
-      <article class="summary-card">
+      <article class="summary-card shell-card">
         <span>发布学生</span>
         <strong>{{ progress.students.length }}</strong>
       </article>
-      <article class="summary-card">
+      <article class="summary-card shell-card">
         <span>题目数量</span>
         <strong>{{ progress.questions.length }}</strong>
       </article>
-      <article class="summary-card">
+      <article class="summary-card shell-card">
         <span>已提交格子</span>
         <strong>{{ submittedCells }}</strong>
       </article>
-      <article class="summary-card">
+      <article class="summary-card shell-card">
         <span>通过格子</span>
         <strong>{{ acceptedCells }}</strong>
       </article>
     </section>
 
     <main v-if="progress" class="progress-layout">
-      <section class="matrix-panel">
+      <section class="matrix-panel shell-card">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Progress Matrix</p>
+            <h3>学生完成矩阵</h3>
+          </div>
+          <p class="muted">点击任意格子查看代码、测试结果、AI 评审和教师复核。</p>
+        </div>
+
         <div class="matrix-scroll">
           <div class="matrix-grid" :style="matrixStyle">
             <div class="matrix-head sticky-left">学生</div>
@@ -65,7 +73,7 @@
         </div>
       </section>
 
-      <aside class="detail-panel">
+      <aside class="detail-panel shell-card">
         <template v-if="selectedCell">
           <div class="detail-header">
             <div>
@@ -121,6 +129,66 @@
                 <pre v-if="item.stderr">{{ item.stderr }}</pre>
               </article>
             </section>
+
+            <section v-if="selectedSubmission.ai_review_json" class="detail-section">
+              <div class="review-head">
+                <h4>AI 评审</h4>
+                <span class="decision-pill">{{ decisionSourceText(selectedSubmission.decision_source) }}</span>
+              </div>
+              <p class="review-summary">{{ selectedSubmission.ai_review_json.summary || "AI 未返回总结。" }}</p>
+              <dl class="meta-grid">
+                <div>
+                  <dt>AI 决策</dt>
+                  <dd>{{ statusText(selectedSubmission.ai_review_json.decision || selectedSubmission.status) }}</dd>
+                </div>
+                <div>
+                  <dt>评分</dt>
+                  <dd>{{ selectedSubmission.ai_review_json.score ?? "--" }}</dd>
+                </div>
+                <div>
+                  <dt>置信度</dt>
+                  <dd>{{ formatConfidence(selectedSubmission.ai_review_json.confidence) }}</dd>
+                </div>
+                <div>
+                  <dt>人工复核</dt>
+                  <dd>{{ selectedSubmission.manual_review_required ? "需要" : "无需" }}</dd>
+                </div>
+              </dl>
+              <div v-if="selectedSubmission.ai_review_json.issues?.length" class="review-list">
+                <strong>风险点</strong>
+                <ul>
+                  <li v-for="(item, index) in selectedSubmission.ai_review_json.issues" :key="`issue-${index}`">{{ item }}</li>
+                </ul>
+              </div>
+              <div v-if="selectedSubmission.ai_review_json.strengths?.length" class="review-list">
+                <strong>实现优点</strong>
+                <ul>
+                  <li v-for="(item, index) in selectedSubmission.ai_review_json.strengths" :key="`strength-${index}`">{{ item }}</li>
+                </ul>
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <div class="review-head">
+                <h4>教师复核</h4>
+                <span v-if="selectedSubmission.teacher_review_status" class="decision-pill secondary">
+                  {{ teacherReviewText(selectedSubmission.teacher_review_status) }}
+                </span>
+              </div>
+              <p class="muted" v-if="selectedSubmission.reviewed_by_username">
+                最近由 {{ selectedSubmission.reviewed_by_username }} 于 {{ formatDateTime(selectedSubmission.reviewed_at) }} 复核
+              </p>
+              <textarea
+                v-model="reviewNote"
+                rows="3"
+                placeholder="输入改判备注，例如：SQL 结果对，但事务边界不符合要求。"
+              />
+              <div class="review-actions">
+                <button type="button" :disabled="reviewing" @click="submitReview('accepted')">标记通过</button>
+                <button type="button" :disabled="reviewing" @click="submitReview('needs_manual_review')">保持待复核</button>
+                <button type="button" :disabled="reviewing" @click="submitReview('ai_rejected')">标记未通过</button>
+              </div>
+            </section>
           </div>
 
           <p v-else-if="selectedCell.latest_submission_id" class="muted">提交详情加载中...</p>
@@ -137,7 +205,11 @@
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
-import { getTeacherAssignmentProgressApi, getTeacherAssignmentSubmissionApi } from "../api/assignments";
+import {
+  getTeacherAssignmentProgressApi,
+  getTeacherAssignmentSubmissionApi,
+  reviewTeacherAssignmentSubmissionApi,
+} from "../api/assignments";
 import { clearAuthSession } from "../utils/authStorage";
 
 const route = useRoute();
@@ -149,6 +221,8 @@ const selectedStudent = ref(null);
 const selectedQuestion = ref(null);
 const selectedSubmission = ref(null);
 const errorMessage = ref("");
+const reviewNote = ref("");
+const reviewing = ref(false);
 
 const cellMap = computed(() => {
   const map = new Map();
@@ -192,13 +266,37 @@ async function selectCell(student, question, cell) {
   selectedStudent.value = student;
   selectedQuestion.value = question;
   selectedSubmission.value = null;
+  reviewNote.value = "";
   if (!cell.latest_submission_id) return;
 
   try {
     const { data } = await getTeacherAssignmentSubmissionApi(assignmentId, cell.latest_submission_id);
     selectedSubmission.value = data;
+    reviewNote.value = data.teacher_review_note || "";
   } catch (error) {
     handleApiError(error, "加载提交详情失败。");
+  }
+}
+
+async function submitReview(targetStatus) {
+  if (!selectedSubmission.value?.id) return;
+  reviewing.value = true;
+  errorMessage.value = "";
+  try {
+    const { data } = await reviewTeacherAssignmentSubmissionApi(assignmentId, selectedSubmission.value.id, {
+      status: targetStatus,
+      note: reviewNote.value,
+    });
+    selectedSubmission.value = data;
+    reviewNote.value = data.teacher_review_note || "";
+    await loadProgress();
+    if (selectedStudent.value && selectedQuestion.value) {
+      selectedCell.value = cellFor(selectedStudent.value.id, selectedQuestion.value.id);
+    }
+  } catch (error) {
+    handleApiError(error, "提交教师复核失败。");
+  } finally {
+    reviewing.value = false;
   }
 }
 
@@ -210,7 +308,28 @@ function statusText(status) {
     runtime_error: "运行错误",
     timeout: "超时",
     sandbox_error: "沙箱错误",
+    needs_manual_review: "待人工复核",
+    ai_rejected: "AI 判定未通过",
   }[status] || status;
+}
+
+function decisionSourceText(value) {
+  return {
+    testcase: "测试用例结果",
+    ai_review: "AI 评审结果",
+    hybrid: "混合判题结果",
+    ai_with_testcases: "AI + 测试用例",
+    ai_only: "AI 判题结果",
+    teacher_override: "教师改判",
+  }[value] || "系统判定";
+}
+
+function teacherReviewText(value) {
+  return {
+    pending: "待处理",
+    approved: "教师通过",
+    rejected: "教师驳回",
+  }[value] || value;
 }
 
 function formatDateTime(value) {
@@ -237,6 +356,12 @@ function formatDuration(value) {
   return minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
+function formatConfidence(value) {
+  const number = Number(value);
+  if (Number.isNaN(number)) return "--";
+  return `${Math.round(number * 100)}%`;
+}
+
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
@@ -251,16 +376,32 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .progress-page {
   display: grid;
-  gap: 16px;
+  gap: 20px;
+}
+
+.shell-card,
+.feedback {
+  border: 1px solid #dbe4f0;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
 .progress-toolbar,
 .toolbar-actions,
-.detail-header {
+.detail-header,
+.panel-header,
+.review-head,
+.review-actions {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+}
+
+.progress-toolbar {
+  padding: 20px 22px;
 }
 
 .progress-toolbar h2 {
@@ -273,6 +414,12 @@ function handleApiError(error, fallbackMessage) {
 .muted {
   margin: 0;
   color: #6f8297;
+}
+
+.panel-header h3,
+.detail-header h3 {
+  margin: 6px 0 0;
+  color: #10283d;
 }
 
 .eyebrow {
@@ -288,10 +435,10 @@ function handleApiError(error, fallbackMessage) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  padding: 0 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #d4e4f2;
+  border-radius: 14px;
   background: #fff;
   color: #18344f;
   text-decoration: none;
@@ -301,23 +448,13 @@ function handleApiError(error, fallbackMessage) {
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.summary-card,
-.matrix-panel,
-.detail-panel,
-.feedback {
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+  gap: 14px;
 }
 
 .summary-card {
   display: grid;
   gap: 6px;
-  padding: 14px 16px;
+  padding: 18px;
 }
 
 .summary-card span {
@@ -327,23 +464,28 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-card strong {
   color: #10283d;
-  font-size: 24px;
+  font-size: 28px;
 }
 
 .progress-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 14px;
+  gap: 16px;
   align-items: start;
 }
 
-.matrix-panel,
-.detail-panel {
+.matrix-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
   overflow: hidden;
 }
 
 .matrix-scroll {
   overflow: auto;
+  border: 1px solid #e4edf6;
+  border-radius: 18px;
+  background: #f8fbff;
 }
 
 .matrix-grid {
@@ -355,14 +497,14 @@ function handleApiError(error, fallbackMessage) {
 .student-cell,
 .progress-cell {
   min-height: 78px;
-  padding: 10px;
-  border-right: 1px solid #eef3f8;
-  border-bottom: 1px solid #eef3f8;
+  padding: 12px;
+  border-right: 1px solid #e7eff7;
+  border-bottom: 1px solid #e7eff7;
 }
 
 .matrix-head {
   min-height: 48px;
-  background: #f8fbff;
+  background: #eef6ff;
   color: #6f8297;
   font-size: 13px;
   font-weight: 700;
@@ -372,13 +514,12 @@ function handleApiError(error, fallbackMessage) {
   position: sticky;
   left: 0;
   z-index: 1;
-  border-left: 0;
 }
 
 .student-cell {
   display: flex;
   align-items: center;
-  background: #fff;
+  background: #fdfefe;
   color: #10283d;
   font-weight: 700;
 }
@@ -389,9 +530,15 @@ function handleApiError(error, fallbackMessage) {
   text-align: left;
   border-top: 0;
   border-left: 0;
-  background: #f8fbff;
+  background: rgba(248, 251, 255, 0.88);
   color: #475467;
   cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.progress-cell:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 0 0 1px rgba(31, 95, 153, 0.16);
 }
 
 .progress-cell strong {
@@ -413,8 +560,13 @@ function handleApiError(error, fallbackMessage) {
 
 .progress-cell.runtime_error,
 .progress-cell.timeout,
-.progress-cell.sandbox_error {
-  background: #fff8f8;
+.progress-cell.sandbox_error,
+.progress-cell.ai_rejected {
+  background: #fff2f2;
+}
+
+.progress-cell.needs_manual_review {
+  background: #fff4d8;
 }
 
 .detail-panel {
@@ -424,20 +576,20 @@ function handleApiError(error, fallbackMessage) {
   gap: 14px;
   max-height: calc(100vh - 120px);
   overflow: auto;
-  padding: 16px;
+  padding: 18px;
 }
 
-.detail-header h3 {
-  margin: 6px 0 0;
-  color: #10283d;
+.status-pill,
+.decision-pill {
+  padding: 7px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-weight: 700;
 }
 
 .status-pill {
-  padding: 5px 9px;
-  border-radius: 8px;
   background: #f2f4f7;
   color: #475467;
-  white-space: nowrap;
 }
 
 .status-pill.accepted {
@@ -452,13 +604,20 @@ function handleApiError(error, fallbackMessage) {
 
 .status-pill.runtime_error,
 .status-pill.timeout,
-.status-pill.sandbox_error {
-  background: #fff8f8;
+.status-pill.sandbox_error,
+.status-pill.ai_rejected {
+  background: #fff2f2;
   color: #b42318;
 }
 
+.status-pill.needs_manual_review {
+  background: #fff4d8;
+  color: #9a6700;
+}
+
 .detail-body,
-.detail-section {
+.detail-section,
+.review-list {
   display: grid;
   gap: 12px;
 }
@@ -471,9 +630,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .meta-grid div {
-  padding: 10px;
-  border-radius: 8px;
-  background: #f8fbff;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(239, 246, 255, 0.72);
+  border: 1px solid #deebf7;
 }
 
 .meta-grid dt {
@@ -492,11 +652,63 @@ function handleApiError(error, fallbackMessage) {
   color: #10283d;
 }
 
+.decision-pill {
+  background: #eef6ff;
+  color: #1f5f99;
+}
+
+.decision-pill.secondary {
+  background: #f2f4f7;
+  color: #475467;
+}
+
+.review-summary {
+  margin: 0;
+  color: #34495f;
+}
+
+.review-list ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #475467;
+}
+
+textarea,
+button {
+  font: inherit;
+}
+
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #d7e5f3;
+  border-radius: 14px;
+  resize: vertical;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #d4e4f2;
+  border-radius: 14px;
+  background: #fff;
+  color: #18344f;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 pre {
   overflow: auto;
   margin: 6px 0 10px;
-  padding: 10px;
-  border-radius: 8px;
+  padding: 12px;
+  border-radius: 14px;
   background: #10283d;
   color: #fff;
 }
@@ -507,8 +719,9 @@ pre {
 
 .result-card {
   padding: 12px;
-  border-radius: 8px;
+  border-radius: 14px;
   background: #f8fbff;
+  border: 1px solid #e5eef7;
 }
 
 .result-card.accepted {
@@ -522,13 +735,19 @@ pre {
 .result-card.runtime_error,
 .result-card.timeout,
 .result-card.sandbox_error,
+.result-card.ai_rejected,
 .feedback.error {
-  background: #fff8f8;
+  background: #fff2f2;
   color: #b42318;
 }
 
+.result-card.needs_manual_review {
+  background: #fff4d8;
+  color: #9a6700;
+}
+
 .feedback {
-  padding: 12px 14px;
+  padding: 14px 16px;
 }
 
 @media (max-width: 1180px) {
@@ -545,13 +764,23 @@ pre {
 @media (max-width: 720px) {
   .progress-toolbar,
   .toolbar-actions,
-  .detail-header {
+  .panel-header,
+  .detail-header,
+  .review-head,
+  .review-actions,
+  .summary-row,
+  .meta-grid {
     display: grid;
   }
 
   .summary-row,
   .meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .toolbar-actions .secondary-link,
+  .review-actions button {
+    width: 100%;
   }
 }
 </style>

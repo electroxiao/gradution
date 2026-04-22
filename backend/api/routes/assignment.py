@@ -7,8 +7,11 @@ from backend.models.user import User
 from backend.schemas.assignment import (
     AssignmentAiHelpRequest,
     AssignmentCreateRequest,
+    AssignmentGenerateFocusRequest,
     AssignmentGenerateQuestionRequest,
+    AssignmentGenerateTestCasesRequest,
     AssignmentQuestionsUpdateRequest,
+    AssignmentReviewRequest,
     AssignmentSubmitRequest,
     AssignmentUpdateRequest,
 )
@@ -16,7 +19,9 @@ from backend.services.assignment_service import (
     assignment_ai_help,
     assignment_ai_help_stream,
     create_assignment,
+    generate_assignment_focus,
     generate_assignment_question,
+    generate_assignment_test_cases,
     get_student_assignment_detail,
     get_teacher_assignment_detail,
     get_teacher_assignment_progress,
@@ -24,6 +29,7 @@ from backend.services.assignment_service import (
     list_student_assignments,
     list_student_submissions,
     list_teacher_assignments,
+    review_assignment_submission,
     submit_assignment_question,
     update_assignment,
     update_assignment_questions,
@@ -58,6 +64,22 @@ def post_generate_assignment_question(
     return generate_assignment_question(payload)
 
 
+@teacher_router.post("/generate-testcases")
+def post_generate_assignment_test_cases(
+    payload: AssignmentGenerateTestCasesRequest,
+    current_user: User = Depends(get_current_teacher),
+):
+    return generate_assignment_test_cases(payload)
+
+
+@teacher_router.post("/generate-focus")
+def post_generate_assignment_focus(
+    payload: AssignmentGenerateFocusRequest,
+    current_user: User = Depends(get_current_teacher),
+):
+    return generate_assignment_focus(payload)
+
+
 @teacher_router.get("/{assignment_id}/progress")
 def get_teacher_assignment_progress_view(
     assignment_id: int,
@@ -75,6 +97,17 @@ def get_teacher_assignment_submission(
     current_user: User = Depends(get_current_teacher),
 ):
     return get_teacher_submission_detail(db, current_user, assignment_id, submission_id)
+
+
+@teacher_router.post("/{assignment_id}/submissions/{submission_id}/review")
+def post_teacher_assignment_submission_review(
+    assignment_id: int,
+    submission_id: int,
+    payload: AssignmentReviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return review_assignment_submission(db, current_user, assignment_id, submission_id, payload)
 
 
 @teacher_router.get("/{assignment_id}")

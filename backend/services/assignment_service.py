@@ -19,14 +19,18 @@ from backend.schemas.assignment import (
     AssignmentAiHelpResponse,
     AssignmentCreateRequest,
     AssignmentDetailResponse,
+    AssignmentGeneratedFocusResponse,
     AssignmentGeneratedQuestionResponse,
+    AssignmentGenerateFocusRequest,
     AssignmentGenerateQuestionRequest,
+    AssignmentGenerateTestCasesRequest,
     AssignmentProgressCellResponse,
     AssignmentProgressQuestionResponse,
     AssignmentProgressResponse,
     AssignmentProgressStudentResponse,
     AssignmentQuestionInput,
     AssignmentQuestionsUpdateRequest,
+    AssignmentReviewRequest,
     AssignmentRunResultResponse,
     AssignmentStudentRef,
     AssignmentSubmissionDetailResponse,
@@ -41,6 +45,11 @@ from backend.services.sandbox_service import run_java_submission
 
 
 VALID_ASSIGNMENT_STATUSES = {"draft", "published", "closed"}
+VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid"}
+VALID_AI_REVIEW_LEVELS = {"light", "deep"}
+VALID_REVIEW_STATUSES = {"accepted", "ai_rejected", "needs_manual_review"}
+DEFAULT_AI_GRADING_PASS_THRESHOLD = 85
+DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD = 0.85
 
 
 def list_teacher_assignments(db: Session, teacher: User) -> list[AssignmentSummaryResponse]:
@@ -166,6 +175,93 @@ JSON 格式：
         ) from error
 
 
+def generate_assignment_test_cases(payload: AssignmentGenerateTestCasesRequest) -> list[AssignmentTestCaseInput]:
+    prompt = f"""
+你是一名 Java 编程作业测试用例设计助手。请根据题目内容生成 2 到 4 个测试用例。
+
+知识点：{payload.knowledge_point or "未指定"}
+题目标题：{payload.title or "未命名题目"}
+题目描述：
+{payload.prompt}
+
+要求：
+1. 只返回 JSON 数组，不要解释。
+2. 每项包含 input_data、expected_output、is_sample、sort_order。
+3. 至少 1 个示例测试，至少 1 个隐藏测试。
+4. 默认主类为 Main，从标准输入读取，从标准输出打印。
+"""
+    client = get_openai_client()
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+        content = response.choices[0].message.content or ""
+        data = _parse_json_array(content)
+        test_cases = [
+            AssignmentTestCaseInput(
+                input_data=item.get("input_data", ""),
+                expected_output=item.get("expected_output", ""),
+                is_sample=bool(item.get("is_sample", index == 0)),
+                sort_order=int(item.get("sort_order", index)),
+            )
+            for index, item in enumerate(data)
+            if isinstance(item, dict)
+        ]
+        return test_cases or [AssignmentTestCaseInput(input_data="", expected_output="", is_sample=True, sort_order=0)]
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"生成测试用例失败：{error}",
+        ) from error
+
+
+def generate_assignment_focus(payload: AssignmentGenerateFocusRequest) -> AssignmentGeneratedFocusResponse:
+    review_level = _normalize_ai_review_level(payload.ai_review_level)
+    prompt = f"""
+你是一名编程作业代码审查助手。请根据题目内容和教师评分标准，给出 AI 评审应该重点关注的方面。
+
+题目标题：{payload.title or "未命名题目"}
+题目描述：
+{payload.prompt}
+
+教师评分标准：
+{payload.ai_grading_rubric or "未填写"}
+
+审查强度：{review_level}
+
+要求：
+1. 只返回 JSON，不要解释。
+2. ai_grading_focus 为字符串数组。
+3. summary 用 1 到 2 句话说明建议原因。
+
+JSON 格式：
+{{
+  "ai_grading_focus": ["边界条件", "异常处理"],
+  "summary": "建议重点检查这些方面。"
+}}
+"""
+    client = get_openai_client()
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+        )
+        content = response.choices[0].message.content or ""
+        data = _parse_json_object(content)
+        return AssignmentGeneratedFocusResponse(
+            ai_grading_focus=_normalize_ai_focus(data.get("ai_grading_focus")),
+            summary=str(data.get("summary") or "").strip(),
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"生成 AI 关注点失败：{error}",
+        ) from error
+
+
 def list_student_assignments(db: Session, student: User) -> list[AssignmentSummaryResponse]:
     assignments = (
         db.query(Assignment)
@@ -196,10 +292,10 @@ def submit_assignment_question(
     question = _get_assignment_question(assignment, question_id)
     if question.language != "java":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前仅支持 Java 作业。")
-    if not question.test_cases:
+    if _question_enable_testcases(question) and not question.test_cases:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该题目尚未配置测试用例。")
 
-    status_value, results = run_java_submission(code, list(question.test_cases))
+    status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
     started_at = _strip_timezone(started_at)
     submitted_at = datetime.now()
     submission = AssignmentSubmission(
@@ -209,6 +305,9 @@ def submit_assignment_question(
         code=code,
         status=status_value,
         results_json=results,
+        ai_review_json=ai_review,
+        final_decision_source=decision_source,
+        teacher_review_status="pending" if status_value == "needs_manual_review" else None,
         started_at=started_at,
         duration_seconds=_duration_seconds(started_at, submitted_at),
         submitted_at=submitted_at,
@@ -217,9 +316,12 @@ def submit_assignment_question(
     db.commit()
     db.refresh(submission)
     return AssignmentRunResultResponse(
-        submission=AssignmentSubmissionResponse.model_validate(submission),
+        submission=_submission_to_response(submission),
         status=status_value,
         results=results,
+        ai_review=ai_review,
+        decision_source=decision_source,
+        manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
     )
 
 
@@ -234,7 +336,7 @@ def list_student_submissions(db: Session, student: User, assignment_id: int) -> 
         .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
         .all()
     )
-    return [AssignmentSubmissionResponse.model_validate(item) for item in submissions]
+    return [_submission_to_response(item) for item in submissions]
 
 
 def get_teacher_assignment_progress(db: Session, teacher: User, assignment_id: int) -> AssignmentProgressResponse:
@@ -315,6 +417,7 @@ def get_teacher_submission_detail(
         .options(
             selectinload(AssignmentSubmission.question),
             selectinload(AssignmentSubmission.student),
+            selectinload(AssignmentSubmission.reviewer),
         )
         .filter(
             AssignmentSubmission.id == submission_id,
@@ -335,11 +438,56 @@ def get_teacher_submission_detail(
         code=submission.code,
         status=submission.status,
         results_json=submission.results_json,
+        ai_review_json=submission.ai_review_json,
+        decision_source=submission.final_decision_source,
+        manual_review_required=_submission_requires_manual_review(submission),
+        teacher_review_status=submission.teacher_review_status,
+        teacher_review_note=submission.teacher_review_note,
+        reviewed_at=submission.reviewed_at,
+        reviewed_by=submission.reviewed_by,
+        reviewed_by_username=submission.reviewer.username if submission.reviewer else None,
         run_time_ms=_sum_run_time_ms(submission.results_json),
         started_at=submission.started_at,
         duration_seconds=submission.duration_seconds,
         submitted_at=submission.submitted_at,
     )
+
+
+def review_assignment_submission(
+    db: Session,
+    teacher: User,
+    assignment_id: int,
+    submission_id: int,
+    payload: AssignmentReviewRequest,
+) -> AssignmentSubmissionDetailResponse:
+    assignment = _get_teacher_assignment(db, teacher, assignment_id)
+    submission = (
+        db.query(AssignmentSubmission)
+        .options(
+            selectinload(AssignmentSubmission.question),
+            selectinload(AssignmentSubmission.student),
+            selectinload(AssignmentSubmission.reviewer),
+        )
+        .filter(
+            AssignmentSubmission.id == submission_id,
+            AssignmentSubmission.assignment_id == assignment.id,
+        )
+        .first()
+    )
+    if not submission:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="提交记录不存在。")
+    if payload.status not in VALID_REVIEW_STATUSES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="人工复核状态非法。")
+
+    submission.status = payload.status
+    submission.final_decision_source = "teacher_override"
+    submission.teacher_review_status = "approved" if payload.status == "accepted" else "rejected"
+    submission.teacher_review_note = payload.note.strip() or None
+    submission.reviewed_at = datetime.now()
+    submission.reviewed_by = teacher.id
+    db.commit()
+    db.refresh(submission)
+    return get_teacher_submission_detail(db, teacher, assignment_id, submission_id)
 
 
 def assignment_ai_help(
@@ -596,20 +744,34 @@ def _sync_questions(db: Session, assignment: Assignment, payload_questions: list
     for index, item in enumerate(payload_questions):
         if item.language != "java":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前仅支持 Java 题目。")
+        ai_review_level = _normalize_ai_review_level(item.ai_review_level)
+        grading_mode = _grading_mode_from_new_fields(bool(item.enable_testcases), ai_review_level)
         sort_order = item.sort_order if item.sort_order is not None else index
         if item.id and item.id in existing:
             question = existing[item.id]
             keep_ids.add(question.id)
             question.title = item.title
             question.prompt = item.prompt
+            question.starter_code = item.starter_code or ""
             question.language = "java"
+            question.grading_mode = grading_mode
+            question.ai_grading_rubric = (item.ai_grading_rubric or "").strip()
+            question.ai_grading_focus_json = _normalize_ai_focus(item.ai_grading_focus)
+            question.ai_grading_pass_threshold = item.ai_grading_pass_threshold
+            question.ai_grading_confidence_threshold = item.ai_grading_confidence_threshold
             question.sort_order = sort_order
         else:
             question = AssignmentQuestion(
                 assignment=assignment,
                 title=item.title,
                 prompt=item.prompt,
+                starter_code=item.starter_code or "",
                 language="java",
+                grading_mode=grading_mode,
+                ai_grading_rubric=(item.ai_grading_rubric or "").strip(),
+                ai_grading_focus_json=_normalize_ai_focus(item.ai_grading_focus),
+                ai_grading_pass_threshold=item.ai_grading_pass_threshold,
+                ai_grading_confidence_threshold=item.ai_grading_confidence_threshold,
                 sort_order=sort_order,
             )
             db.add(question)
@@ -693,15 +855,30 @@ def _assignment_detail(
                 }
             )
         questions.append(
-            {
-                "id": question.id,
-                "title": question.title,
-                "prompt": question.prompt,
-                "language": question.language,
-                "sort_order": question.sort_order,
-                "test_cases": test_cases,
-            }
-        )
+                {
+                    "id": question.id,
+                    "title": question.title,
+                    "prompt": question.prompt,
+                    "starter_code": question.starter_code or "",
+                    "language": question.language,
+                    "enable_testcases": _question_enable_testcases(question),
+                    "ai_review_level": _question_ai_review_level(question),
+                    "ai_grading_rubric": question.ai_grading_rubric or "",
+                    "ai_grading_focus": _normalize_ai_focus(question.ai_grading_focus_json),
+                    "ai_grading_pass_threshold": (
+                        question.ai_grading_pass_threshold
+                        if question.ai_grading_pass_threshold is not None
+                        else DEFAULT_AI_GRADING_PASS_THRESHOLD
+                    ),
+                    "ai_grading_confidence_threshold": float(
+                        question.ai_grading_confidence_threshold
+                        if question.ai_grading_confidence_threshold is not None
+                        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
+                    ),
+                    "sort_order": question.sort_order,
+                    "test_cases": test_cases,
+                }
+            )
 
     submission_query = db.query(AssignmentSubmission).filter(AssignmentSubmission.assignment_id == assignment.id)
     if student:
@@ -722,7 +899,7 @@ def _assignment_detail(
             for item in assignment.assignees
             if teacher_view and item.student
         ],
-        submissions=[AssignmentSubmissionResponse.model_validate(item) for item in submissions],
+        submissions=[_submission_to_response(item) for item in submissions],
     )
 
 
@@ -759,3 +936,356 @@ def _sum_run_time_ms(results_json) -> int | None:
     if not values:
         return None
     return sum(values)
+
+
+def _normalize_grading_mode(value: str | None) -> str:
+    value = (value or "testcase").strip().lower()
+    if value not in VALID_GRADING_MODES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="判题模式必须是 testcase、ai_review 或 hybrid。")
+    return value
+
+
+def _normalize_ai_review_level(value: str | None) -> str:
+    value = (value or "light").strip().lower()
+    if value not in VALID_AI_REVIEW_LEVELS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="AI 审查强度必须是 light 或 deep。")
+    return value
+
+
+def _grading_mode_from_new_fields(enable_testcases: bool, ai_review_level: str) -> str:
+    ai_review_level = _normalize_ai_review_level(ai_review_level)
+    if enable_testcases and ai_review_level == "light":
+        return "testcase"
+    if enable_testcases and ai_review_level == "deep":
+        return "hybrid"
+    return "ai_review"
+
+
+def _question_enable_testcases(question: AssignmentQuestion) -> bool:
+    return _normalize_grading_mode(question.grading_mode) != "ai_review"
+
+
+def _question_ai_review_level(question: AssignmentQuestion) -> str:
+    return "light" if _normalize_grading_mode(question.grading_mode) == "testcase" else "deep"
+
+
+def _normalize_ai_focus(value) -> list[str]:
+    if not value:
+        return []
+    if isinstance(value, str):
+        items = value.split(",")
+    elif isinstance(value, list):
+        items = value
+    else:
+        return []
+    return [str(item).strip() for item in items if str(item).strip()]
+
+
+def _submission_requires_manual_review(submission: AssignmentSubmission) -> bool:
+    if submission.final_decision_source == "teacher_override":
+        return submission.status == "needs_manual_review"
+    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
+    return submission.status == "needs_manual_review" or bool(ai_review.get("manual_review_required"))
+
+
+def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmissionResponse:
+    return AssignmentSubmissionResponse(
+        id=submission.id,
+        assignment_id=submission.assignment_id,
+        question_id=submission.question_id,
+        student_id=submission.student_id,
+        code=submission.code,
+        status=submission.status,
+        results_json=submission.results_json,
+        ai_review_json=submission.ai_review_json,
+        decision_source=submission.final_decision_source,
+        manual_review_required=_submission_requires_manual_review(submission),
+        teacher_review_status=submission.teacher_review_status,
+        teacher_review_note=submission.teacher_review_note,
+        started_at=submission.started_at,
+        duration_seconds=submission.duration_seconds,
+        submitted_at=submission.submitted_at,
+    )
+
+
+def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code: str) -> tuple[str, list[dict], dict | None, str]:
+    if _question_enable_testcases(question):
+        testcase_status, testcase_results = run_java_submission(code, list(question.test_cases))
+        if testcase_status != "accepted":
+            return testcase_status, testcase_results, None, "ai_with_testcases"
+        ai_review = _run_ai_code_review(
+            assignment,
+            question,
+            code,
+            testcase_results,
+            _effective_ai_review_level(question),
+            True,
+        )
+        return _resolve_ai_with_testcases_status(question, ai_review), testcase_results, ai_review, "ai_with_testcases"
+
+    compile_status, compile_results = run_java_submission(code, [])
+    if compile_status != "accepted":
+        return compile_status, compile_results, None, "ai_only"
+    ai_review = _run_ai_code_review(
+        assignment,
+        question,
+        code,
+        compile_results,
+        _effective_ai_review_level(question),
+        False,
+    )
+    return _resolve_ai_only_status(question, ai_review), compile_results, ai_review, "ai_only"
+
+
+def _effective_ai_review_level(question: AssignmentQuestion) -> str:
+    if not _question_enable_testcases(question):
+        return "deep"
+    return _question_ai_review_level(question)
+
+
+def _run_ai_code_review(
+    assignment: Assignment,
+    question: AssignmentQuestion,
+    code: str,
+    execution_results: list[dict],
+    review_level: str,
+    enable_testcases: bool,
+) -> dict:
+    client = get_openai_client()
+    prompt = _build_ai_review_prompt(assignment, question, code, execution_results, review_level, enable_testcases)
+    fallback = {
+        "decision": "needs_manual_review",
+        "score": 0,
+        "confidence": 0,
+        "summary": "AI 判题暂时不可用，建议教师人工复核。",
+        "issues": ["AI 判题调用失败或返回格式异常。"],
+        "strengths": [],
+        "manual_review_required": True,
+    }
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content or ""
+        parsed = _parse_json_object(content)
+        return _normalize_ai_review_payload(parsed)
+    except Exception as error:
+        fallback["summary"] = f"AI 判题失败：{error}"
+        return fallback
+
+
+def _build_ai_review_prompt(
+    assignment: Assignment,
+    question: AssignmentQuestion,
+    code: str,
+    execution_results: list[dict],
+    review_level: str,
+    enable_testcases: bool,
+) -> str:
+    review_level = _normalize_ai_review_level(review_level)
+    rubric = question.ai_grading_rubric or "请重点判断实现是否满足题意、是否存在明显正确性风险、资源管理问题或教学目标偏差。"
+    teacher_focus = _normalize_ai_focus(question.ai_grading_focus_json)
+    inferred_focus = _infer_focus_from_prompt(question.prompt)
+    merged_focus = _merge_focus(inferred_focus, teacher_focus)
+    strategy_text = (
+        "轻审查：不要主动苛责命名、架构或微优化，只检查题意满足、明显逻辑错误、危险实现与较大风险。"
+        if review_level == "light"
+        else "深审查：重点检查事务、线程安全、资源释放、边界处理、设计偏差、异常处理与明显性能风险。"
+    )
+    return f"""
+你是一名严格但克制的 Java 编程作业评审助手。请根据教师给出的评分标准，对学生代码进行保守评审。
+
+要求：
+1. 只返回 JSON，不要输出任何解释性文字。
+2. decision 只能是 accepted、ai_rejected、needs_manual_review 三者之一。
+3. 只有在你高置信度确认实现合理时，才允许 decision=accepted。
+4. 未启用测试用例时，请主动从题意、边界、资源管理和潜在风险角度深入检查。
+5. 启用测试用例且当前为轻审查时，只指出明显问题，不要为了工程洁癖过度挑刺。
+5. score 为 0 到 100 的整数；confidence 为 0 到 1 的小数。
+6. issues 和 strengths 必须是字符串数组。
+7. manual_review_required 为布尔值。
+
+作业标题：{assignment.title}
+题目标题：{question.title or "未命名题目"}
+题目描述：
+{question.prompt}
+
+是否启用测试用例：{"是" if enable_testcases else "否"}
+审查强度：{review_level}
+审查策略：
+{strategy_text}
+
+教师评分标准：
+{rubric}
+
+综合关注点（系统推断 + 教师指定）：
+{json.dumps(merged_focus, ensure_ascii=False)}
+
+测试/编译结果摘要：
+{json.dumps(execution_results or [], ensure_ascii=False)}
+
+学生代码：
+```java
+{code}
+```
+
+返回 JSON 格式：
+{{
+  "decision": "accepted",
+  "score": 92,
+  "confidence": 0.93,
+  "summary": "简要总结",
+  "issues": ["问题1"],
+  "strengths": ["优点1"],
+  "manual_review_required": false
+}}
+"""
+
+
+def _normalize_ai_review_payload(data: dict) -> dict:
+    decision = str(data.get("decision") or "needs_manual_review").strip()
+    if decision not in {"accepted", "ai_rejected", "needs_manual_review"}:
+        decision = "needs_manual_review"
+    issues = data.get("issues")
+    strengths = data.get("strengths")
+    score = int(data.get("score", 0) or 0)
+    confidence = float(data.get("confidence", 0) or 0)
+    summary = str(data.get("summary") or "AI 未返回有效总结。").strip()
+    manual_review_required = bool(data.get("manual_review_required", decision != "accepted"))
+    score = max(0, min(score, 100))
+    confidence = max(0.0, min(confidence, 1.0))
+    normalized = {
+        "decision": decision,
+        "score": score,
+        "confidence": confidence,
+        "summary": summary,
+        "issues": [str(item).strip() for item in (issues if isinstance(issues, list) else []) if str(item).strip()],
+        "strengths": [str(item).strip() for item in (strengths if isinstance(strengths, list) else []) if str(item).strip()],
+        "manual_review_required": manual_review_required,
+    }
+    if not normalized["issues"] and decision != "accepted":
+        normalized["issues"] = ["AI 无法高置信度确认该实现满足要求。"]
+    return normalized
+
+
+def _infer_focus_from_prompt(prompt: str) -> list[str]:
+    text = (prompt or "").lower()
+    inferred: list[str] = []
+    keyword_groups = [
+        (["sql", "数据库", "jdbc", "事务", "隔离级别"], ["SQL 正确性", "事务边界", "资源释放"]),
+        (["线程", "并发", "锁", "synchronized", "thread"], ["线程安全", "竞态条件", "锁使用"]),
+        (["文件", "io", "输入输出流", "stream"], ["资源关闭", "异常处理"]),
+        (["边界", "异常", "非法输入"], ["边界条件", "异常处理"]),
+    ]
+    for keywords, focuses in keyword_groups:
+        if any(keyword in text for keyword in keywords):
+            inferred.extend(focuses)
+    if not inferred:
+        inferred.extend(["题意满足", "边界条件", "明显逻辑错误"])
+    return _merge_focus(inferred, [])
+
+
+def _merge_focus(auto_focus: list[str], teacher_focus: list[str]) -> list[str]:
+    seen: set[str] = set()
+    merged: list[str] = []
+    for item in [*auto_focus, *teacher_focus]:
+        value = str(item).strip()
+        if value and value not in seen:
+            seen.add(value)
+            merged.append(value)
+    return merged
+
+
+def _resolve_ai_only_status(question: AssignmentQuestion, ai_review: dict) -> str:
+    if not isinstance(ai_review, dict):
+        return "needs_manual_review"
+    score = int(ai_review.get("score", 0) or 0)
+    confidence = float(ai_review.get("confidence", 0) or 0)
+    decision = ai_review.get("decision")
+    manual_review_required = bool(ai_review.get("manual_review_required"))
+    pass_threshold = int(
+        question.ai_grading_pass_threshold
+        if question.ai_grading_pass_threshold is not None
+        else DEFAULT_AI_GRADING_PASS_THRESHOLD
+    )
+    confidence_threshold = float(
+        question.ai_grading_confidence_threshold
+        if question.ai_grading_confidence_threshold is not None
+        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
+    )
+    if (
+        decision == "accepted"
+        and score >= pass_threshold
+        and confidence >= confidence_threshold
+        and not manual_review_required
+    ):
+        return "accepted"
+    if decision == "ai_rejected" and not manual_review_required:
+        return "ai_rejected"
+    return "needs_manual_review"
+
+
+def _resolve_hybrid_status(question: AssignmentQuestion, ai_review: dict) -> str:
+    if not isinstance(ai_review, dict):
+        return "needs_manual_review"
+    score = int(ai_review.get("score", 0) or 0)
+    confidence = float(ai_review.get("confidence", 0) or 0)
+    decision = ai_review.get("decision")
+    manual_review_required = bool(ai_review.get("manual_review_required"))
+    pass_threshold = int(
+        question.ai_grading_pass_threshold
+        if question.ai_grading_pass_threshold is not None
+        else DEFAULT_AI_GRADING_PASS_THRESHOLD
+    )
+    confidence_threshold = float(
+        question.ai_grading_confidence_threshold
+        if question.ai_grading_confidence_threshold is not None
+        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
+    )
+    if (
+        decision == "accepted"
+        and score >= pass_threshold
+        and confidence >= confidence_threshold
+        and not manual_review_required
+    ):
+        return "accepted"
+    if decision == "ai_rejected" and not manual_review_required:
+        return "ai_rejected"
+    return "needs_manual_review"
+
+
+def _resolve_ai_with_testcases_status(question: AssignmentQuestion, ai_review: dict) -> str:
+    if not isinstance(ai_review, dict):
+        return "accepted"
+    score = int(ai_review.get("score", 0) or 0)
+    confidence = float(ai_review.get("confidence", 0) or 0)
+    decision = ai_review.get("decision")
+    manual_review_required = bool(ai_review.get("manual_review_required"))
+    pass_threshold = int(
+        question.ai_grading_pass_threshold
+        if question.ai_grading_pass_threshold is not None
+        else DEFAULT_AI_GRADING_PASS_THRESHOLD
+    )
+    confidence_threshold = float(
+        question.ai_grading_confidence_threshold
+        if question.ai_grading_confidence_threshold is not None
+        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
+    )
+    if decision == "ai_rejected" and not manual_review_required:
+        return "ai_rejected"
+    if decision == "accepted" and score >= max(60, pass_threshold - 10) and confidence >= max(0.6, confidence_threshold - 0.2):
+        return "accepted"
+    return "needs_manual_review" if manual_review_required else "accepted"
+
+
+def _parse_json_array(content: str) -> list:
+    start = content.find("[")
+    end = content.rfind("]") + 1
+    if start == -1 or end <= start:
+        raise ValueError("大模型未返回 JSON 数组。")
+    data = json.loads(content[start:end])
+    if not isinstance(data, list):
+        raise ValueError("返回结果不是 JSON 数组。")
+    return data

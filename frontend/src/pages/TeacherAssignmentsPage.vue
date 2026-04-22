@@ -1,10 +1,10 @@
 <template>
   <section class="assignment-page">
-    <header class="page-toolbar">
+    <header class="page-toolbar shell-card">
       <div>
         <p class="eyebrow">Assignments</p>
         <h2>作业管理</h2>
-        <p>创建 Java 编程作业，选择学生发布，并查看提交概况。</p>
+        <p>统一管理作业发布、题目配置与学生完成情况。</p>
       </div>
       <router-link class="primary-link" to="/teacher/assignments/new">新建作业</router-link>
     </header>
@@ -12,52 +12,62 @@
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
     <section class="summary-row">
-      <article class="summary-item">
+      <article class="summary-item shell-card">
         <span>全部作业</span>
         <strong>{{ assignments.length }}</strong>
       </article>
-      <article class="summary-item">
+      <article class="summary-item shell-card">
         <span>已发布</span>
         <strong>{{ publishedCount }}</strong>
       </article>
-      <article class="summary-item">
+      <article class="summary-item shell-card">
         <span>学生覆盖</span>
         <strong>{{ totalAssignees }}</strong>
       </article>
-      <article class="summary-item">
+      <article class="summary-item shell-card">
         <span>通过提交</span>
         <strong>{{ totalAccepted }}</strong>
       </article>
     </section>
 
-    <section v-if="assignments.length" class="assignment-table">
-      <div class="table-head">
-        <span>作业</span>
-        <span>状态</span>
-        <span>题目</span>
-        <span>学生</span>
-        <span>提交</span>
-        <span>通过</span>
-        <span>操作</span>
-      </div>
-      <article v-for="item in assignments" :key="item.id" class="assignment-row">
-        <div class="title-cell">
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.description || "暂无说明" }}</p>
+    <section v-if="assignments.length" class="assignment-list">
+      <article v-for="item in assignments" :key="item.id" class="assignment-card shell-card">
+        <div class="assignment-card-top">
+          <div class="title-cell">
+            <p class="card-label">Assignment</p>
+            <strong>{{ item.title }}</strong>
+            <p>{{ item.description || "暂无说明" }}</p>
+          </div>
+          <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
         </div>
-        <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
-        <span>{{ item.question_count }}</span>
-        <span>{{ item.assignee_count }}</span>
-        <span>{{ item.submitted_count }}</span>
-        <span>{{ item.accepted_count }}</span>
+
+        <div class="metric-grid">
+          <div class="metric-item">
+            <span>题目</span>
+            <strong>{{ item.question_count }}</strong>
+          </div>
+          <div class="metric-item">
+            <span>学生</span>
+            <strong>{{ item.assignee_count }}</strong>
+          </div>
+          <div class="metric-item">
+            <span>提交</span>
+            <strong>{{ item.submitted_count }}</strong>
+          </div>
+          <div class="metric-item">
+            <span>通过</span>
+            <strong>{{ item.accepted_count }}</strong>
+          </div>
+        </div>
+
         <div class="action-cell">
           <router-link class="open-link" :to="`/teacher/assignments/${item.id}/progress`">完成情况</router-link>
-          <router-link class="open-link edit-link" :to="`/teacher/assignments/${item.id}`">编辑</router-link>
+          <router-link class="primary-link compact-link" :to="`/teacher/assignments/${item.id}`">编辑作业</router-link>
         </div>
       </article>
     </section>
 
-    <div v-else-if="!errorMessage" class="empty">
+    <div v-else-if="!errorMessage" class="empty shell-card">
       <strong>还没有作业</strong>
       <p>新建一份 Java 编程作业后，可以在这里跟踪发布和提交情况。</p>
       <router-link class="primary-link" to="/teacher/assignments/new">创建第一份作业</router-link>
@@ -113,7 +123,16 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .assignment-page {
   display: grid;
-  gap: 18px;
+  gap: 20px;
+}
+
+.shell-card,
+.feedback {
+  border: 1px solid #dbe4f0;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
 .page-toolbar {
@@ -121,10 +140,11 @@ function handleApiError(error, fallbackMessage) {
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
+  padding: 20px 22px;
 }
 
 .page-toolbar h2 {
-  margin: 6px 0 8px;
+  margin: 6px 0 10px;
   font-size: 32px;
   color: #0f2840;
 }
@@ -148,117 +168,100 @@ function handleApiError(error, fallbackMessage) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 8px;
-  background: #10283d;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 14px;
   color: #fff;
   text-decoration: none;
   white-space: nowrap;
 }
 
-.open-link {
-  min-height: 36px;
-  background: #edf6ff;
-  color: #1f5f99;
-}
-
-.edit-link {
+.primary-link {
   background: #10283d;
-  color: #fff;
+  box-shadow: 0 14px 30px rgba(16, 40, 61, 0.14);
 }
 
-.action-cell {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+.open-link {
+  border: 1px solid #d4e4f2;
+  background: rgba(237, 246, 255, 0.74);
+  color: #1f5f99;
 }
 
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.summary-item,
-.assignment-table,
-.empty,
-.feedback {
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+  gap: 14px;
 }
 
 .summary-item {
   display: grid;
-  gap: 6px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 18px;
 }
 
-.summary-item span {
+.summary-item span,
+.metric-item span {
   color: #6f8297;
   font-size: 13px;
 }
 
 .summary-item strong {
   color: #10283d;
-  font-size: 24px;
+  font-size: 28px;
 }
 
-.assignment-table {
-  overflow: hidden;
-}
-
-.table-head,
-.assignment-row {
+.assignment-list {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 92px 70px 70px 70px 70px 170px;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 16px;
+  gap: 14px;
 }
 
-.table-head {
-  background: #f8fbff;
-  color: #6f8297;
-  font-size: 13px;
-  font-weight: 700;
+.assignment-card {
+  display: grid;
+  gap: 18px;
+  padding: 20px 22px;
 }
 
-.assignment-row {
-  border-top: 1px solid #eef3f8;
-  color: #31465c;
+.assignment-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
 }
 
 .title-cell {
   min-width: 0;
 }
 
+.card-label {
+  margin: 0 0 8px;
+  color: #7a95b1;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .title-cell strong {
   display: block;
   color: #10283d;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 22px;
 }
 
 .title-cell p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: #7b8da0;
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .status {
   justify-self: start;
-  padding: 4px 8px;
-  border-radius: 8px;
+  padding: 7px 12px;
+  border-radius: 999px;
   background: #edf6ff;
   color: #1f5f99;
   font-size: 13px;
+  font-weight: 700;
 }
 
 .status.published {
@@ -271,11 +274,41 @@ function handleApiError(error, fallbackMessage) {
   color: #475467;
 }
 
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(239, 246, 255, 0.72);
+  border: 1px solid #deebf7;
+}
+
+.metric-item strong {
+  color: #10283d;
+  font-size: 22px;
+}
+
+.action-cell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.compact-link {
+  min-height: 40px;
+}
+
 .empty {
   display: grid;
   justify-items: start;
   gap: 10px;
-  padding: 22px;
+  padding: 26px;
   color: #6f8297;
 }
 
@@ -289,45 +322,38 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .feedback {
-  padding: 12px 14px;
+  padding: 14px 16px;
 }
 
 .feedback.error {
   color: #b42318;
-  background: #fff8f8;
+  background: #fff2f2;
 }
 
 @media (max-width: 980px) {
-  .summary-row {
+  .summary-row,
+  .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .table-head {
-    display: none;
-  }
-
-  .assignment-row {
-    grid-template-columns: 1fr auto;
-    align-items: start;
-  }
-
-  .action-cell {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-
-  .assignment-row > span:not(.status) {
-    font-size: 13px;
   }
 }
 
 @media (max-width: 640px) {
-  .page-toolbar {
+  .page-toolbar,
+  .assignment-card-top,
+  .action-cell,
+  .summary-row,
+  .metric-grid {
     display: grid;
   }
 
-  .summary-row {
+  .summary-row,
+  .metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .primary-link,
+  .open-link {
+    width: 100%;
   }
 }
 </style>

@@ -1,10 +1,10 @@
 <template>
   <section class="editor-page">
-    <header class="editor-toolbar">
+    <header class="editor-toolbar shell-card">
       <div>
-        <p class="eyebrow">Assignment Editor</p>
+        <p class="eyebrow">Assignment Studio</p>
         <h2>{{ isNew ? "新建作业" : "编辑作业" }}</h2>
-        <p>{{ form.questions.length }} 题，已选择 {{ form.student_ids.length }} 名学生</p>
+        <p>AI 默认参与判题，测试用例按题目需要启用。</p>
       </div>
       <div class="toolbar-actions">
         <router-link class="secondary-link" to="/teacher/assignments">返回列表</router-link>
@@ -24,10 +24,10 @@
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
 
-    <section class="assignment-meta">
+    <section class="assignment-meta shell-card">
       <label class="title-field">
         作业标题
-        <input v-model="form.title" placeholder="例如：字符串比较练习" />
+        <input v-model="form.title" placeholder="例如：JDBC 事务与资源释放练习" />
       </label>
       <label>
         状态
@@ -39,13 +39,13 @@
       </label>
       <label class="description-field">
         作业说明
-        <textarea v-model="form.description" rows="2" placeholder="写给学生的作业说明" />
+        <textarea v-model="form.description" rows="3" placeholder="写给学生的作业说明" />
       </label>
     </section>
 
     <main class="editor-workbench">
       <aside class="editor-sidebar">
-        <section class="side-panel">
+        <section class="side-panel shell-card">
           <div class="panel-title">
             <h3>发布学生</h3>
             <span>{{ form.student_ids.length }} / {{ students.length }}</span>
@@ -58,11 +58,15 @@
           </div>
         </section>
 
-        <section class="side-panel question-index">
+        <section class="side-panel shell-card question-index">
           <div class="panel-title">
-            <h3>题目目录</h3>
-            <button type="button" @click="addQuestion">新增</button>
+            <div>
+              <h3>题目目录</h3>
+              <p>{{ form.questions.length }} 题</p>
+            </div>
+            <button type="button" class="primary-btn compact-btn" @click="addQuestion">新增题目</button>
           </div>
+
           <article
             v-for="(question, qIndex) in form.questions"
             :key="question.localKey"
@@ -73,7 +77,10 @@
             <div class="question-tab-copy">
               <span>第 {{ qIndex + 1 }} 题</span>
               <strong>{{ question.title || "未命名题目" }}</strong>
-              <small>{{ question.test_cases.length }} 个测试用例</small>
+              <div class="question-badges">
+                <span class="badge">{{ reviewLevelText(question.ai_review_level) }}</span>
+                <span class="badge subtle">{{ question.enable_testcases ? `${question.test_cases.length} 个用例` : "无测试用例" }}</span>
+              </div>
             </div>
             <div class="question-tab-actions">
               <button type="button" :disabled="qIndex === 0" @click.stop="moveQuestion(qIndex, -1)">↑</button>
@@ -91,69 +98,189 @@
       </aside>
 
       <section class="editor-main">
-        <section class="ai-panel">
+        <section class="idea-panel shell-card">
           <div>
+            <p class="eyebrow">AI Draft</p>
             <h3>AI 生成题目草稿</h3>
-            <p>生成后会追加到左侧题目目录，保存前可以继续修改。</p>
+            <p>先生成题面，再按需要生成测试用例和 AI 审查关注点。</p>
           </div>
-          <div class="ai-fields">
-            <input v-model="generateKnowledge" placeholder="知识点，例如 String equals" />
-            <input v-model="generateRequirement" placeholder="题目要求，例如 比较 == 和 equals 的区别" />
-            <button type="button" :disabled="generating || !generateRequirement.trim()" @click="generateQuestion">
-              {{ generating ? "生成中..." : "生成并追加" }}
+          <div class="idea-fields">
+            <input v-model="generateKnowledge" placeholder="知识点，例如 JDBC transaction" />
+            <input v-model="generateRequirement" placeholder="题目要求，例如 设计转账事务并处理异常" />
+            <button type="button" class="primary-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestion">
+              {{ generating ? "生成中..." : "生成题目" }}
             </button>
           </div>
         </section>
 
         <section v-if="activeQuestion" class="question-editor">
-          <div class="section-heading">
+          <header class="question-header shell-card">
             <div>
-              <span>第 {{ activeQuestionIndex + 1 }} 题</span>
+              <p class="eyebrow">Question {{ activeQuestionIndex + 1 }}</p>
               <h3>{{ activeQuestion.title || "未命名题目" }}</h3>
+              <p>先定义题面和 AI 审查策略，再决定是否用测试用例补充功能验证。</p>
             </div>
-            <button type="button" @click="addTestCase(activeQuestion)">新增用例</button>
-          </div>
+          </header>
 
-          <label>
-            题目标题
-            <input v-model="activeQuestion.title" placeholder="题目标题" />
-          </label>
-          <label>
-            题目描述
-            <textarea
-              v-model="activeQuestion.prompt"
-              class="prompt-input"
-              rows="10"
-              placeholder="题目描述、输入输出要求"
-            />
-          </label>
-
-          <div class="case-table">
-            <div class="case-head">
-              <span>输入</span>
-              <span>期望输出</span>
-              <span>示例</span>
-              <span>操作</span>
+          <section class="content-card shell-card">
+            <div class="card-heading">
+              <div>
+                <h4>题目内容</h4>
+                <p>题面越清晰，AI 生成测试用例和关注点越稳定。</p>
+              </div>
             </div>
-            <article
-              v-for="(testCase, cIndex) in activeQuestion.test_cases"
-              :key="testCase.localKey"
-              class="case-row"
-            >
-              <textarea v-model="testCase.input_data" rows="2" placeholder="stdin 输入" />
-              <textarea v-model="testCase.expected_output" rows="2" placeholder="期望 stdout" />
-              <label class="sample-check">
-                <input v-model="testCase.is_sample" type="checkbox" />
-                <span>示例</span>
+            <div class="card-grid">
+              <label>
+                题目标题
+                <input v-model="activeQuestion.title" placeholder="例如：实现线程安全的库存扣减" />
               </label>
-              <button type="button" class="ghost-btn" @click="removeTestCase(activeQuestion, cIndex)">删除</button>
-            </article>
-          </div>
+              <label class="prompt-field">
+                题目描述
+                <textarea
+                  v-model="activeQuestion.prompt"
+                  class="prompt-input"
+                  rows="12"
+                  placeholder="题目描述、输入输出要求、实现约束、评分重点"
+                />
+              </label>
+              <label class="prompt-field">
+                初始代码
+                <textarea
+                  v-model="activeQuestion.starter_code"
+                  class="prompt-input code-input"
+                  rows="11"
+                  placeholder="学生首次打开这道题时，编辑器将默认填入这段代码；若学生已存在草稿，则不会覆盖。"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section class="grading-card shell-card">
+            <div class="card-heading">
+              <div>
+                <h4>AI 判题设置</h4>
+                <p>AI 默认参与判题。普通题建议轻审查，数据库/并发/开放题建议深审查。</p>
+              </div>
+              <div class="status-chip">AI 默认开启</div>
+            </div>
+
+            <div class="review-level-switch">
+              <button
+                type="button"
+                class="level-btn"
+                :class="{ active: activeQuestion.ai_review_level === 'light' }"
+                @click="activeQuestion.ai_review_level = 'light'"
+              >
+                轻审查
+                <small>只抓明显问题，不额外挑刺</small>
+              </button>
+              <button
+                type="button"
+                class="level-btn"
+                :class="{ active: activeQuestion.ai_review_level === 'deep' }"
+                @click="activeQuestion.ai_review_level = 'deep'"
+              >
+                深审查
+                <small>重点看事务、并发、资源和设计风险</small>
+              </button>
+            </div>
+
+            <label>
+              评分标准
+              <textarea
+                v-model="activeQuestion.ai_grading_rubric"
+                rows="5"
+                placeholder="例如：重点检查事务边界、异常处理、资源释放，以及是否满足题目业务约束"
+              />
+            </label>
+
+            <div class="focus-card">
+              <div class="card-heading">
+                <div>
+                  <h5>AI 关注点</h5>
+                  <p>教师可以手动填写，也可以让 AI 根据题目自动补全。</p>
+                </div>
+                <button
+                  type="button"
+                  class="secondary-btn"
+                  :disabled="focusGenerating || !canGenerateFocus(activeQuestion)"
+                  @click="generateFocus(activeQuestion)"
+                >
+                  {{ focusGenerating ? "生成中..." : "AI 生成关注点" }}
+                </button>
+              </div>
+              <label>
+                关注点输入
+                <input
+                  v-model="activeQuestion.ai_grading_focus_text"
+                  placeholder="例如：事务边界, 异常处理, 资源释放"
+                />
+              </label>
+              <p class="helper-text">{{ activeQuestion.focus_summary || "系统会结合题目内容和教师要求，引导 AI 审查代码重点。" }}</p>
+            </div>
+          </section>
+
+          <section class="testcase-card shell-card">
+            <div class="card-heading">
+              <div>
+                <h4>测试用例</h4>
+                <p>用于给 AI 提供功能正确性的显式证据。不开启时，系统会自动加严 AI 审查。</p>
+              </div>
+              <label class="switch">
+                <input v-model="activeQuestion.enable_testcases" type="checkbox" />
+                <span>启用测试用例</span>
+              </label>
+            </div>
+
+            <transition name="fade-slide">
+              <div v-if="activeQuestion.enable_testcases" class="testcase-body">
+                <div class="card-heading">
+                  <div>
+                    <h5>用例配置</h5>
+                    <p>可手动维护，也可让 AI 基于题面自动生成一版初稿。</p>
+                  </div>
+                  <div class="inline-actions">
+                    <button
+                      type="button"
+                      class="secondary-btn"
+                      :disabled="testcaseGenerating || !canGenerateTestCases(activeQuestion)"
+                      @click="generateTestCases(activeQuestion)"
+                    >
+                      {{ testcaseGenerating ? "生成中..." : "AI 生成测试用例" }}
+                    </button>
+                    <button type="button" class="primary-btn compact-btn" @click="addTestCase(activeQuestion)">新增用例</button>
+                  </div>
+                </div>
+
+                <div class="case-table">
+                  <div class="case-head">
+                    <span>输入</span>
+                    <span>期望输出</span>
+                    <span>示例</span>
+                    <span>操作</span>
+                  </div>
+                  <article
+                    v-for="(testCase, cIndex) in activeQuestion.test_cases"
+                    :key="testCase.localKey"
+                    class="case-row"
+                  >
+                    <textarea v-model="testCase.input_data" rows="3" placeholder="stdin 输入" />
+                    <textarea v-model="testCase.expected_output" rows="3" placeholder="期望 stdout" />
+                    <label class="sample-check">
+                      <input v-model="testCase.is_sample" type="checkbox" />
+                      <span>示例</span>
+                    </label>
+                    <button type="button" class="ghost-btn" @click="removeTestCase(activeQuestion, cIndex)">删除</button>
+                  </article>
+                </div>
+              </div>
+            </transition>
+          </section>
         </section>
 
-        <section v-else class="empty-editor">
+        <section v-else class="empty-editor shell-card">
           <strong>还没有题目</strong>
-          <p>新增一道题目，或使用 AI 生成题目草稿。</p>
+          <p>先新增一道题目，或用 AI 生成题目草稿。</p>
           <button type="button" class="primary-btn" @click="addQuestion">新增题目</button>
         </section>
       </section>
@@ -167,7 +294,9 @@ import { useRoute, useRouter } from "vue-router";
 
 import {
   createTeacherAssignmentApi,
+  generateAssignmentFocusApi,
   generateAssignmentQuestionApi,
+  generateAssignmentTestCasesApi,
   getTeacherAssignmentApi,
   updateTeacherAssignmentApi,
   updateTeacherAssignmentQuestionsApi,
@@ -184,6 +313,8 @@ const errorMessage = ref("");
 const successMessage = ref("");
 const saving = ref(false);
 const generating = ref(false);
+const testcaseGenerating = ref(false);
+const focusGenerating = ref(false);
 const generateKnowledge = ref("");
 const generateRequirement = ref("");
 const activeQuestionIndex = ref(0);
@@ -241,7 +372,13 @@ function normalizeQuestion(question = {}) {
     localKey: question.id || `q-${Date.now()}-${Math.random()}`,
     title: question.title || "",
     prompt: question.prompt || "",
+    starter_code: question.starter_code || "",
     language: "java",
+    enable_testcases: question.enable_testcases !== false,
+    ai_review_level: question.ai_review_level || "light",
+    ai_grading_rubric: question.ai_grading_rubric || "",
+    ai_grading_focus_text: Array.isArray(question.ai_grading_focus) ? question.ai_grading_focus.join(", ") : "",
+    focus_summary: question.focus_summary || "",
     sort_order: question.sort_order || 0,
     test_cases: (question.test_cases || []).map((item) => ({
       id: item.id,
@@ -263,9 +400,11 @@ function addQuestion(source = {}) {
     normalizeQuestion({
       title: source.title || "",
       prompt: source.prompt || "",
-      test_cases: source.test_cases || [
-        { input_data: "", expected_output: "", is_sample: true, sort_order: 0 },
-      ],
+      starter_code: source.starter_code || "",
+      enable_testcases: (source.test_cases || []).length > 0,
+      ai_review_level: source.ai_review_level || "light",
+      ai_grading_focus: source.ai_grading_focus || [],
+      test_cases: source.test_cases || [],
     }),
   );
   activeQuestionIndex.value = form.value.questions.length - 1;
@@ -310,17 +449,65 @@ function removeTestCase(question, index) {
 async function generateQuestion() {
   generating.value = true;
   errorMessage.value = "";
+  successMessage.value = "";
   try {
     const { data } = await generateAssignmentQuestionApi({
       knowledge_point: generateKnowledge.value,
       requirement: generateRequirement.value,
     });
-    addQuestion(data);
-    successMessage.value = "题目草稿已追加，请检查后保存。";
+    addQuestion({
+      ...data,
+      ai_review_level: "light",
+    });
+    successMessage.value = "题目草稿已追加，请继续完善 AI 判题设置。";
   } catch (error) {
     handleApiError(error, "生成题目失败。");
   } finally {
     generating.value = false;
+  }
+}
+
+async function generateFocus(question) {
+  focusGenerating.value = true;
+  errorMessage.value = "";
+  try {
+    const { data } = await generateAssignmentFocusApi({
+      title: question.title,
+      prompt: question.prompt,
+      ai_grading_rubric: question.ai_grading_rubric,
+      ai_review_level: question.ai_review_level,
+    });
+    question.ai_grading_focus_text = (data.ai_grading_focus || []).join(", ");
+    question.focus_summary = data.summary || "";
+  } catch (error) {
+    handleApiError(error, "生成 AI 关注点失败。");
+  } finally {
+    focusGenerating.value = false;
+  }
+}
+
+async function generateTestCases(question) {
+  testcaseGenerating.value = true;
+  errorMessage.value = "";
+  try {
+    const { data } = await generateAssignmentTestCasesApi({
+      title: question.title,
+      prompt: question.prompt,
+      knowledge_point: generateKnowledge.value,
+    });
+    question.test_cases = (data || []).map((item, index) => ({
+      id: item.id,
+      localKey: item.id || `c-${Date.now()}-${index}-${Math.random()}`,
+      input_data: item.input_data || "",
+      expected_output: item.expected_output || "",
+      is_sample: item.is_sample !== false,
+      sort_order: item.sort_order || index,
+    }));
+    question.enable_testcases = true;
+  } catch (error) {
+    handleApiError(error, "生成测试用例失败。");
+  } finally {
+    testcaseGenerating.value = false;
   }
 }
 
@@ -363,9 +550,14 @@ function buildPayload() {
       id: question.id,
       title: question.title,
       prompt: question.prompt,
+      starter_code: question.starter_code || "",
       language: "java",
+      enable_testcases: !!question.enable_testcases,
+      ai_review_level: question.ai_review_level || "light",
+      ai_grading_rubric: question.ai_grading_rubric || "",
+      ai_grading_focus: parseFocusText(question.ai_grading_focus_text),
       sort_order: qIndex,
-      test_cases: question.test_cases.map((testCase, cIndex) => ({
+      test_cases: (question.enable_testcases ? question.test_cases : []).map((testCase, cIndex) => ({
         id: testCase.id,
         input_data: testCase.input_data,
         expected_output: testCase.expected_output,
@@ -374,6 +566,25 @@ function buildPayload() {
       })),
     })),
   };
+}
+
+function parseFocusText(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function reviewLevelText(value) {
+  return value === "deep" ? "深审查" : "轻审查";
+}
+
+function canGenerateFocus(question) {
+  return Boolean(question?.prompt?.trim());
+}
+
+function canGenerateTestCases(question) {
+  return Boolean(question?.prompt?.trim());
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -390,15 +601,23 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .editor-page {
   display: grid;
-  gap: 14px;
+  gap: 16px;
+}
+
+.shell-card,
+.feedback {
+  border: 1px solid #dbe4f0;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
 .editor-toolbar,
 .toolbar-actions,
 .panel-title,
-.section-heading,
-.ai-panel,
-.ai-fields {
+.card-heading,
+.inline-actions {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -406,66 +625,52 @@ function handleApiError(error, fallbackMessage) {
 
 .editor-toolbar {
   justify-content: space-between;
+  padding: 18px 20px;
 }
 
 .editor-toolbar h2 {
-  margin: 6px 0 6px;
-  color: #0f2840;
-  font-size: 32px;
+  margin: 6px 0;
+  color: #0f2740;
+  font-size: clamp(28px, 3vw, 36px);
 }
 
 .editor-toolbar p,
-.ai-panel p,
-.panel-title span,
-.section-heading span {
+.panel-title p,
+.card-heading p,
+.helper-text,
+.empty-editor p {
   margin: 0;
-  color: #6f8297;
+  color: #66788a;
 }
 
 .eyebrow {
   margin: 0;
-  color: #5b86b3;
+  color: #1e63a7;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.assignment-meta,
-.side-panel,
-.ai-panel,
-.question-editor,
-.empty-editor,
-.feedback {
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
-}
-
 .assignment-meta {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 160px minmax(320px, 1.4fr);
-  gap: 12px;
-  padding: 14px;
-}
-
-.title-field,
-.description-field {
-  min-width: 0;
+  grid-template-columns: minmax(240px, 1fr) 180px minmax(360px, 1.3fr);
+  gap: 14px;
+  padding: 18px 20px;
 }
 
 .editor-workbench {
   display: grid;
-  grid-template-columns: 310px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
 }
 
 .editor-sidebar,
-.editor-main {
+.editor-main,
+.question-editor {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .editor-sidebar {
@@ -474,19 +679,25 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .side-panel,
-.question-editor,
+.idea-panel,
+.question-header,
+.content-card,
+.grading-card,
+.testcase-card,
 .empty-editor {
-  padding: 14px;
+  padding: 18px;
 }
 
 .panel-title,
-.section-heading {
+.card-heading {
   justify-content: space-between;
 }
 
 .panel-title h3,
-.section-heading h3,
-.ai-panel h3 {
+.card-heading h4,
+.card-heading h5,
+.idea-panel h3,
+.question-header h3 {
   margin: 0;
   color: #10283d;
 }
@@ -494,55 +705,55 @@ function handleApiError(error, fallbackMessage) {
 .student-grid {
   display: grid;
   gap: 8px;
-  max-height: 190px;
+  max-height: 220px;
   overflow: auto;
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .student-check {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #f8fbff;
-}
-
-.student-check input,
-.sample-check input {
-  width: auto;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(241, 247, 253, 0.95);
 }
 
 .question-index {
-  display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .question-tab {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d9e3ef;
+  border-radius: 16px;
   background: #fff;
   cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.question-tab:hover {
+  transform: translateY(-1px);
+  border-color: #b7d2ec;
+  box-shadow: 0 10px 24px rgba(30, 99, 167, 0.09);
 }
 
 .question-tab.active {
-  border-color: #9cc7ef;
-  background: #f3f9ff;
+  border-color: #8cbce7;
+  background: linear-gradient(180deg, #f8fbff, #eef6ff);
 }
 
 .question-tab-copy {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
 }
 
-.question-tab-copy span,
-.question-tab-copy small {
-  color: #6f8297;
+.question-tab-copy span {
+  color: #708294;
   font-size: 12px;
 }
 
@@ -553,38 +764,119 @@ function handleApiError(error, fallbackMessage) {
   white-space: nowrap;
 }
 
+.question-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge,
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eaf4ff;
+  color: #1e63a7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge.subtle {
+  background: #eef2f6;
+  color: #5f7284;
+}
+
+.status-chip {
+  background: linear-gradient(135deg, #163552, #1f5f99);
+  color: #fff;
+}
+
 .question-tab-actions {
   display: flex;
   gap: 4px;
 }
 
-.question-tab-actions button {
-  min-width: 32px;
-  padding: 0;
+.idea-panel {
+  display: grid;
+  gap: 14px;
 }
 
-.ai-panel {
-  justify-content: space-between;
-  padding: 14px;
-}
-
-.ai-fields {
-  flex: 1;
-  justify-content: flex-end;
-}
-
-.ai-fields input {
-  max-width: 260px;
-}
-
-.question-editor {
+.idea-fields,
+.card-grid,
+.review-level-switch {
   display: grid;
   gap: 12px;
 }
 
+.idea-fields {
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.card-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.question-header {
+  background:
+    radial-gradient(circle at top left, rgba(30, 99, 167, 0.12), transparent 45%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
+}
+
+.review-level-switch {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.level-btn {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  min-height: 108px;
+  padding: 16px;
+  border: 1px solid #d8e3ef;
+  border-radius: 18px;
+  background: #fff;
+  color: #163552;
+}
+
+.level-btn small {
+  color: #66788a;
+}
+
+.level-btn.active {
+  border-color: #79b0e1;
+  background: linear-gradient(180deg, #f6fbff, #ebf5ff);
+  box-shadow: inset 0 0 0 1px rgba(121, 176, 225, 0.18);
+}
+
+.focus-card,
+.testcase-body {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #f3f7fb;
+  font-weight: 700;
+}
+
+.switch input,
+.student-check input,
+.sample-check input {
+  width: auto;
+}
+
 label {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   color: #34495f;
   font-size: 14px;
 }
@@ -593,15 +885,16 @@ input,
 textarea,
 select {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
+  padding: 11px 13px;
+  border: 1px solid #d5e1ed;
+  border-radius: 14px;
   color: #12263a;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  font: inherit;
 }
 
 textarea {
-  resize: none;
+  resize: vertical;
 }
 
 .prompt-input,
@@ -609,43 +902,84 @@ textarea {
   font-family: Consolas, "Courier New", monospace;
 }
 
-.description-field textarea {
-  min-height: clamp(72px, 9vh, 108px);
+.code-input {
+  min-height: clamp(220px, 32vh, 360px);
 }
 
 .prompt-input {
-  min-height: clamp(240px, 34vh, 420px);
+  min-height: clamp(260px, 38vh, 460px);
 }
 
-.case-row textarea {
-  min-height: clamp(54px, 8vh, 82px);
-  max-height: 120px;
+.case-table {
+  border: 1px solid #dbe4f0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.case-head,
+.case-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 92px 76px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+}
+
+.case-head {
+  background: #f5f9fd;
+  color: #6a7d90;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.case-row {
+  border-top: 1px solid #edf2f7;
+}
+
+.sample-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 button,
 .secondary-link,
-.primary-btn {
+.primary-btn,
+.secondary-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  padding: 0 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #d5e1ed;
+  border-radius: 14px;
   background: #fff;
   color: #18344f;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.primary-btn,
-.ai-fields button,
-.panel-title button,
-.section-heading button {
-  background: #10283d;
-  border-color: #10283d;
+button:hover,
+.secondary-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+}
+
+.primary-btn {
+  background: linear-gradient(135deg, #163552, #1f5f99);
+  border-color: #163552;
   color: #fff;
+}
+
+.secondary-btn {
+  background: #f7fafc;
+}
+
+.compact-btn {
+  min-height: 38px;
 }
 
 .ghost-btn {
@@ -655,54 +989,18 @@ button,
 button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.case-table {
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.case-head,
-.case-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 92px 74px;
-  gap: 10px;
-  align-items: center;
-  padding: 10px;
-}
-
-.case-head {
-  background: #f8fbff;
-  color: #6f8297;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.case-row {
-  border-top: 1px solid #eef3f8;
-}
-
-.sample-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  transform: none;
+  box-shadow: none;
 }
 
 .empty-editor {
-  display: grid;
   justify-items: start;
   gap: 10px;
-  color: #6f8297;
 }
 
 .empty-editor strong {
   color: #10283d;
-  font-size: 20px;
-}
-
-.empty-editor p {
-  margin: 0;
+  font-size: 22px;
 }
 
 .feedback {
@@ -719,9 +1017,22 @@ button:disabled {
   background: #ecfdf3;
 }
 
-@media (max-width: 1180px) {
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+@media (max-width: 1260px) {
   .assignment-meta,
   .editor-workbench,
+  .idea-fields,
+  .review-level-switch,
   .case-head,
   .case-row {
     grid-template-columns: 1fr;
@@ -730,23 +1041,22 @@ button:disabled {
   .editor-sidebar {
     position: static;
   }
-
-  .ai-panel,
-  .ai-fields {
-    display: grid;
-  }
-
-  .ai-fields input {
-    max-width: none;
-  }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .editor-toolbar,
   .toolbar-actions,
-  .section-heading {
+  .card-heading,
+  .panel-title,
+  .inline-actions {
     display: grid;
     justify-content: stretch;
+  }
+
+  .toolbar-actions > *,
+  .inline-actions > *,
+  .idea-fields > * {
+    width: 100%;
   }
 }
 </style>

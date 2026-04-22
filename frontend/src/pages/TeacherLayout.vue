@@ -1,20 +1,24 @@
 <template>
   <div class="teacher-shell">
     <aside class="teacher-sidebar">
-      <div class="teacher-brand">
-        <p class="eyebrow">Teacher Console</p>
-        <h1>教师工作台</h1>
-        <span>图谱管理与学情观察</span>
+      <div class="sidebar-scroll">
+        <div class="teacher-brand">
+          <p class="eyebrow">Teacher Console</p>
+          <h1>教师工作台</h1>
+          <span>图谱管理与学情观察</span>
+        </div>
+
+        <nav class="teacher-nav">
+          <router-link to="/teacher/dashboard">数据看板</router-link>
+          <router-link to="/teacher/graph">知识图谱</router-link>
+          <router-link to="/teacher/students">学生薄弱点</router-link>
+          <router-link to="/teacher/assignments">作业管理</router-link>
+        </nav>
       </div>
 
-      <nav class="teacher-nav">
-        <router-link to="/teacher/dashboard">数据看板</router-link>
-        <router-link to="/teacher/graph">知识图谱</router-link>
-        <router-link to="/teacher/students">学生薄弱点</router-link>
-        <router-link to="/teacher/assignments">作业管理</router-link>
-      </nav>
-
-      <button class="logout-btn" @click="logout">退出登录</button>
+      <div class="sidebar-footer">
+        <button class="logout-btn" @click="logout">退出登录</button>
+      </div>
     </aside>
 
     <main class="teacher-main">
@@ -41,17 +45,35 @@ function logout() {
 .teacher-shell {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
   background: linear-gradient(180deg, #f7fbff 0%, #ffffff 100%);
+  overflow: hidden;
 }
 
 .teacher-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 28px;
   padding: 28px 20px;
   background: linear-gradient(180deg, #eff6ff 0%, #e6f0fb 100%);
   border-right: 1px solid #d7e5f3;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 28px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.sidebar-footer {
+  padding-top: 18px;
 }
 
 .teacher-brand h1 {
@@ -91,7 +113,7 @@ function logout() {
 }
 
 .logout-btn {
-  margin-top: auto;
+  width: 100%;
   padding: 12px 14px;
   border: none;
   border-radius: 16px;
@@ -103,15 +125,35 @@ function logout() {
 .teacher-main {
   min-width: 0;
   padding: 28px;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 @media (max-width: 980px) {
   .teacher-shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
+  }
+
+  .teacher-sidebar,
+  .teacher-main {
+    position: static;
+    height: auto;
   }
 
   .teacher-main {
     padding: 18px;
+    overflow: visible;
+  }
+
+  .teacher-sidebar {
+    overflow: visible;
+  }
+
+  .sidebar-scroll {
+    overflow: visible;
+    padding-right: 0;
   }
 }
 </style>

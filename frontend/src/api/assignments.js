@@ -8,12 +8,18 @@ export const getTeacherAssignmentProgressApi = (assignmentId) =>
   http.get(`/api/teacher/assignments/${assignmentId}/progress`);
 export const getTeacherAssignmentSubmissionApi = (assignmentId, submissionId) =>
   http.get(`/api/teacher/assignments/${assignmentId}/submissions/${submissionId}`);
+export const reviewTeacherAssignmentSubmissionApi = (assignmentId, submissionId, payload) =>
+  http.post(`/api/teacher/assignments/${assignmentId}/submissions/${submissionId}/review`, payload);
 export const updateTeacherAssignmentApi = (assignmentId, payload) =>
   http.patch(`/api/teacher/assignments/${assignmentId}`, payload);
 export const updateTeacherAssignmentQuestionsApi = (assignmentId, payload) =>
   http.put(`/api/teacher/assignments/${assignmentId}/questions`, payload);
 export const generateAssignmentQuestionApi = (payload) =>
   http.post("/api/teacher/assignments/generate-question", payload);
+export const generateAssignmentTestCasesApi = (payload) =>
+  http.post("/api/teacher/assignments/generate-testcases", payload);
+export const generateAssignmentFocusApi = (payload) =>
+  http.post("/api/teacher/assignments/generate-focus", payload);
 
 export const listStudentAssignmentsApi = () => http.get("/api/assignments");
 export const getStudentAssignmentApi = (assignmentId) => http.get(`/api/assignments/${assignmentId}`);

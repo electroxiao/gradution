@@ -16,7 +16,14 @@ class AssignmentQuestionInput(BaseModel):
     id: int | None = None
     title: str = Field(default="", max_length=255)
     prompt: str = Field(min_length=1)
+    starter_code: str = Field(default="")
     language: str = Field(default="java", max_length=32)
+    enable_testcases: bool = True
+    ai_review_level: str = Field(default="light", max_length=32)
+    ai_grading_rubric: str = Field(default="")
+    ai_grading_focus: list[str] = Field(default_factory=list)
+    ai_grading_pass_threshold: int = Field(default=85, ge=0, le=100)
+    ai_grading_confidence_threshold: float = Field(default=0.85, ge=0, le=1)
     sort_order: int = 0
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
 
@@ -45,6 +52,19 @@ class AssignmentQuestionsUpdateRequest(BaseModel):
 class AssignmentGenerateQuestionRequest(BaseModel):
     requirement: str = Field(min_length=1, max_length=2000)
     knowledge_point: str = Field(default="", max_length=255)
+
+
+class AssignmentGenerateTestCasesRequest(BaseModel):
+    title: str = Field(default="", max_length=255)
+    prompt: str = Field(min_length=1, max_length=8000)
+    knowledge_point: str = Field(default="", max_length=255)
+
+
+class AssignmentGenerateFocusRequest(BaseModel):
+    title: str = Field(default="", max_length=255)
+    prompt: str = Field(min_length=1, max_length=8000)
+    ai_grading_rubric: str = Field(default="", max_length=4000)
+    ai_review_level: str = Field(default="deep", max_length=32)
 
 
 class AssignmentSubmitRequest(BaseModel):
@@ -79,7 +99,14 @@ class AssignmentQuestionResponse(BaseModel):
     id: int
     title: str
     prompt: str
+    starter_code: str = ""
     language: str
+    enable_testcases: bool = True
+    ai_review_level: str = "light"
+    ai_grading_rubric: str = ""
+    ai_grading_focus: list[str] = Field(default_factory=list)
+    ai_grading_pass_threshold: int = 85
+    ai_grading_confidence_threshold: float = 0.85
     sort_order: int
     test_cases: list[AssignmentTestCaseResponse] = Field(default_factory=list)
 
@@ -94,6 +121,11 @@ class AssignmentSubmissionResponse(BaseModel):
     code: str
     status: str
     results_json: Any = None
+    ai_review_json: Any = None
+    decision_source: str | None = None
+    manual_review_required: bool = False
+    teacher_review_status: str | None = None
+    teacher_review_note: str | None = None
     started_at: datetime | None = None
     duration_seconds: int | None = None
     submitted_at: datetime
@@ -136,6 +168,9 @@ class AssignmentRunResultResponse(BaseModel):
     submission: AssignmentSubmissionResponse
     status: str
     results: list[dict[str, Any]]
+    ai_review: Any = None
+    decision_source: str | None = None
+    manual_review_required: bool = False
 
 
 class AssignmentAiHelpResponse(BaseModel):
@@ -151,6 +186,11 @@ class AssignmentGeneratedQuestionResponse(BaseModel):
     prompt: str
     language: str = "java"
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
+
+
+class AssignmentGeneratedFocusResponse(BaseModel):
+    ai_grading_focus: list[str] = Field(default_factory=list)
+    summary: str = ""
 
 
 class AssignmentProgressQuestionResponse(BaseModel):
@@ -193,7 +233,20 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     code: str
     status: str
     results_json: Any = None
+    ai_review_json: Any = None
+    decision_source: str | None = None
+    manual_review_required: bool = False
+    teacher_review_status: str | None = None
+    teacher_review_note: str | None = None
+    reviewed_at: datetime | None = None
+    reviewed_by: int | None = None
+    reviewed_by_username: str | None = None
     run_time_ms: int | None = None
     started_at: datetime | None = None
     duration_seconds: int | None = None
     submitted_at: datetime
+
+
+class AssignmentReviewRequest(BaseModel):
+    status: str = Field(pattern="^(accepted|ai_rejected|needs_manual_review)$")
+    note: str = Field(default="", max_length=2000)
