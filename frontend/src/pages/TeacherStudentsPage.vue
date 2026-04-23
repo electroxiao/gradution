@@ -154,49 +154,48 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .students-page {
-  display: grid;
   gap: 22px;
 }
 
 .page-header h2 {
-  margin: 8px 0 10px;
-  font-size: 30px;
+  margin: 10px 0 8px;
+  font-size: 32px;
   font-weight: 500;
-  color: #0f2840;
+  color: var(--app-text);
 }
 
 .eyebrow {
   margin: 0;
-  color: #5b86b3;
+  color: #6e86a6;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .page-copy {
   margin: 0;
-  color: #6f8297;
+  color: var(--app-text-muted);
 }
 
 .students-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 296px minmax(0, 1fr);
+  gap: 20px;
 }
 
 .student-list,
 .student-detail {
-  border: 1px solid #e2ebf4;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .student-list {
-  padding: 14px;
+  padding: 16px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
   align-self: start;
 }
 
@@ -205,45 +204,46 @@ function handleApiError(error, fallbackMessage) {
   flex-direction: column;
   gap: 6px;
   padding: 14px;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 18px;
-  background: transparent;
+  background: #ffffff;
   text-align: left;
   cursor: pointer;
 }
 
 .student-item strong {
-  color: #15314a;
+  color: var(--app-text);
   font-weight: 500;
 }
 
 .student-item span {
-  color: #7990a8;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
 .student-item.active {
-  background: #eff6ff;
+  background: var(--app-primary-soft);
+  border-color: #cfdcf3;
 }
 
 .student-detail {
-  padding: 20px 22px;
+  padding: 24px;
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .detail-header h3 {
   margin: 0;
-  font-size: 23px;
+  font-size: 24px;
   font-weight: 500;
-  color: #10283d;
+  color: var(--app-text);
 }
 
 .detail-header p,
 .section-head span,
 .mastery-card small {
   margin: 6px 0 0;
-  color: #6f8297;
+  color: var(--app-text-muted);
 }
 
 .detail-section {
@@ -260,7 +260,7 @@ function handleApiError(error, fallbackMessage) {
 
 .section-head h4 {
   margin: 0;
-  color: #15314a;
+  color: var(--app-text);
   font-size: 17px;
   font-weight: 500;
 }
@@ -278,14 +278,14 @@ function handleApiError(error, fallbackMessage) {
 .empty {
   padding: 18px;
   border-radius: 20px;
-  background: #f8fbff;
-  color: #5f7287;
+  background: var(--app-panel-soft);
+  color: var(--app-text-muted);
 }
 
 .weak-card strong,
 .mastery-card strong {
   display: block;
-  color: #16314a;
+  color: var(--app-text);
   font-weight: 500;
 }
 
@@ -340,13 +340,14 @@ function handleApiError(error, fallbackMessage) {
 
 .score-row span,
 .meta-row span {
-  color: #5f7287;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
 .feedback.error {
-  background: #fff8f8;
+  background: #fff5f5;
   color: #b42318;
+  border: 1px solid #f0d3d3;
 }
 
 @media (max-width: 960px) {

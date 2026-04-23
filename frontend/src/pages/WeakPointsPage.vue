@@ -484,8 +484,8 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .weak-page {
   min-height: 100vh;
-  padding: 36px 40px 48px;
-  background: #f8fbff;
+  padding: 0;
+  background: transparent;
 }
 
 .hero {
@@ -498,7 +498,7 @@ function handleApiError(error, fallbackMessage) {
 
 .eyebrow {
   margin: 0 0 10px;
-  color: #4f86c6;
+  color: #6e86a6;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -510,7 +510,7 @@ function handleApiError(error, fallbackMessage) {
   font-size: clamp(27px, 3.4vw, 34px);
   font-weight: 500;
   line-height: 1.05;
-  color: #10283d;
+  color: var(--app-text);
 }
 
 .hero-text {
@@ -545,16 +545,16 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-card {
   padding: 18px 20px;
-  border: 1px solid #e4edf6;
+  border: 1px solid var(--app-line);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--app-shadow);
 }
 
 .summary-card strong {
   display: block;
   margin-top: 8px;
-  color: #12324a;
+  color: var(--app-text);
   font-size: 28px;
   font-weight: 500;
 }
@@ -658,10 +658,10 @@ function handleApiError(error, fallbackMessage) {
 .graph-container {
   position: relative;
   min-height: 500px;
-  border: 1px solid #e2ebf4;
+  border: 1px solid var(--app-line);
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--app-shadow);
   overflow: hidden;
 }
 
@@ -685,10 +685,10 @@ function handleApiError(error, fallbackMessage) {
 
 .quiz-panel,
 .recommendation-panel {
-  border: 1px solid #e2ebf4;
+  border: 1px solid var(--app-line);
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--app-shadow);
   display: flex;
   flex-direction: column;
   max-height: 600px;
@@ -1037,10 +1037,10 @@ function handleApiError(error, fallbackMessage) {
 
 .weak-card {
   padding: 22px;
-  border: 1px solid #e3ebf3;
+  border: 1px solid var(--app-line);
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--app-shadow);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
@@ -1078,7 +1078,7 @@ function handleApiError(error, fallbackMessage) {
 
 .weak-card h2 {
   margin: 18px 0 10px;
-  color: #10283d;
+  color: var(--app-text);
   font-size: 24px;
   font-weight: 500;
 }
@@ -1123,10 +1123,10 @@ function handleApiError(error, fallbackMessage) {
 
 .history-card {
   padding: 18px 20px;
-  border: 1px solid #e2ebf4;
+  border: 1px solid var(--app-line);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--app-shadow);
 }
 
 .history-card-top {
@@ -1154,7 +1154,7 @@ function handleApiError(error, fallbackMessage) {
 
 .history-card h3 {
   margin: 16px 0 10px;
-  color: #10283d;
+  color: var(--app-text);
   font-size: 20px;
   font-weight: 500;
 }
@@ -1163,10 +1163,11 @@ function handleApiError(error, fallbackMessage) {
   position: relative;
   overflow: hidden;
   padding: 64px 24px;
-  border: 1px solid #e7eef6;
+  border: 1px solid var(--app-line);
   border-radius: 28px;
   background: #ffffff;
   text-align: center;
+  box-shadow: var(--app-shadow);
 }
 
 .empty-orbit {
@@ -1184,7 +1185,7 @@ function handleApiError(error, fallbackMessage) {
 .empty-state h2 {
   position: relative;
   margin: 0 0 12px;
-  color: #10283d;
+  color: var(--app-text);
   font-weight: 500;
 }
 

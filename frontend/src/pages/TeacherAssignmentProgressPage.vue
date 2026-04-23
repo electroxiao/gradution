@@ -403,16 +403,15 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .progress-page {
   display: grid;
-  gap: 20px;
+  gap: 22px;
 }
 
 .shell-card,
 .feedback {
-  border: 1px solid #dbe4f0;
-  border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--app-line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--app-shadow);
 }
 
 .progress-toolbar,
@@ -432,15 +431,15 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .progress-toolbar h2 {
-  margin: 6px 0 8px;
-  color: #0f2840;
+  margin: 10px 0 8px;
+  color: var(--app-text);
   font-size: 32px;
 }
 
 .progress-toolbar p,
 .muted {
   margin: 0;
-  color: #6f8297;
+  color: var(--app-text-muted);
 }
 
 .panel-header h3,
@@ -451,10 +450,10 @@ function handleApiError(error, fallbackMessage) {
 
 .eyebrow {
   margin: 0;
-  color: #5b86b3;
+  color: #6e86a6;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -464,10 +463,10 @@ function handleApiError(error, fallbackMessage) {
   justify-content: center;
   min-height: 42px;
   padding: 0 14px;
-  border: 1px solid #d4e4f2;
+  border: 1px solid var(--app-line);
   border-radius: 14px;
   background: #fff;
-  color: #18344f;
+  color: #31445f;
   text-decoration: none;
   white-space: nowrap;
 }

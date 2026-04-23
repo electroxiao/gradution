@@ -1112,28 +1112,28 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .graph-page {
   display: grid;
-  gap: 20px;
+  gap: 22px;
 }
 
 .page-header h2 {
-  margin: 8px 0 10px;
-  font-size: 30px;
+  margin: 10px 0 8px;
+  font-size: 32px;
   font-weight: 500;
-  color: #0f2840;
+  color: var(--app-text);
 }
 
 .eyebrow {
   margin: 0;
-  color: #5b86b3;
+  color: #6e86a6;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .page-copy {
   margin: 0;
-  color: #6f8297;
+  color: var(--app-text-muted);
   max-width: 760px;
 }
 
@@ -1143,10 +1143,10 @@ function handleApiError(error, fallbackMessage) {
   gap: 12px;
   flex-wrap: wrap;
   padding: 14px;
-  border: 1px solid #e2ebf4;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--app-line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--app-shadow);
 }
 
 .toolbar-search {
@@ -1164,7 +1164,7 @@ function handleApiError(error, fallbackMessage) {
 .detail-body textarea {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #d8e2ee;
+  border: 1px solid var(--app-line);
   border-radius: 14px;
   background: #fff;
   font: inherit;
@@ -1175,7 +1175,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .graph-meta {
-  color: #6f8297;
+  color: var(--app-text-muted);
   font-size: 13px;
   white-space: nowrap;
 }

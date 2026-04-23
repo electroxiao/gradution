@@ -475,7 +475,7 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .detail-page {
   min-height: 100vh;
-  background: #f3f6fa;
+  background: transparent;
 }
 
 .assignment-lab {
@@ -492,26 +492,26 @@ function handleApiError(error, fallbackMessage) {
 .editor-pane,
 .ai-pane {
   min-width: 0;
-  border-right: 1px solid #dfe7ef;
-  background: #fff;
+  border-right: 1px solid var(--app-line);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .problem-pane {
   height: 100vh;
   overflow: auto;
-  padding: 18px;
+  padding: 24px;
 }
 
 .back-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 34px;
+  min-height: 40px;
   margin-bottom: 14px;
-  padding: 0 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
-  color: #18344f;
+  padding: 0 14px;
+  border: 1px solid var(--app-line);
+  border-radius: 14px;
+  color: #31445f;
   text-decoration: none;
 }
 
@@ -519,8 +519,8 @@ function handleApiError(error, fallbackMessage) {
   width: 8px;
   height: 100vh;
   cursor: col-resize;
-  background: #eef3f8;
-  border-right: 1px solid #dfe7ef;
+  background: #edf2f7;
+  border-right: 1px solid var(--app-line);
 }
 
 .resize-handle:hover {
@@ -528,7 +528,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .ai-resize-handle {
-  border-left: 1px solid #dfe7ef;
+  border-left: 1px solid var(--app-line);
   border-right: none;
 }
 
@@ -538,7 +538,7 @@ function handleApiError(error, fallbackMessage) {
 .ai-header h2,
 .result-console h3 {
   margin: 0;
-  color: #10283d;
+  color: var(--app-text);
 }
 
 .problem-header h1 {
@@ -549,12 +549,12 @@ function handleApiError(error, fallbackMessage) {
 .problem-header p,
 .muted {
   margin: 0;
-  color: #6f8297;
+  color: var(--app-text-muted);
 }
 
 .eyebrow {
   margin: 0;
-  color: #5b86b3;
+  color: #6e86a6;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -573,19 +573,19 @@ button,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 36px;
+  min-height: 40px;
   padding: 0 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
+  border: 1px solid var(--app-line);
+  border-radius: 14px;
   background: #fff;
-  color: #18344f;
+  color: #31445f;
   cursor: pointer;
 }
 
 .question-tabs button.active,
 .primary-btn {
-  background: #10283d;
-  border-color: #10283d;
+  background: var(--app-primary);
+  border-color: var(--app-primary);
   color: #fff;
 }
 
@@ -619,16 +619,16 @@ button:disabled {
 .ai-state,
 .ai-error {
   padding: 12px;
-  border-radius: 8px;
-  background: #f8fbff;
+  border-radius: 16px;
+  background: var(--app-panel-soft);
 }
 
 pre {
   overflow: auto;
   margin: 6px 0 10px;
-  padding: 10px;
-  border-radius: 8px;
-  background: #10283d;
+  padding: 12px;
+  border-radius: 14px;
+  background: #15263b;
   color: #fff;
 }
 
@@ -637,7 +637,7 @@ pre {
   grid-template-rows: auto minmax(0, 1fr) minmax(180px, 30vh);
   height: 100vh;
   overflow: hidden;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .editor-toolbar,
@@ -651,9 +651,9 @@ pre {
 }
 
 .editor-toolbar {
-  padding: 12px 16px;
-  border-bottom: 1px solid #dfe7ef;
-  background: #fff;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--app-line);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .toolbar-actions {
@@ -666,10 +666,10 @@ pre {
 .language-pill,
 .draft-pill,
 .result-status {
-  padding: 5px 9px;
-  border-radius: 8px;
-  background: #eef6ff;
-  color: #1f5f99;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #35639f;
   font-size: 13px;
 }
 
@@ -694,9 +694,9 @@ pre {
 
 .result-console {
   overflow: auto;
-  padding: 14px 16px;
-  border-top: 1px solid #dfe7ef;
-  background: #fff;
+  padding: 18px 20px;
+  border-top: 1px solid var(--app-line);
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .result-console header {
@@ -707,16 +707,16 @@ pre {
   display: grid;
   gap: 12px;
   margin-top: 14px;
-  padding: 12px;
-  border-radius: 8px;
-  background: #f8fbff;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--app-panel-soft);
 }
 
 .review-badge {
-  padding: 5px 9px;
-  border-radius: 8px;
-  background: #eef6ff;
-  color: #1f5f99;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #35639f;
   font-size: 13px;
 }
 
@@ -733,8 +733,8 @@ pre {
 }
 
 .review-metrics div {
-  padding: 10px;
-  border-radius: 8px;
+  padding: 12px;
+  border-radius: 14px;
   background: #fff;
 }
 
@@ -745,8 +745,8 @@ pre {
 
 .review-metrics dd {
   margin: 4px 0 0;
-  color: #10283d;
-  font-weight: 700;
+  color: var(--app-text);
+  font-weight: 500;
 }
 
 .review-list strong {
@@ -779,8 +779,8 @@ pre {
 .feedback {
   margin: 12px;
   padding: 12px 14px;
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
+  border: 1px solid var(--app-line);
+  border-radius: 14px;
   background: #fff;
 }
 
@@ -790,9 +790,9 @@ pre {
   display: grid;
   align-content: start;
   gap: 12px;
-  padding: 14px;
+  padding: 18px;
   border-right: none;
-  border-left: 1px solid #dfe7ef;
+  border-left: 1px solid var(--app-line);
 }
 
 .ai-composer {
@@ -804,8 +804,8 @@ textarea {
   width: 100%;
   min-height: 118px;
   padding: 12px;
-  border: 1px solid #d7e5f3;
-  border-radius: 8px;
+  border: 1px solid var(--app-line);
+  border-radius: 14px;
   resize: none;
   font: inherit;
 }
@@ -828,8 +828,8 @@ textarea {
 }
 
 .concept-list span {
-  padding: 5px 9px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
   background: #edf6ff;
   color: #1f5f99;
   font-size: 13px;

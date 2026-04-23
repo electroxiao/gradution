@@ -1,16 +1,19 @@
 <template>
-  <section class="dashboard-page">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Overview</p>
-        <h2>数据看板</h2>
-        <p class="page-copy">汇总全体学生当前被标记最多的薄弱点节点，帮助教师快速定位共性问题。</p>
+  <section class="app-page dashboard-page">
+    <header class="app-header">
+      <div class="app-header-copy">
+        <p class="app-eyebrow">Overview</p>
+        <h2 class="app-title">数据看板</h2>
+        <p class="app-subtitle">汇总全体学生当前被标记最多的薄弱点节点，帮助教师快速定位共性问题。</p>
+      </div>
+      <div class="app-toolbar">
+        <button class="app-button-ghost" @click="loadDashboard">刷新数据</button>
       </div>
     </header>
 
-    <div v-if="errorMessage" class="feedback error">{{ errorMessage }}</div>
+    <div v-if="errorMessage" class="app-feedback error">{{ errorMessage }}</div>
 
-    <section v-if="dashboard" class="metrics">
+    <section v-if="dashboard" class="metrics-grid">
       <article class="metric-card">
         <span>学生总数</span>
         <strong>{{ dashboard.total_students }}</strong>
@@ -25,10 +28,12 @@
       </article>
     </section>
 
-    <section class="panel">
+    <section class="rank-panel">
       <div class="panel-head">
-        <h3>薄弱点热点排行</h3>
-        <button @click="loadDashboard">刷新</button>
+        <div>
+          <p class="app-eyebrow">Top Nodes</p>
+          <h3>薄弱点热点排行</h3>
+        </div>
       </div>
 
       <div v-if="dashboard?.top_nodes?.length" class="rank-list">
@@ -43,7 +48,7 @@
           </div>
         </article>
       </div>
-      <div v-else class="empty">暂无可展示的统计数据。</div>
+      <div v-else class="empty-panel">暂无可展示的统计数据。</div>
     </section>
   </section>
 </template>
@@ -91,152 +96,112 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .dashboard-page {
-  display: grid;
   gap: 22px;
 }
 
-.page-header h2 {
-  margin: 8px 0 10px;
-  font-size: 30px;
-  font-weight: 500;
-  color: #0f2840;
-}
-
-.eyebrow {
-  margin: 0;
-  color: #5b86b3;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.page-copy {
-  margin: 0;
-  color: #6f8297;
-}
-
-.metrics {
+.metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
 .metric-card,
-.panel {
-  border: 1px solid #e2ebf4;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+.rank-panel,
+.empty-panel {
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .metric-card {
-  padding: 20px 22px;
+  padding: 22px 24px;
 }
 
 .metric-card span {
-  color: #71849a;
+  color: var(--app-text-muted);
 }
 
 .metric-card strong {
   display: block;
-  margin-top: 10px;
-  font-size: 34px;
-  color: #10283d;
+  margin-top: 12px;
+  color: var(--app-text);
+  font-size: 36px;
+  font-weight: 500;
 }
 
-.panel {
-  padding: 20px 22px;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
+.rank-panel {
+  padding: 24px;
+  display: grid;
+  gap: 18px;
 }
 
 .panel-head h3 {
-  margin: 0;
-  color: #10283d;
-}
-
-.panel-head button {
-  border: none;
-  border-radius: 999px;
-  padding: 10px 14px;
-  background: #edf4ff;
-  color: #27517c;
-  cursor: pointer;
+  margin: 10px 0 0;
+  color: var(--app-text);
+  font-size: 24px;
+  font-weight: 500;
 }
 
 .rank-list {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .rank-item {
   display: grid;
-  grid-template-columns: 38px minmax(0, 240px) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 42px minmax(0, 280px) minmax(0, 1fr);
+  gap: 16px;
   align-items: center;
 }
 
 .rank-index {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #eff5ff;
-  color: #3869a0;
-  font-weight: 700;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: var(--app-primary-soft);
+  color: #4368af;
+  font-weight: 600;
 }
 
 .rank-copy strong {
   display: block;
-  color: #15314a;
+  color: var(--app-text);
+  font-weight: 500;
 }
 
 .rank-copy span {
-  color: #73859a;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
 .rank-bar {
-  height: 10px;
+  height: 12px;
   border-radius: 999px;
-  background: #edf2f7;
+  background: #edf1f6;
   overflow: hidden;
 }
 
 .rank-fill {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #7ab0f4 0%, #3b82f6 100%);
+  background: linear-gradient(90deg, #84aefc 0%, #2f67f6 100%);
 }
 
-.feedback.error,
-.empty {
-  padding: 18px;
-  border-radius: 18px;
-  background: #fff8f8;
-  color: #b42318;
-}
-
-.empty {
-  background: #f8fbff;
-  color: #6f8297;
+.empty-panel {
+  padding: 22px 24px;
+  color: var(--app-text-muted);
 }
 
 @media (max-width: 960px) {
-  .metrics {
+  .metrics-grid {
     grid-template-columns: 1fr;
   }
 
   .rank-item {
-    grid-template-columns: 38px 1fr;
+    grid-template-columns: 42px 1fr;
   }
 
   .rank-bar {

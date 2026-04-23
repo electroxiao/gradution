@@ -1,26 +1,64 @@
 <template>
-  <div class="student-shell" :class="{ fullscreen: hideSidebar, collapsed: collapseSidebar }">
-    <aside v-if="!hideSidebar" class="student-sidebar">
-      <div class="student-brand">
-        <p class="eyebrow">Student Workspace</p>
-        <h1>学习空间</h1>
-        <span>作业、图谱与 AI 助教</span>
+  <div class="console-shell student-shell" :class="{ fullscreen: hideSidebar, collapsed: collapseSidebar }">
+    <aside v-if="!hideSidebar" class="console-sidebar student-sidebar">
+      <div class="sidebar-top">
+        <div class="console-brand">
+          <p class="brand-eyebrow">Student Workspace</p>
+          <h1>学习空间</h1>
+          <p>作业、薄弱点与 AI 助教</p>
+        </div>
+
+        <nav class="console-nav student-nav">
+          <router-link to="/" active-class="" exact-active-class="router-link-active">
+            <span class="nav-icon">台</span>
+            <span class="nav-copy">
+              <strong>学习工作台</strong>
+              <small>今日进度</small>
+            </span>
+          </router-link>
+          <router-link to="/assignments">
+            <span class="nav-icon">作</span>
+            <span class="nav-copy">
+              <strong>我的作业</strong>
+              <small>提交与结果</small>
+            </span>
+          </router-link>
+          <router-link to="/chat">
+            <span class="nav-icon">AI</span>
+            <span class="nav-copy">
+              <strong>AI 学习</strong>
+              <small>知识问答</small>
+            </span>
+          </router-link>
+          <router-link to="/weak-points">
+            <span class="nav-icon">弱</span>
+            <span class="nav-copy">
+              <strong>薄弱点</strong>
+              <small>针对性训练</small>
+            </span>
+          </router-link>
+        </nav>
       </div>
 
-      <nav class="student-nav">
-        <router-link to="/" active-class="" exact-active-class="router-link-active"><span class="nav-icon">台</span><span class="nav-text">学习工作台</span></router-link>
-        <router-link to="/assignments"><span class="nav-icon">作</span><span class="nav-text">作业</span></router-link>
-        <router-link to="/chat"><span class="nav-icon">AI</span><span class="nav-text">AI 学习</span></router-link>
-        <router-link to="/weak-points"><span class="nav-icon">弱</span><span class="nav-text">薄弱点</span></router-link>
-      </nav>
-
-      <button class="logout-btn" type="button" @click="logout">退出登录</button>
+      <div class="sidebar-bottom">
+        <button class="logout-btn" type="button" @click="logout">退出登录</button>
+      </div>
     </aside>
 
-    <main class="student-main">
-      <router-view />
-    </main>
+    <main class="console-main">
+      <div v-if="!hideSidebar" class="console-topbar">
+        <div class="topbar-spacer" />
+        <div class="topbar-user">
+          <span class="bell-dot">•</span>
+          <span class="user-avatar student-avatar">学</span>
+          <span class="user-name">学生</span>
+        </div>
+      </div>
 
+      <div class="console-content">
+        <router-view />
+      </div>
+    </main>
   </div>
 </template>
 
@@ -43,222 +81,242 @@ function logout() {
 </script>
 
 <style scoped>
-.student-shell {
+.console-shell {
   display: grid;
-  grid-template-columns: 244px minmax(0, 1fr);
+  grid-template-columns: 262px minmax(0, 1fr);
   min-height: 100vh;
-  background: #f5f7fa;
 }
 
-.student-shell.collapsed {
-  display: block;
-  padding-left: 64px;
+.console-shell.fullscreen {
+  grid-template-columns: 1fr;
 }
 
-.student-shell.fullscreen {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.student-sidebar {
+.console-sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 26px;
-  padding: 24px 16px;
-  border-right: 1px solid #dfe7ef;
-  background: #edf4fb;
-  transition: width 0.18s ease, padding 0.18s ease;
-  z-index: 10;
+  justify-content: space-between;
+  padding: 22px 18px 20px;
+  background: rgba(251, 252, 254, 0.96);
+  border-right: 1px solid var(--app-line);
+  backdrop-filter: blur(16px);
 }
 
-.student-shell.collapsed .student-sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  width: 64px;
-  height: 100vh;
-  padding: 18px 10px;
-  overflow: hidden;
+.sidebar-top {
+  display: grid;
+  gap: 28px;
 }
 
-.student-shell.collapsed .student-sidebar:hover {
-  left: 0;
-  width: 244px;
-  padding: 24px 16px;
-  box-shadow: 14px 0 30px rgba(15, 23, 42, 0.12);
-}
-
-.student-shell.collapsed .student-brand h1,
-.student-shell.collapsed .student-brand span,
-.student-shell.collapsed .eyebrow,
-.student-shell.collapsed .nav-text,
-.student-shell.collapsed .logout-btn {
-  width: 0;
-  opacity: 0;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.student-shell.collapsed .student-sidebar:hover .student-brand h1,
-.student-shell.collapsed .student-sidebar:hover .student-brand span,
-.student-shell.collapsed .student-sidebar:hover .eyebrow,
-.student-shell.collapsed .student-sidebar:hover .nav-text,
-.student-shell.collapsed .student-sidebar:hover .logout-btn {
-  width: auto;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.student-brand h1 {
-  margin: 8px 0 6px;
-  color: #10283d;
-  font-size: 25px;
-  font-weight: 500;
-}
-
-.student-brand span,
-.eyebrow {
-  color: #68809a;
-}
-
-.eyebrow {
+.brand-eyebrow {
   margin: 0;
+  color: #6b7f99;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.student-nav {
+.console-brand h1 {
+  margin: 14px 0 10px;
+  color: var(--app-text);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.console-brand p:last-child {
+  margin: 0;
+  color: var(--app-text-muted);
+  line-height: 1.7;
+}
+
+.console-nav {
   display: grid;
   gap: 8px;
-  align-content: start;
 }
 
-.student-nav a,
-.student-nav button {
+.console-nav a {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #234462;
-  font: inherit;
-  text-align: left;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  color: #31445f;
   text-decoration: none;
-  cursor: pointer;
 }
 
-.student-shell.collapsed .student-nav a {
-  justify-content: center;
-  padding: 12px 0;
-  gap: 0;
-}
-
-.student-shell.collapsed .student-sidebar:hover .student-nav a {
-  justify-content: flex-start;
-  padding: 12px 14px;
-  gap: 10px;
+.console-nav a.router-link-active {
+  background: #edf3ff;
+  color: #1f4fd0;
 }
 
 .nav-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: #fff;
-  color: #234462;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid var(--app-line);
+  color: #4a658a;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(20, 34, 53, 0.05);
+}
+
+.console-nav a.router-link-active .nav-icon {
+  background: #2f67f6;
+  border-color: #2f67f6;
+  color: #ffffff;
+}
+
+.nav-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-copy strong {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.nav-copy small {
+  color: var(--app-text-soft);
   font-size: 12px;
-  font-weight: 800;
-}
-
-.nav-text,
-.student-brand h1,
-.student-brand span,
-.eyebrow,
-.logout-btn {
-  transition: opacity 0.12s ease;
-}
-
-.student-nav a.router-link-active,
-.student-nav button.active {
-  background: #fff;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .logout-btn {
-  margin-top: auto;
-  min-height: 40px;
-  border: none;
-  border-radius: 8px;
-  background: #10283d;
-  color: #fff;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--app-line);
+  border-radius: 16px;
+  background: #ffffff;
+  color: #31445f;
   cursor: pointer;
 }
 
-.student-main {
+.console-main {
   min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
-@media (max-width: 900px) {
-  .student-shell {
+.console-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px 0;
+}
+
+.topbar-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  color: #405571;
+}
+
+.bell-dot {
+  color: #8193a8;
+  font-size: 20px;
+}
+
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #eef2f7;
+  color: #66788b;
+  font-weight: 600;
+}
+
+.student-avatar {
+  background: #eef4ff;
+  color: #476fcb;
+}
+
+.console-content {
+  min-width: 0;
+  padding: 18px 28px 28px;
+}
+
+.console-shell.collapsed {
+  grid-template-columns: 82px minmax(0, 1fr);
+}
+
+.console-shell.collapsed .console-sidebar {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.console-shell.collapsed .console-brand h1,
+.console-shell.collapsed .console-brand p:last-child,
+.console-shell.collapsed .brand-eyebrow,
+.console-shell.collapsed .nav-copy,
+.console-shell.collapsed .logout-btn {
+  display: none;
+}
+
+.console-shell.collapsed .console-nav a {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.console-shell.collapsed .console-sidebar:hover {
+  width: 262px;
+  z-index: 20;
+  box-shadow: var(--app-shadow-strong);
+}
+
+.console-shell.collapsed .console-sidebar:hover .console-brand h1,
+.console-shell.collapsed .console-sidebar:hover .console-brand p:last-child,
+.console-shell.collapsed .console-sidebar:hover .brand-eyebrow,
+.console-shell.collapsed .console-sidebar:hover .nav-copy,
+.console-shell.collapsed .console-sidebar:hover .logout-btn {
+  display: initial;
+}
+
+.console-shell.collapsed .console-sidebar:hover .nav-copy {
+  display: grid;
+}
+
+.console-shell.collapsed .console-sidebar:hover .console-nav a {
+  justify-content: flex-start;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+@media (max-width: 980px) {
+  .console-shell,
+  .console-shell.collapsed {
     grid-template-columns: 1fr;
   }
 
-  .student-shell.collapsed {
-    display: grid;
-    grid-template-columns: 1fr;
-    padding-left: 0;
-  }
-
-  .student-sidebar {
+  .console-sidebar {
     position: static;
-    width: auto;
     height: auto;
-    padding: 14px;
-    gap: 14px;
   }
 
-  .student-shell.collapsed .student-sidebar,
-  .student-shell.collapsed .student-sidebar:hover {
-    position: static;
-    width: auto;
-    padding: 14px;
-    box-shadow: none;
+  .console-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .student-brand {
-    display: none;
+  .console-topbar,
+  .console-content {
+    padding-left: 18px;
+    padding-right: 18px;
   }
+}
 
-  .student-shell.collapsed .nav-text,
-  .student-shell.collapsed .logout-btn {
-    opacity: 1;
-    pointer-events: auto;
+@media (max-width: 640px) {
+  .console-nav {
+    grid-template-columns: 1fr;
   }
-
-  .student-nav {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-  }
-
-  .student-nav a,
-  .student-nav button {
-    white-space: nowrap;
-    flex: 0 0 auto;
-  }
-
-  .logout-btn {
-    margin-top: 0;
-  }
-
 }
 </style>

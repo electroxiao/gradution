@@ -342,7 +342,7 @@ async function scrollToBottom() {
   flex-direction: column;
   min-width: 0;
   height: 100vh;
-  background: #ffffff;
+  background: transparent;
 }
 
 .embedded .chat-stage {
@@ -354,8 +354,7 @@ async function scrollToBottom() {
   align-items: center;
   justify-content: flex-start;
   gap: 16px;
-  padding: 22px 42px 16px;
-  border-bottom: 1px solid #edf2f7;
+  padding: 22px 34px 12px;
   min-width: 0;
 }
 
@@ -365,21 +364,21 @@ async function scrollToBottom() {
 
 .topbar-copy h1 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #14293d;
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--app-text);
 }
 
 .topbar-copy p {
   margin: 6px 0 0;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
 .message-stream {
   flex: 1;
   overflow: auto;
-  padding: 28px 56px 180px;
+  padding: 18px 34px 180px;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #d8e2ee transparent;
@@ -406,7 +405,7 @@ async function scrollToBottom() {
 
 .message-row {
   display: flex;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 
 .assistant-row {
@@ -455,7 +454,7 @@ async function scrollToBottom() {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
@@ -468,25 +467,29 @@ async function scrollToBottom() {
 }
 
 .assistant-body {
+  padding: 18px 20px;
+  border-radius: 24px;
+  border: 1px solid var(--app-line);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--app-shadow);
   color: #1e293b;
-  background: transparent;
 }
 
 .user-body {
-  padding: 12px 16px;
-  border-radius: 18px;
-  background: #f2f5f9;
-  color: #1f2937;
+  padding: 14px 18px;
+  border-radius: 22px;
+  background: var(--app-primary);
+  color: #ffffff;
   text-align: left;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 12px 26px rgba(47, 103, 246, 0.18);
 }
 
 .system-body {
-  padding: 12px 16px;
-  border-radius: 16px;
-  background: #f7f2ff;
-  color: #5b3f93;
-  border: 1px solid #e6dbff;
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: #f8fbff;
+  color: #5b6880;
+  border: 1px solid var(--app-line);
 }
 
 .plain-text {
@@ -497,9 +500,8 @@ async function scrollToBottom() {
 
 .trace-box {
   width: 100%;
-  color: #64748b;
-  border-top: 1px solid #eef2f7;
-  padding-top: 12px;
+  padding: 12px 2px 0;
+  color: var(--app-text-muted);
 }
 
 .trace-box summary {
@@ -520,7 +522,7 @@ async function scrollToBottom() {
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 18px 42px 24px;
+  padding: 18px 34px 24px;
   pointer-events: none;
   z-index: 4;
   min-width: 0;
@@ -538,11 +540,11 @@ async function scrollToBottom() {
 .composer-shell::before {
   content: "";
   position: absolute;
-  right: 42px;
+  right: 34px;
   bottom: 0;
-  left: 42px;
+  left: 34px;
   height: 120px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.94) 34%, rgba(255, 255, 255, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(245, 247, 251, 0) 0%, rgba(245, 247, 251, 0.94) 34%, rgba(245, 247, 251, 0.98) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -556,10 +558,10 @@ async function scrollToBottom() {
   flex-direction: column;
   gap: 12px;
   padding: 16px 18px;
-  border: 1px solid #e3eaf2;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 0 6px 18px rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--app-line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--app-shadow-strong);
   pointer-events: auto;
   box-sizing: border-box;
 }
@@ -570,8 +572,8 @@ async function scrollToBottom() {
 }
 
 .composer-card:focus-within {
-  border-color: #d8e2ee;
-  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.12), 0 10px 26px rgba(37, 99, 235, 0.08);
+  border-color: #bfd0ea;
+  box-shadow: var(--app-shadow-strong);
 }
 
 .composer-card textarea {
@@ -595,7 +597,7 @@ async function scrollToBottom() {
 }
 
 .composer-tip {
-  color: #94a3b8;
+  color: var(--app-text-soft);
   font-size: 12px;
 }
 
@@ -603,7 +605,7 @@ async function scrollToBottom() {
   padding: 10px 18px;
   border: none;
   border-radius: 14px;
-  background: #2563eb;
+  background: var(--app-primary);
   color: #fff;
   cursor: pointer;
 }

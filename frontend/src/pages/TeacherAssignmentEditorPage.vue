@@ -818,9 +818,9 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .page-header h2 {
-  margin: 6px 0 10px;
+  margin: 10px 0 8px;
   color: #0f2840;
-  font-size: 30px;
+  font-size: 32px;
   font-weight: 500;
 }
 
@@ -835,10 +835,10 @@ function handleApiError(error, fallbackMessage) {
 
 .eyebrow {
   margin: 0;
-  color: #5b86b3;
+  color: #6e86a6;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -1332,7 +1332,7 @@ textarea,
 select {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid #d5e1ed;
+  border: 1px solid var(--editor-border);
   border-radius: 16px;
   color: #12263a;
   background: rgba(255, 255, 255, 0.98);
@@ -1424,8 +1424,8 @@ button:hover,
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #14314c, #24557f);
-  border-color: #14314c;
+  background: linear-gradient(135deg, #2f67f6, #6f96ff);
+  border-color: #2f67f6;
   color: #fff;
 }
 

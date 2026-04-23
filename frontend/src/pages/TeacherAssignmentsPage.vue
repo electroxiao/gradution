@@ -125,37 +125,7 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .assignment-page {
-  display: grid;
-  gap: 20px;
-}
-
-.shell-card,
-.feedback {
-  border: 1px solid #e2ebf4;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
-}
-
-.page-header h2 {
-  margin: 6px 0 10px;
-  font-size: 30px;
-  font-weight: 500;
-  color: #0f2840;
-}
-
-.page-copy {
-  margin: 0;
-  color: #6f8297;
-}
-
-.eyebrow {
-  margin: 0;
-  color: #5b86b3;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 22px;
 }
 
 .page-actions {
@@ -163,63 +133,90 @@ function handleApiError(error, fallbackMessage) {
   justify-content: flex-end;
 }
 
+.page-header h2 {
+  margin: 10px 0 8px;
+  color: var(--app-text);
+  font-size: 32px;
+  font-weight: 500;
+}
+
+.page-copy,
+.title-cell p,
+.empty,
+.empty p,
+.summary-item span,
+.metric-item span {
+  color: var(--app-text-muted);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #6e86a6;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.shell-card,
+.feedback {
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
+}
+
 .primary-link,
 .open-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 16px;
+  min-height: 44px;
+  padding: 0 18px;
   border-radius: 14px;
-  color: #fff;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .primary-link {
-  background: #10283d;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+  background: var(--app-primary);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(47, 103, 246, 0.2);
 }
 
 .open-link {
-  border: 1px solid #d4e4f2;
-  background: rgba(237, 246, 255, 0.74);
-  color: #1f5f99;
+  border: 1px solid var(--app-line);
+  background: #fff;
+  color: #31445f;
 }
 
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .summary-item {
   display: grid;
   gap: 8px;
-  padding: 18px;
-}
-
-.summary-item span,
-.metric-item span {
-  color: #6f8297;
-  font-size: 13px;
+  padding: 20px 22px;
 }
 
 .summary-item strong {
-  color: #10283d;
-  font-size: 28px;
+  color: var(--app-text);
+  font-size: 30px;
   font-weight: 500;
 }
 
 .assignment-list {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .assignment-card {
   display: grid;
   gap: 18px;
-  padding: 20px 22px;
+  padding: 22px 24px;
 }
 
 .assignment-card-top {
@@ -235,33 +232,32 @@ function handleApiError(error, fallbackMessage) {
 
 .card-label {
   margin: 0 0 8px;
-  color: #7a95b1;
+  color: #7a90aa;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .title-cell strong {
   display: block;
-  color: #10283d;
-  font-size: 22px;
+  color: var(--app-text);
+  font-size: 24px;
   font-weight: 500;
 }
 
 .title-cell p {
   margin: 6px 0 0;
-  color: #7b8da0;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .status {
   justify-self: start;
   padding: 7px 12px;
   border-radius: 999px;
-  background: #edf6ff;
-  color: #1f5f99;
+  background: #eef5ff;
+  color: #35639f;
   font-size: 13px;
   font-weight: 500;
 }
@@ -279,20 +275,20 @@ function handleApiError(error, fallbackMessage) {
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .metric-item {
   display: grid;
   gap: 6px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: #f8fbff;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--app-panel-soft);
   border: 1px solid #e6eef7;
 }
 
 .metric-item strong {
-  color: #10283d;
+  color: var(--app-text);
   font-size: 22px;
   font-weight: 500;
 }
@@ -312,11 +308,10 @@ function handleApiError(error, fallbackMessage) {
   justify-items: start;
   gap: 10px;
   padding: 26px;
-  color: #6f8297;
 }
 
 .empty strong {
-  color: #10283d;
+  color: var(--app-text);
   font-size: 20px;
   font-weight: 500;
 }
@@ -331,7 +326,8 @@ function handleApiError(error, fallbackMessage) {
 
 .feedback.error {
   color: #b42318;
-  background: #fff2f2;
+  background: #fff4f4;
+  border-color: #f0d3d3;
 }
 
 @media (max-width: 980px) {

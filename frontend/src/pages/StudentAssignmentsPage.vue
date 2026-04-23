@@ -95,11 +95,7 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .student-page {
-  min-height: 100vh;
-  padding: 28px;
-  display: grid;
   gap: 22px;
-  background: #f7fbff;
 }
 
 .hero {
@@ -110,22 +106,22 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .hero h1 {
-  margin: 8px 0 10px;
-  font-size: 31px;
+  margin: 10px 0 8px;
+  font-size: 32px;
   font-weight: 500;
-  color: #0f2840;
+  color: var(--app-text);
 }
 
 .hero p {
   margin: 0;
-  color: #6f8297;
+  color: var(--app-text-muted);
 }
 
 .eyebrow {
-  color: #5b86b3;
+  color: #6e86a6;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -139,11 +135,11 @@ function handleApiError(error, fallbackMessage) {
 .empty,
 .feedback,
 .summary-row article {
-  padding: 18px;
-  border: 1px solid #e2ebf4;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+  padding: 20px;
+  border: 1px solid var(--app-line);
+  border-radius: 24px;
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .assignment-card {
@@ -154,7 +150,7 @@ function handleApiError(error, fallbackMessage) {
 .summary-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .summary-row article {
@@ -163,26 +159,26 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .summary-row span {
-  color: #6f8297;
+  color: var(--app-text-muted);
 }
 
 .summary-row strong {
-  color: #10283d;
-  font-size: 26px;
+  color: var(--app-text);
+  font-size: 28px;
   font-weight: 500;
 }
 
 .assignment-card h2,
 .empty h2 {
   margin: 0;
-  color: #10283d;
+  color: var(--app-text);
   font-weight: 500;
 }
 
 .assignment-card p,
 .empty p {
   margin: 0;
-  color: #6f8297;
+  color: var(--app-text-muted);
 }
 
 .card-top,
@@ -190,21 +186,21 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  color: #6f8297;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
 .status {
-  padding: 3px 8px;
-  border-radius: 8px;
-  background: #ecfdf3;
-  color: #027a48;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #35639f;
   font-weight: 500;
 }
 
 .status.closed {
-  background: #f2f4f7;
-  color: #475467;
+  background: #f0f2f5;
+  color: #64748b;
 }
 
 .open-link,
@@ -213,10 +209,10 @@ function handleApiError(error, fallbackMessage) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #10283d;
+  min-height: 42px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--app-primary);
   color: #fff;
   border: none;
   font: inherit;
@@ -226,8 +222,8 @@ function handleApiError(error, fallbackMessage) {
 
 .back-link {
   background: #fff;
-  color: #18344f;
-  border: 1px solid #d7e5f3;
+  color: #31445f;
+  border: 1px solid var(--app-line);
 }
 
 .empty-actions {
@@ -238,14 +234,11 @@ function handleApiError(error, fallbackMessage) {
 
 .feedback.error {
   color: #b42318;
-  background: #fff8f8;
+  background: #fff5f5;
+  border-color: #f0d3d3;
 }
 
 @media (max-width: 720px) {
-  .student-page {
-    padding: 16px;
-  }
-
   .hero {
     align-items: stretch;
     flex-direction: column;
