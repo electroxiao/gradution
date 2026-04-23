@@ -111,7 +111,8 @@ function handleApiError(error, fallbackMessage) {
 
 .hero h1 {
   margin: 8px 0 10px;
-  font-size: 38px;
+  font-size: 31px;
+  font-weight: 500;
   color: #0f2840;
 }
 
@@ -168,12 +169,14 @@ function handleApiError(error, fallbackMessage) {
 .summary-row strong {
   color: #10283d;
   font-size: 26px;
+  font-weight: 500;
 }
 
 .assignment-card h2,
 .empty h2 {
   margin: 0;
   color: #10283d;
+  font-weight: 500;
 }
 
 .assignment-card p,
@@ -196,6 +199,7 @@ function handleApiError(error, fallbackMessage) {
   border-radius: 8px;
   background: #ecfdf3;
   color: #027a48;
+  font-weight: 500;
 }
 
 .status.closed {

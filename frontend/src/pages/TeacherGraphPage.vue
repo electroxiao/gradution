@@ -1117,7 +1117,8 @@ function handleApiError(error, fallbackMessage) {
 
 .page-header h2 {
   margin: 8px 0 10px;
-  font-size: 34px;
+  font-size: 30px;
+  font-weight: 500;
   color: #0f2840;
 }
 

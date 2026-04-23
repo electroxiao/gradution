@@ -1,13 +1,16 @@
 <template>
   <section class="assignment-page">
-    <header class="page-toolbar shell-card">
+    <header class="page-header">
       <div>
         <p class="eyebrow">Assignments</p>
         <h2>作业管理</h2>
-        <p>统一管理作业发布、题目配置与学生完成情况。</p>
+        <p class="page-copy">统一管理作业发布、题目配置与学生完成情况。</p>
       </div>
-      <router-link class="primary-link" to="/teacher/assignments/new">新建作业</router-link>
     </header>
+
+    <div class="page-actions">
+      <router-link class="primary-link" to="/teacher/assignments/new">新建作业</router-link>
+    </div>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
@@ -128,28 +131,20 @@ function handleApiError(error, fallbackMessage) {
 
 .shell-card,
 .feedback {
-  border: 1px solid #dbe4f0;
-  border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e2ebf4;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
 }
 
-.page-toolbar {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  padding: 20px 22px;
-}
-
-.page-toolbar h2 {
+.page-header h2 {
   margin: 6px 0 10px;
-  font-size: 32px;
+  font-size: 30px;
+  font-weight: 500;
   color: #0f2840;
 }
 
-.page-toolbar p {
+.page-copy {
   margin: 0;
   color: #6f8297;
 }
@@ -161,6 +156,11 @@ function handleApiError(error, fallbackMessage) {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .primary-link,
@@ -178,7 +178,7 @@ function handleApiError(error, fallbackMessage) {
 
 .primary-link {
   background: #10283d;
-  box-shadow: 0 14px 30px rgba(16, 40, 61, 0.14);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
 }
 
 .open-link {
@@ -208,6 +208,7 @@ function handleApiError(error, fallbackMessage) {
 .summary-item strong {
   color: #10283d;
   font-size: 28px;
+  font-weight: 500;
 }
 
 .assignment-list {
@@ -236,7 +237,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 0 0 8px;
   color: #7a95b1;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -245,6 +246,7 @@ function handleApiError(error, fallbackMessage) {
   display: block;
   color: #10283d;
   font-size: 22px;
+  font-weight: 500;
 }
 
 .title-cell p {
@@ -261,7 +263,7 @@ function handleApiError(error, fallbackMessage) {
   background: #edf6ff;
   color: #1f5f99;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .status.published {
@@ -285,13 +287,14 @@ function handleApiError(error, fallbackMessage) {
   gap: 6px;
   padding: 14px 16px;
   border-radius: 16px;
-  background: rgba(239, 246, 255, 0.72);
-  border: 1px solid #deebf7;
+  background: #f8fbff;
+  border: 1px solid #e6eef7;
 }
 
 .metric-item strong {
   color: #10283d;
   font-size: 22px;
+  font-weight: 500;
 }
 
 .action-cell {
@@ -315,6 +318,7 @@ function handleApiError(error, fallbackMessage) {
 .empty strong {
   color: #10283d;
   font-size: 20px;
+  font-weight: 500;
 }
 
 .empty p {
@@ -338,7 +342,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 640px) {
-  .page-toolbar,
+  .page-actions,
   .assignment-card-top,
   .action-cell,
   .summary-row,

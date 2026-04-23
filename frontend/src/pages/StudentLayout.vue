@@ -114,7 +114,8 @@ function logout() {
 .student-brand h1 {
   margin: 8px 0 6px;
   color: #10283d;
-  font-size: 28px;
+  font-size: 25px;
+  font-weight: 500;
 }
 
 .student-brand span,

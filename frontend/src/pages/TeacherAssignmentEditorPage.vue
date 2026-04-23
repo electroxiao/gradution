@@ -1,30 +1,43 @@
 <template>
   <section class="editor-page">
-    <header class="editor-toolbar shell-card">
+    <header class="page-header">
       <div>
         <p class="eyebrow">Assignment Studio</p>
         <h2>{{ isNew ? "新建作业" : "编辑作业" }}</h2>
-        <p>AI 默认参与判题，测试用例按题目需要启用。</p>
-      </div>
-      <div class="toolbar-actions">
-        <router-link class="secondary-link" to="/teacher/assignments">返回列表</router-link>
-        <router-link
-          v-if="!isNew"
-          class="secondary-link"
-          :to="`/teacher/assignments/${assignmentId}/progress`"
-        >
-          完成情况
-        </router-link>
-        <button type="button" class="primary-btn" :disabled="saving" @click="saveAssignment">
-          {{ saving ? "保存中..." : "保存作业" }}
-        </button>
+        <p class="page-copy">AI 默认参与判题，测试用例按题目需要启用。</p>
       </div>
     </header>
+
+    <div class="toolbar-actions">
+      <router-link class="secondary-link" to="/teacher/assignments">返回列表</router-link>
+      <router-link
+        v-if="!isNew"
+        class="secondary-link"
+        :to="`/teacher/assignments/${assignmentId}/progress`"
+      >
+        完成情况
+      </router-link>
+      <button type="button" class="primary-btn" :disabled="saving" @click="saveAssignment">
+        {{ saving ? "保存中..." : "保存作业" }}
+      </button>
+    </div>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
 
     <section class="assignment-meta shell-card">
+      <div class="meta-banner">
+        <div class="meta-banner-copy">
+          <p class="meta-kicker">Assignment Blueprint</p>
+          <h3>作业基础信息</h3>
+          <p>先确定标题、状态和说明，再继续配置题目、知识点和 AI 判题规则。</p>
+        </div>
+        <div class="meta-glance">
+          <span class="meta-chip">{{ form.questions.length }} 题</span>
+          <span class="meta-chip">{{ form.student_ids.length }} 名学生</span>
+          <span class="meta-chip status">{{ assignmentStatusText(form.status) }}</span>
+        </div>
+      </div>
       <label class="title-field">
         作业标题
         <input v-model="form.title" placeholder="例如：JDBC 事务与资源释放练习" />
@@ -83,15 +96,27 @@
               </div>
             </div>
             <div class="question-tab-actions">
-              <button type="button" :disabled="qIndex === 0" @click.stop="moveQuestion(qIndex, -1)">↑</button>
               <button
                 type="button"
+                class="icon-action"
+                title="上移题目"
+                :disabled="qIndex === 0"
+                @click.stop="moveQuestion(qIndex, -1)"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                class="icon-action"
+                title="下移题目"
                 :disabled="qIndex === form.questions.length - 1"
                 @click.stop="moveQuestion(qIndex, 1)"
               >
                 ↓
               </button>
-              <button type="button" @click.stop="removeQuestion(qIndex)">删</button>
+              <button type="button" class="icon-action danger-action" title="删除题目" @click.stop="removeQuestion(qIndex)">
+                ×
+              </button>
             </div>
           </article>
         </section>
@@ -739,6 +764,10 @@ function reviewLevelText(value) {
   return value === "deep" ? "深审查" : "轻审查";
 }
 
+function assignmentStatusText(value) {
+  return { draft: "草稿", published: "发布中", closed: "已关闭" }[value] || value;
+}
+
 function canGenerateFocus(question) {
   return Boolean(question?.prompt?.trim());
 }
@@ -760,17 +789,22 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .editor-page {
+  --editor-accent: #2b6cb0;
+  --editor-accent-soft: #edf4ff;
+  --editor-border: #dfe8f2;
+  --editor-surface: rgba(255, 255, 255, 0.94);
+  --editor-text: #10283d;
+  --editor-muted: #6f8297;
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .shell-card,
 .feedback {
-  border: 1px solid #dbe4f0;
-  border-radius: 20px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--editor-border);
+  border-radius: 28px;
+  background: var(--editor-surface);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
 }
 
 .editor-toolbar,
@@ -783,46 +817,139 @@ function handleApiError(error, fallbackMessage) {
   gap: 12px;
 }
 
-.editor-toolbar {
-  justify-content: space-between;
-  padding: 18px 20px;
+.page-header h2 {
+  margin: 6px 0 10px;
+  color: #0f2840;
+  font-size: 30px;
+  font-weight: 500;
 }
 
-.editor-toolbar h2 {
-  margin: 6px 0;
-  color: #0f2740;
-  font-size: clamp(28px, 3vw, 36px);
-}
-
-.editor-toolbar p,
+.page-copy,
 .panel-title p,
 .card-heading p,
 .helper-text,
 .empty-editor p {
   margin: 0;
-  color: #66788a;
+  color: var(--editor-muted);
 }
 
 .eyebrow {
   margin: 0;
-  color: #1e63a7;
+  color: #5b86b3;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.toolbar-actions {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  padding: 8px;
+  border: 1px solid var(--editor-border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
 }
 
 .assignment-meta {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 180px minmax(360px, 1.3fr);
-  gap: 14px;
-  padding: 18px 20px;
+  grid-template-columns: minmax(240px, 1.1fr) 180px minmax(360px, 1.25fr);
+  gap: 16px;
+  padding: 22px;
+  overflow: hidden;
+  position: relative;
+}
+
+.assignment-meta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(67, 123, 194, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(244, 249, 255, 0.66), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.meta-banner {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.meta-banner-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.meta-kicker {
+  margin: 0;
+  color: var(--editor-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.meta-banner-copy h3 {
+  margin: 0;
+  color: var(--editor-text);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.meta-banner-copy p {
+  margin: 0;
+  max-width: 640px;
+  color: var(--editor-muted);
+  line-height: 1.7;
+}
+
+.meta-glance {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #d8e6f5;
+  background: rgba(255, 255, 255, 0.88);
+  color: #49657f;
+  font-size: 13px;
+}
+
+.meta-chip.status {
+  border-color: #cfe0f2;
+  background: var(--editor-accent-soft);
+  color: var(--editor-accent);
+}
+
+.assignment-meta > label {
+  position: relative;
+  z-index: 1;
+  padding: 16px 18px;
+  border: 1px solid #e6edf6;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .editor-workbench {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
 }
 
@@ -830,7 +957,7 @@ function handleApiError(error, fallbackMessage) {
 .editor-main,
 .question-editor {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .editor-sidebar {
@@ -845,7 +972,8 @@ function handleApiError(error, fallbackMessage) {
 .grading-card,
 .testcase-card,
 .empty-editor {
-  padding: 18px;
+  padding: 22px;
+  border: 1px solid #e6edf6;
 }
 
 .panel-title,
@@ -859,7 +987,7 @@ function handleApiError(error, fallbackMessage) {
 .idea-panel h3,
 .question-header h3 {
   margin: 0;
-  color: #10283d;
+  color: var(--editor-text);
 }
 
 .student-grid {
@@ -874,22 +1002,27 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(241, 247, 253, 0.95);
+  padding: 11px 13px;
+  border: 1px solid #e7eef7;
+  border-radius: 16px;
+  background: #fbfdff;
 }
 
 .question-index {
   gap: 12px;
 }
 
+.question-index .panel-title {
+  align-items: flex-start;
+}
+
 .question-tab {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid #d9e3ef;
-  border-radius: 16px;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #deebf7;
+  border-radius: 18px;
   background: #fff;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
@@ -898,17 +1031,18 @@ function handleApiError(error, fallbackMessage) {
 .question-tab:hover {
   transform: translateY(-1px);
   border-color: #b7d2ec;
-  box-shadow: 0 10px 24px rgba(30, 99, 167, 0.09);
+  box-shadow: 0 14px 28px rgba(30, 99, 167, 0.08);
 }
 
 .question-tab.active {
   border-color: #8cbce7;
-  background: linear-gradient(180deg, #f8fbff, #eef6ff);
+  background: linear-gradient(180deg, #fbfdff, #f1f7ff);
+  box-shadow: inset 0 0 0 1px rgba(140, 188, 231, 0.22);
 }
 
 .question-tab-copy {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -918,7 +1052,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .question-tab-copy strong {
-  color: #10283d;
+  color: var(--editor-text);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -938,9 +1073,9 @@ function handleApiError(error, fallbackMessage) {
   padding: 0 10px;
   border-radius: 999px;
   background: #eaf4ff;
-  color: #1e63a7;
+  color: var(--editor-accent);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .badge.subtle {
@@ -949,18 +1084,56 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .status-chip {
-  background: linear-gradient(135deg, #163552, #1f5f99);
+  background: linear-gradient(135deg, #143450, #285f90);
   color: #fff;
 }
 
 .question-tab-actions {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.question-tab-actions button {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.icon-action {
+  border-color: #d9e6f4;
+  background: #f8fbff;
+  color: #365879;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.icon-action:hover:not(:disabled) {
+  background: #eef5fd;
+  border-color: #c8dff4;
+}
+
+.danger-action {
+  color: #b42318;
+  background: #fff7f6;
+  border-color: #f3d0cc;
+}
+
+.danger-action:hover:not(:disabled) {
+  background: #fdeceb;
+  border-color: #efc0ba;
 }
 
 .idea-panel {
   display: grid;
   gap: 14px;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(64, 136, 222, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(255, 255, 255, 0.94));
 }
 
 .idea-fields,
@@ -981,8 +1154,8 @@ function handleApiError(error, fallbackMessage) {
 
 .question-header {
   background:
-    radial-gradient(circle at top left, rgba(30, 99, 167, 0.12), transparent 45%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 253, 0.96));
+    linear-gradient(135deg, rgba(247, 251, 255, 0.98), rgba(255, 255, 255, 0.92));
+  border-color: #dbe8f5;
 }
 
 .review-level-switch {
@@ -995,8 +1168,8 @@ function handleApiError(error, fallbackMessage) {
   gap: 6px;
   min-height: 108px;
   padding: 16px;
-  border: 1px solid #d8e3ef;
-  border-radius: 18px;
+  border: 1px solid #dbe7f3;
+  border-radius: 20px;
   background: #fff;
   color: #163552;
 }
@@ -1007,7 +1180,7 @@ function handleApiError(error, fallbackMessage) {
 
 .level-btn.active {
   border-color: #79b0e1;
-  background: linear-gradient(180deg, #f6fbff, #ebf5ff);
+  background: #f6fbff;
   box-shadow: inset 0 0 0 1px rgba(121, 176, 225, 0.18);
 }
 
@@ -1021,10 +1194,10 @@ function handleApiError(error, fallbackMessage) {
 .knowledge-card {
   display: grid;
   gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
-  background: rgba(248, 251, 255, 0.72);
-  border: 1px solid #dbe4f0;
+  padding: 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f9fbfe, #f4f8fd);
+  border: 1px solid #dde8f3;
 }
 
 .compact-heading {
@@ -1078,6 +1251,8 @@ function handleApiError(error, fallbackMessage) {
   gap: 5px;
   padding: 10px 12px;
   text-align: left;
+  justify-items: start;
+  justify-content: start;
   border: 1px solid #deebf7;
   border-radius: 14px;
   background: #fff;
@@ -1104,7 +1279,7 @@ function handleApiError(error, fallbackMessage) {
   gap: 8px;
   align-items: flex-start;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 16px;
   background: #fff;
   border: 1px solid #deebf7;
   color: #234462;
@@ -1134,8 +1309,9 @@ function handleApiError(error, fallbackMessage) {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 999px;
-  background: #f3f7fb;
-  font-weight: 700;
+  border: 1px solid #e1ebf5;
+  background: #f8fbff;
+  font-weight: 500;
 }
 
 .switch input,
@@ -1155,12 +1331,21 @@ input,
 textarea,
 select {
   width: 100%;
-  padding: 11px 13px;
+  padding: 12px 14px;
   border: 1px solid #d5e1ed;
-  border-radius: 14px;
+  border-radius: 16px;
   color: #12263a;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.98);
   font: inherit;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #8cbce7;
+  box-shadow: 0 0 0 4px rgba(122, 176, 244, 0.14);
 }
 
 textarea {
@@ -1182,7 +1367,7 @@ textarea {
 
 .case-table {
   border: 1px solid #dbe4f0;
-  border-radius: 18px;
+  border-radius: 22px;
   overflow: hidden;
   background: #fff;
 }
@@ -1200,7 +1385,7 @@ textarea {
   background: #f5f9fd;
   color: #6a7d90;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .case-row {
@@ -1223,7 +1408,7 @@ button,
   min-height: 42px;
   padding: 0 14px;
   border: 1px solid #d5e1ed;
-  border-radius: 14px;
+  border-radius: 16px;
   background: #fff;
   color: #18344f;
   cursor: pointer;
@@ -1239,8 +1424,8 @@ button:hover,
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #163552, #1f5f99);
-  border-color: #163552;
+  background: linear-gradient(135deg, #14314c, #24557f);
+  border-color: #14314c;
   color: #fff;
 }
 
@@ -1269,8 +1454,9 @@ button:disabled {
 }
 
 .empty-editor strong {
-  color: #10283d;
+  color: var(--editor-text);
   font-size: 22px;
+  font-weight: 500;
 }
 
 .feedback {
@@ -1308,13 +1494,20 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .meta-banner {
+    display: grid;
+  }
+
+  .meta-glance {
+    justify-content: flex-start;
+  }
+
   .editor-sidebar {
     position: static;
   }
 }
 
 @media (max-width: 760px) {
-  .editor-toolbar,
   .toolbar-actions,
   .card-heading,
   .panel-title,

@@ -79,7 +79,8 @@ function logout() {
 .teacher-brand h1 {
   margin: 8px 0 6px;
   color: #0f2840;
-  font-size: 30px;
+  font-size: 27px;
+  font-weight: 500;
 }
 
 .teacher-brand span,

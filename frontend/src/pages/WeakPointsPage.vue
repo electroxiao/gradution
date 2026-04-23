@@ -485,9 +485,7 @@ function handleApiError(error, fallbackMessage) {
 .weak-page {
   min-height: 100vh;
   padding: 36px 40px 48px;
-  background:
-    radial-gradient(circle at top left, rgba(220, 237, 255, 0.9) 0%, rgba(255, 255, 255, 0) 24%),
-    linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  background: #f8fbff;
 }
 
 .hero {
@@ -509,7 +507,8 @@ function handleApiError(error, fallbackMessage) {
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(28px, 4vw, 40px);
+  font-size: clamp(27px, 3.4vw, 34px);
+  font-weight: 500;
   line-height: 1.05;
   color: #10283d;
 }
@@ -557,7 +556,7 @@ function handleApiError(error, fallbackMessage) {
   margin-top: 8px;
   color: #12324a;
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .summary-card.muted strong {
@@ -608,7 +607,8 @@ function handleApiError(error, fallbackMessage) {
 .section-title {
   margin: 0;
   color: #10283d;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 500;
 }
 
 .legend {
@@ -704,6 +704,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 6px 0 0;
   color: #10283d;
   font-size: 22px;
+  font-weight: 500;
 }
 
 .recommendation-eyebrow {
@@ -740,7 +741,7 @@ function handleApiError(error, fallbackMessage) {
 .recommendation-label {
   color: #6d8094;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -776,6 +777,7 @@ function handleApiError(error, fallbackMessage) {
   display: block;
   color: #12324a;
   margin-bottom: 6px;
+  font-weight: 500;
 }
 
 .recommendation-list p,
@@ -797,6 +799,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 0;
   font-size: 16px;
   color: #10283d;
+  font-weight: 500;
 }
 
 .close-btn {
@@ -837,7 +840,7 @@ function handleApiError(error, fallbackMessage) {
   background: #fef3c7;
   color: #f59e0b;
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .intro-text {
@@ -849,6 +852,7 @@ function handleApiError(error, fallbackMessage) {
 
 .intro-text strong {
   color: #ef4444;
+  font-weight: 500;
 }
 
 .intro-actions {
@@ -919,7 +923,7 @@ function handleApiError(error, fallbackMessage) {
   background: #edf5ff;
   color: #34699a;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .quiz-node {
@@ -933,7 +937,7 @@ function handleApiError(error, fallbackMessage) {
   background: #f3e8ff;
   color: #7c3aed;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .quiz-question {
@@ -989,7 +993,7 @@ function handleApiError(error, fallbackMessage) {
   height: 56px;
   border-radius: 50%;
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 500;
   margin-bottom: 12px;
 }
 
@@ -1007,6 +1011,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 0 0 16px;
   color: #10283d;
   font-size: 18px;
+  font-weight: 500;
 }
 
 .result-feedback {
@@ -1034,7 +1039,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 22px;
   border: 1px solid #e3ebf3;
   border-radius: 26px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, #f9fbfd 100%);
+  background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -1062,7 +1067,7 @@ function handleApiError(error, fallbackMessage) {
   background: #edf5ff;
   color: #34699a;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .weak-time,
@@ -1075,6 +1080,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 18px 0 10px;
   color: #10283d;
   font-size: 24px;
+  font-weight: 500;
 }
 
 .weak-caption {
@@ -1100,6 +1106,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 0 0 6px;
   color: #10283d;
   font-size: 22px;
+  font-weight: 500;
 }
 
 .history-header p {
@@ -1137,7 +1144,7 @@ function handleApiError(error, fallbackMessage) {
   background: #e8f8ee;
   color: #20854e;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .history-time {
@@ -1149,6 +1156,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 16px 0 10px;
   color: #10283d;
   font-size: 20px;
+  font-weight: 500;
 }
 
 .empty-state {
@@ -1157,7 +1165,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 64px 24px;
   border: 1px solid #e7eef6;
   border-radius: 28px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+  background: #ffffff;
   text-align: center;
 }
 
@@ -1168,14 +1176,16 @@ function handleApiError(error, fallbackMessage) {
   width: 180px;
   height: 180px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(181, 214, 255, 0.35) 0%, rgba(181, 214, 255, 0) 70%);
+  background: rgba(181, 214, 255, 0.2);
   transform: translateX(-50%);
+  filter: blur(16px);
 }
 
 .empty-state h2 {
   position: relative;
   margin: 0 0 12px;
   color: #10283d;
+  font-weight: 500;
 }
 
 .empty-state p {

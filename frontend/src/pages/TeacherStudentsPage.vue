@@ -160,7 +160,8 @@ function handleApiError(error, fallbackMessage) {
 
 .page-header h2 {
   margin: 8px 0 10px;
-  font-size: 34px;
+  font-size: 30px;
+  font-weight: 500;
   color: #0f2840;
 }
 
@@ -213,6 +214,7 @@ function handleApiError(error, fallbackMessage) {
 
 .student-item strong {
   color: #15314a;
+  font-weight: 500;
 }
 
 .student-item span {
@@ -232,7 +234,8 @@ function handleApiError(error, fallbackMessage) {
 
 .detail-header h3 {
   margin: 0;
-  font-size: 26px;
+  font-size: 23px;
+  font-weight: 500;
   color: #10283d;
 }
 
@@ -258,7 +261,8 @@ function handleApiError(error, fallbackMessage) {
 .section-head h4 {
   margin: 0;
   color: #15314a;
-  font-size: 18px;
+  font-size: 17px;
+  font-weight: 500;
 }
 
 .weak-cards,
@@ -282,6 +286,7 @@ function handleApiError(error, fallbackMessage) {
 .mastery-card strong {
   display: block;
   color: #16314a;
+  font-weight: 500;
 }
 
 .mastery-card {
@@ -315,7 +320,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .status-pill.weak {

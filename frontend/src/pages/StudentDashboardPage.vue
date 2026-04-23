@@ -180,7 +180,8 @@ function handleApiError(error, fallbackMessage, target) {
 .dashboard-hero h1 {
   margin: 6px 0 8px;
   color: #10283d;
-  font-size: 36px;
+  font-size: 31px;
+  font-weight: 500;
 }
 
 .dashboard-hero p,
@@ -228,6 +229,11 @@ function handleApiError(error, fallbackMessage, target) {
 .empty-state h3 {
   margin: 0;
   color: #10283d;
+}
+
+.panel h2 {
+  font-size: 25px;
+  font-weight: 500;
 }
 
 .panel-header a,
