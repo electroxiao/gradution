@@ -6,6 +6,7 @@ from backend.models.user import User
 from backend.schemas.teacher import (
     GraphEdgeCreateRequest,
     GraphEdgeUpdateRequest,
+    GraphNodeDescriptionGenerateRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
     PendingBatchApproveRequest,
@@ -13,10 +14,11 @@ from backend.schemas.teacher import (
 )
 from backend.services.teacher_service import (
     approve_pending_graph_batch,
-    create_graph_edge,
-    create_graph_node,
+    create_graph_edge_with_db_sync,
+    create_graph_node_with_db_sync,
     delete_graph_edge,
     delete_graph_node,
+    generate_graph_node_description,
     get_graph,
     get_pending_graph_batch_detail,
     get_weak_point_dashboard,
@@ -82,9 +84,18 @@ def reject_pending_batch(
 @router.post("/graph/nodes")
 def post_graph_node(
     payload: GraphNodeCreateRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return create_graph_node(payload)
+    return create_graph_node_with_db_sync(db, payload)
+
+
+@router.post("/graph/nodes/generate-description")
+def post_graph_node_description(
+    payload: GraphNodeDescriptionGenerateRequest,
+    current_user: User = Depends(get_current_teacher),
+):
+    return generate_graph_node_description(payload.name)
 
 
 @router.patch("/graph/nodes/{node_name}")
@@ -107,9 +118,10 @@ def remove_graph_node(
 @router.post("/graph/edges")
 def post_graph_edge(
     payload: GraphEdgeCreateRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return create_graph_edge(payload)
+    return create_graph_edge_with_db_sync(db, payload)
 
 
 @router.patch("/graph/edges/{edge_id:path}")

@@ -23,6 +23,7 @@ from backend.schemas.teacher import (
     TeacherStudentWeakPointResponse,
 )
 from backend.services.chat_service import get_neo4j_driver
+from backend.services.chat_service import get_openai_client
 from backend.services.pending_batch_service import (
     approve_pending_batch,
     get_pending_batch_detail,
@@ -495,10 +496,13 @@ def reject_pending_graph_batch(
 
 def create_graph_node(payload: GraphNodeCreateRequest) -> dict:
     driver = get_neo4j_driver()
+    name = payload.name.strip()
+    desc = payload.desc.strip()
+    node_type = (payload.node_type or "").strip()
     with driver.session(database=settings.neo4j_db_name) as session:
         existing = session.run(
             "MATCH (n:Knowledge {name: $name}) RETURN n.name AS name LIMIT 1",
-            name=payload.name.strip(),
+            name=name,
         ).single()
         if existing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Node already exists")
@@ -507,11 +511,21 @@ def create_graph_node(payload: GraphNodeCreateRequest) -> dict:
             """
             CREATE (n:Knowledge {name: $name, desc: $desc, node_type: $node_type})
             """,
-            name=payload.name.strip(),
-            desc=payload.desc.strip(),
-            node_type=(payload.node_type or "").strip(),
+            name=name,
+            desc=desc,
+            node_type=node_type,
         )
     return {"ok": True}
+
+
+def create_graph_node_with_db_sync(db: Session | None, payload: GraphNodeCreateRequest) -> dict:
+    result = create_graph_node(payload)
+    if db is not None:
+        _ensure_knowledge_nodes(
+            db,
+            [{"node_name": payload.name.strip(), "node_type": (payload.node_type or "").strip(), "relevance_score": 0}],
+        )
+    return result
 
 
 def update_graph_node(node_name: str, payload: GraphNodeUpdateRequest) -> dict:
@@ -563,19 +577,39 @@ def delete_graph_node(node_name: str) -> dict:
 def create_graph_edge(payload: GraphEdgeCreateRequest) -> dict:
     relation = _normalize_relation(payload.relation)
     driver = get_neo4j_driver()
+    source_name = payload.source.strip()
+    target_name = payload.target.strip()
+    created_nodes: list[dict] = []
     with driver.session(database=settings.neo4j_db_name) as session:
-        _ensure_node_exists(session, payload.source.strip())
-        _ensure_node_exists(session, payload.target.strip())
+        created_nodes.extend(_ensure_node_exists_or_create(session, source_name))
+        created_nodes.extend(_ensure_node_exists_or_create(session, target_name))
         session.run(
             f"""
             MATCH (src:Knowledge {{name: $source}})
             MATCH (tgt:Knowledge {{name: $target}})
             MERGE (src)-[r:{relation}]->(tgt)
             """,
-            source=payload.source.strip(),
-            target=payload.target.strip(),
+            source=source_name,
+            target=target_name,
         )
-    return {"ok": True}
+    return {"ok": True, "created_nodes": created_nodes}
+
+
+def create_graph_edge_with_db_sync(db: Session | None, payload: GraphEdgeCreateRequest) -> dict:
+    result = create_graph_edge(payload)
+    if db is not None and result.get("created_nodes"):
+        _ensure_knowledge_nodes(
+            db,
+            [
+                {
+                    "node_name": item["name"],
+                    "node_type": "",
+                    "relevance_score": 0,
+                }
+                for item in result["created_nodes"]
+            ],
+        )
+    return result
 
 
 def update_graph_edge(edge_id: str, payload: GraphEdgeUpdateRequest) -> dict:
@@ -621,6 +655,63 @@ def _ensure_node_exists(session, node_name: str) -> None:
     ).single()
     if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Node not found: {node_name}")
+
+
+def _ensure_node_exists_or_create(session, node_name: str) -> list[dict]:
+    normalized = node_name.strip()
+    row = session.run(
+        "MATCH (n:Knowledge {name: $name}) RETURN n.name AS name LIMIT 1",
+        name=normalized,
+    ).single()
+    if row:
+        return []
+    generated_desc = _generate_graph_node_description_text(normalized)
+    session.run(
+        """
+        CREATE (n:Knowledge {name: $name, desc: $desc, node_type: ""})
+        """,
+        name=normalized,
+        desc=generated_desc,
+    )
+    return [{"name": normalized, "desc_generated": bool(generated_desc)}]
+
+
+def _generate_graph_node_description_text(node_name: str) -> str:
+    try:
+        return str(generate_graph_node_description(node_name).get("desc") or "").strip()
+    except HTTPException:
+        return ""
+
+
+def generate_graph_node_description(node_name: str) -> dict:
+    normalized = node_name.strip()
+    if not normalized:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Node name is required")
+
+    prompt = f"""
+你是一名 Java 教学知识图谱编辑助手。请根据知识点名称生成一段简洁、准确、适合教学管理页展示的描述。
+
+知识点名称：{normalized}
+
+要求：
+1. 用中文输出。
+2. 1 到 2 句话，控制在 40 到 90 字。
+3. 优先解释“这是什么”和“它通常用来解决什么问题”。
+4. 不要使用列表，不要输出标题，不要加引号。
+"""
+    client = get_openai_client()
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        if not content:
+            raise ValueError("empty response")
+        return {"desc": content}
+    except Exception as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"生成节点描述失败：{error}") from error
 
 
 def _normalize_relation(relation: str) -> str:

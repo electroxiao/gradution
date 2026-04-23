@@ -93,6 +93,24 @@
             <button @click="startCreateNode">新增节点</button>
             <button @click="startCreateEdge">新增关系</button>
           </div>
+          <div v-if="autoCreatedNodes.length" class="auto-created-panel">
+            <div class="panel-head sub-head">
+              <h4>刚自动创建</h4>
+              <span>{{ autoCreatedNodes.length }} 个节点</span>
+            </div>
+            <div class="auto-created-list">
+              <button
+                v-for="node in autoCreatedNodes"
+                :key="node.id"
+                type="button"
+                :class="['auto-created-chip', { active: selectedNodeId === node.id }]"
+                @click="focusAutoCreatedNode(node.id)"
+              >
+                <strong>{{ node.name }}</strong>
+                <small>{{ node.desc ? "已生成描述" : "描述待补充" }}</small>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="panel-card detail-card">
@@ -366,6 +384,7 @@
     <div v-if="isCreatingNode" class="modal-overlay" @click.self="cancelCreateNode">
       <div class="modal-card">
         <h3>新增节点</h3>
+        <p v-if="nodeDialogMessage" class="modal-feedback">{{ nodeDialogMessage }}</p>
         <div class="detail-body">
           <label>
             节点名
@@ -375,6 +394,11 @@
             描述
             <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述" @keydown.ctrl.enter.prevent="submitNode"></textarea>
           </label>
+          <div class="edge-quick-actions">
+            <button class="ghost" type="button" :disabled="isGeneratingNodeDesc" @click="generateNodeDescription">
+              {{ isGeneratingNodeDesc ? "生成中..." : "AI 生成描述" }}
+            </button>
+          </div>
           <div class="detail-actions">
             <button class="ghost" @click="cancelCreateNode">取消</button>
             <button @click="submitNode">确认创建</button>
@@ -386,6 +410,7 @@
     <div v-if="isCreatingEdge" class="modal-overlay" @click.self="cancelCreateEdge">
       <div class="modal-card">
         <h3>新增关系</h3>
+        <p v-if="edgeDialogMessage" class="modal-feedback">{{ edgeDialogMessage }}</p>
         <div class="detail-body">
           <label>
             起点
@@ -462,6 +487,7 @@ import {
   createTeacherNodeApi,
   deleteTeacherEdgeApi,
   deleteTeacherNodeApi,
+  generateTeacherNodeDescriptionApi,
   getPendingTeacherBatchDetailApi,
   getTeacherGraphApi,
   listPendingTeacherBatchesApi,
@@ -500,6 +526,10 @@ const reviewCanvas = ref(null);
 
 const isCreatingNode = ref(false);
 const isCreatingEdge = ref(false);
+const isGeneratingNodeDesc = ref(false);
+const nodeDialogMessage = ref("");
+const edgeDialogMessage = ref("");
+const autoCreatedNodeNames = ref([]);
 
 const nodeForm = reactive({ name: "", desc: "" });
 const edgeForm = reactive({ source: "", relation: "DEPENDS_ON", target: "" });
@@ -510,6 +540,11 @@ const showEdgeNodeDropdown = reactive({ source: false, target: false });
 
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value) || null);
 const selectedEdge = computed(() => graph.value.edges.find((edge) => edge.id === selectedEdgeId.value) || null);
+const autoCreatedNodes = computed(() =>
+  autoCreatedNodeNames.value
+    .map((name) => graph.value.nodes.find((node) => node.name === name))
+    .filter(Boolean),
+);
 // The review canvas reuses the shared graph component, so pending-batch detail
 // is normalized into the same node/edge shape as the formal graph here.
 const reviewGraph = computed(() => ({
@@ -733,10 +768,12 @@ function startCreateNode() {
   isCreatingNode.value = true;
   nodeForm.name = "";
   nodeForm.desc = "";
+  nodeDialogMessage.value = "";
 }
 
 function cancelCreateNode() {
   isCreatingNode.value = false;
+  nodeDialogMessage.value = "";
 }
 
 function startCreateEdge() {
@@ -746,19 +783,26 @@ function startCreateEdge() {
   edgeForm.relation = "DEPENDS_ON";
   showEdgeNodeDropdown.source = false;
   showEdgeNodeDropdown.target = false;
+  edgeDialogMessage.value = "";
 }
 
 function cancelCreateEdge() {
   isCreatingEdge.value = false;
+  edgeDialogMessage.value = "";
 }
 
 async function submitNode() {
   if (!nodeForm.name.trim()) {
-    errorMessage.value = "节点名不能为空";
+    if (isCreatingNode.value) {
+      nodeDialogMessage.value = "节点名不能为空";
+    } else {
+      errorMessage.value = "节点名不能为空";
+    }
     return;
   }
   const targetName = nodeForm.name.trim();
   try {
+    nodeDialogMessage.value = "";
     if (isCreatingNode.value) {
       await createTeacherNodeApi({ ...nodeForm });
       isCreatingNode.value = false;
@@ -773,25 +817,46 @@ async function submitNode() {
       graphCanvas.value?.focusNodes?.([nextNode.id]);
     }
   } catch (error) {
-    handleApiError(error, "保存节点失败。");
+    if (isCreatingNode.value) {
+      nodeDialogMessage.value = error?.response?.data?.detail || "保存节点失败。";
+    } else {
+      handleApiError(error, "保存节点失败。");
+    }
   }
 }
 
 async function submitEdge() {
   if (!edgeForm.source.trim() || !edgeForm.target.trim()) {
-    errorMessage.value = "请填写起点和终点";
+    if (isCreatingEdge.value) {
+      edgeDialogMessage.value = "请填写起点和终点";
+    } else {
+      errorMessage.value = "请填写起点和终点";
+    }
     return;
   }
   const sourceName = edgeForm.source.trim();
   const targetName = edgeForm.target.trim();
   try {
+    edgeDialogMessage.value = "";
+    let result = null;
     if (isCreatingEdge.value) {
-      await createTeacherEdgeApi({ ...edgeForm, relation: "DEPENDS_ON" });
-      isCreatingEdge.value = false;
+      const response = await createTeacherEdgeApi({ ...edgeForm, relation: "DEPENDS_ON" });
+      result = response?.data || null;
     } else if (selectedEdge.value) {
       await updateTeacherEdgeApi(selectedEdge.value.edge_key, { ...edgeForm, relation: "DEPENDS_ON" });
     }
     await refreshGraph();
+    if (Array.isArray(result?.created_nodes) && result.created_nodes.length) {
+      autoCreatedNodeNames.value = result.created_nodes.map((item) => item.name);
+      const labels = result.created_nodes.map((item) =>
+        item?.desc_generated ? `${item.name}（已生成描述）` : `${item.name}（描述待补充）`,
+      );
+      edgeDialogMessage.value = `已自动创建节点：${labels.join("、")}`;
+      isCreatingEdge.value = false;
+    } else if (isCreatingEdge.value) {
+      autoCreatedNodeNames.value = [];
+      isCreatingEdge.value = false;
+    }
     const nextEdge = graph.value.edges.find(
       (edge) => edge.source_name === sourceName && edge.target_name === targetName && edge.relation === "DEPENDS_ON",
     );
@@ -800,8 +865,33 @@ async function submitEdge() {
       await nextTick();
       graphCanvas.value?.focusNodes?.([nextEdge.source, nextEdge.target]);
     }
+    if (autoCreatedNodes.value.length) {
+      await focusAutoCreatedNode(autoCreatedNodes.value[0].id);
+    }
   } catch (error) {
-    handleApiError(error, "保存关系失败。");
+    if (isCreatingEdge.value) {
+      edgeDialogMessage.value = error?.response?.data?.detail || "保存关系失败。";
+    } else {
+      handleApiError(error, "保存关系失败。");
+    }
+  }
+}
+
+async function generateNodeDescription() {
+  const name = nodeForm.name.trim();
+  if (!name) {
+    nodeDialogMessage.value = "请先填写节点名，再生成描述。";
+    return;
+  }
+  isGeneratingNodeDesc.value = true;
+  nodeDialogMessage.value = "";
+  try {
+    const { data } = await generateTeacherNodeDescriptionApi({ name });
+    nodeForm.desc = String(data?.desc || "").trim();
+  } catch (error) {
+    nodeDialogMessage.value = error?.response?.data?.detail || "生成节点描述失败。";
+  } finally {
+    isGeneratingNodeDesc.value = false;
   }
 }
 
@@ -942,6 +1032,13 @@ function useSelectedNodeForEdge(field) {
   if (!selectedNode.value) return;
   edgeForm[field] = selectedNode.value.name;
   showEdgeNodeDropdown[field] = false;
+}
+
+async function focusAutoCreatedNode(nodeId) {
+  handleSelectNode(nodeId);
+  selectedEdgeId.value = "";
+  await nextTick();
+  graphCanvas.value?.focusNodes?.([nodeId]);
 }
 
 async function approveSelectedBatch() {
@@ -1338,6 +1435,43 @@ button:disabled {
   background: #2563eb;
 }
 
+.auto-created-panel {
+  display: grid;
+  gap: 10px;
+  padding-top: 6px;
+  border-top: 1px solid #e6edf5;
+}
+
+.auto-created-list {
+  display: grid;
+  gap: 8px;
+}
+
+.auto-created-chip {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  text-align: left;
+  color: #214666;
+  background: #fff;
+  border: 1px solid #d8e7f6;
+}
+
+.auto-created-chip small {
+  color: #708294;
+}
+
+.auto-created-chip.active,
+.auto-created-chip:hover {
+  background: #1e63a7;
+  color: #fff;
+}
+
+.auto-created-chip.active small,
+.auto-created-chip:hover small {
+  color: rgba(255, 255, 255, 0.8);
+}
+
 .review-batch-list {
   display: grid;
   grid-auto-flow: column;
@@ -1527,6 +1661,16 @@ button:disabled {
   border-radius: 18px;
   background: #fff8f8;
   color: #b42318;
+}
+
+.modal-feedback {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #eef6ff;
+  color: #1f4f7b;
+  line-height: 1.6;
+  font-size: 13px;
 }
 
 .modal-overlay {

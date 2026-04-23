@@ -73,6 +73,14 @@ class GraphNodeUpdateRequest(BaseModel):
     node_type: str | None = Field(default=None, max_length=64)
 
 
+class GraphNodeDescriptionGenerateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class GraphNodeDescriptionGenerateResponse(BaseModel):
+    desc: str
+
+
 class GraphEdgeCreateRequest(BaseModel):
     source: str = Field(min_length=1, max_length=255)
     target: str = Field(min_length=1, max_length=255)

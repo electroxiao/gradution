@@ -2,6 +2,8 @@ import http from "./http";
 
 export const getTeacherGraphApi = (params = {}) => http.get("/api/teacher/graph", { params });
 export const createTeacherNodeApi = (payload) => http.post("/api/teacher/graph/nodes", payload);
+export const generateTeacherNodeDescriptionApi = (payload) =>
+  http.post("/api/teacher/graph/nodes/generate-description", payload);
 export const updateTeacherNodeApi = (nodeName, payload) =>
   http.patch(`/api/teacher/graph/nodes/${encodeURIComponent(nodeName)}`, payload);
 export const deleteTeacherNodeApi = (nodeName) =>
