@@ -32,6 +32,7 @@ from backend.services.pending_batch_service import (
 
 
 RELATION_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+SEARCH_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_+#.-]+|[\u4e00-\u9fff]+")
 
 
 def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
@@ -70,40 +71,86 @@ def _split_search_terms(keyword: str) -> list[str]:
     return terms
 
 
+def _extract_search_tokens(text: str) -> list[str]:
+    return [token.lower() for token in SEARCH_TOKEN_PATTERN.findall(text or "")]
+
+
+def _extract_aliases(name: str) -> list[str]:
+    raw_parts = re.split(r"[()（）/\\|,，;；、]", name or "")
+    aliases = []
+    seen = set()
+    for part in raw_parts:
+        normalized = part.strip().lower()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            aliases.append(normalized)
+    return aliases
+
+
 def _compute_relevance_score(name: str, desc: str, terms: list[str], match_type: str = "match") -> int:
     if not terms:
         return 0
     name_lower = (name or "").lower()
     desc_lower = (desc or "").lower()
     phrase = terms[0]
+    aliases = _extract_aliases(name)
+    name_tokens = _extract_search_tokens(name)
+    desc_tokens = _extract_search_tokens(desc)
     score = 0
 
-    if name_lower == phrase:
+    if phrase in aliases:
+        score += 1800
+    elif name_lower == phrase:
         score += 1200
     elif name_lower.startswith(phrase):
         score += 900
     elif phrase in name_lower:
         score += 700
 
+    if phrase in name_tokens:
+        score += 900
+    elif any(token.startswith(phrase) for token in name_tokens):
+        score += 260
+
     if phrase and phrase in desc_lower:
         score += 120
+    if phrase in desc_tokens:
+        score += 80
 
     for term in terms:
         if not term:
             continue
-        if name_lower == term:
+        if term in aliases:
+            score += 520
+        elif name_lower == term:
             score += 280
         elif name_lower.startswith(term):
             score += 180
         elif term in name_lower:
             score += 110
 
+        if term in name_tokens:
+            score += 220
+        elif any(token.startswith(term) for token in name_tokens):
+            score += 60
+
         if term in desc_lower:
             score += 30
+        if term in desc_tokens:
+            score += 20
+
+    score -= max(len(name_tokens) - 2, 0) * 18
+    score -= max(len(name or "") - max(len(phrase), 1), 0) // 12
 
     if match_type == "neighbor":
         score -= 220
     return score
+
+
+def _resolve_candidate_limit(limit: int, include_neighbors: bool = False) -> int:
+    multiplier = 20 if include_neighbors else 12
+    baseline = 240 if include_neighbors else 120
+    return max(limit, min(2000, max(baseline, limit * multiplier)))
 
 
 def _ensure_knowledge_nodes(
@@ -148,6 +195,7 @@ def list_knowledge_node_refs(
     limit: int = 200,
 ) -> list[TeacherKnowledgeNodeRefResponse]:
     terms = _split_search_terms(keyword)
+    candidate_limit = _resolve_candidate_limit(limit, include_neighbors=include_neighbors)
     if not terms:
         rows = db.query(KnowledgeNode).order_by(KnowledgeNode.node_name.asc()).limit(limit).all()
         return [
@@ -165,8 +213,7 @@ def list_knowledge_node_refs(
     RETURN n.name AS node_name,
            coalesce(properties(n)["desc"], "") AS node_desc,
            coalesce(properties(n)["node_type"], "") AS node_type
-    ORDER BY n.name ASC
-    LIMIT $limit
+    LIMIT $candidate_limit
     """
     items = []
     seen: set[tuple[str, str]] = set()
@@ -175,8 +222,7 @@ def list_knowledge_node_refs(
             session.run(
                 query,
                 terms=terms,
-                include_neighbors=include_neighbors,
-                limit=limit,
+                candidate_limit=candidate_limit,
             )
         )
         for record in records:
@@ -205,10 +251,10 @@ def list_knowledge_node_refs(
             RETURN DISTINCT neighbor.name AS node_name,
                             coalesce(properties(neighbor)["desc"], "") AS node_desc,
                             coalesce(properties(neighbor)["node_type"], "") AS node_type
-            LIMIT $limit
+            LIMIT $candidate_limit
             """
             match_names = [item["node_name"] for item in items if item["match_type"] == "match"]
-            for record in session.run(neighbor_query, names=match_names, limit=limit):
+            for record in session.run(neighbor_query, names=match_names, candidate_limit=candidate_limit):
                 node_name = record["node_name"]
                 if not node_name or (node_name, "neighbor") in seen or any(item["node_name"] == node_name for item in items):
                     continue
@@ -334,6 +380,7 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
     edge_rows = []
     node_id_map: dict[str, str] = {}
     terms = _split_search_terms(keyword)
+    candidate_limit = _resolve_candidate_limit(limit)
     query = """
     MATCH (n:Knowledge)
     WHERE size($terms) = 0
@@ -344,11 +391,10 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
     RETURN n.name AS name,
            coalesce(properties(n)["desc"], "") AS desc,
            coalesce(properties(n)["node_type"], "") AS node_type
-    ORDER BY n.name ASC
-    LIMIT $limit
+    LIMIT $candidate_limit
     """
     with driver.session(database=settings.neo4j_db_name) as session:
-        for record in session.run(query, terms=terms, limit=limit):
+        for record in session.run(query, terms=terms, candidate_limit=candidate_limit):
             node_name = record["name"]
             raw_nodes.append(
                 {

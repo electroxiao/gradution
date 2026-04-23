@@ -121,12 +121,57 @@
           <div v-else-if="selectedEdge" class="detail-body">
             <label>
               起点
-              <input list="node-list" v-model="edgeForm.source" placeholder="起点" />
+              <div class="edge-search-box">
+                <input
+                  v-model="edgeForm.source"
+                  placeholder="起点"
+                  @input="handleEdgeFieldInput('source')"
+                  @focus="handleEdgeFieldInput('source')"
+                  @blur="deferHideEdgeNodeDropdown('source')"
+                />
+                <div v-if="showEdgeNodeDropdown.source && edgeNodeSuggestions.source.length" class="search-dropdown edge-dropdown">
+                  <button
+                    v-for="node in edgeNodeSuggestions.source"
+                    :key="`edit-source-${node.id}`"
+                    type="button"
+                    class="search-dropdown-item"
+                    @mousedown.prevent="applyEdgeNodeSuggestion('source', node)"
+                  >
+                    <strong>{{ node.name }}</strong>
+                    <small v-if="node.desc">{{ node.desc }}</small>
+                  </button>
+                </div>
+              </div>
             </label>
             <label>
               终点
-              <input list="node-list" v-model="edgeForm.target" placeholder="终点" />
+              <div class="edge-search-box">
+                <input
+                  v-model="edgeForm.target"
+                  placeholder="终点"
+                  @input="handleEdgeFieldInput('target')"
+                  @focus="handleEdgeFieldInput('target')"
+                  @blur="deferHideEdgeNodeDropdown('target')"
+                />
+                <div v-if="showEdgeNodeDropdown.target && edgeNodeSuggestions.target.length" class="search-dropdown edge-dropdown">
+                  <button
+                    v-for="node in edgeNodeSuggestions.target"
+                    :key="`edit-target-${node.id}`"
+                    type="button"
+                    class="search-dropdown-item"
+                    @mousedown.prevent="applyEdgeNodeSuggestion('target', node)"
+                  >
+                    <strong>{{ node.name }}</strong>
+                    <small v-if="node.desc">{{ node.desc }}</small>
+                  </button>
+                </div>
+              </div>
             </label>
+            <div class="edge-quick-actions">
+              <button class="ghost" type="button" @click="swapEdgeDirection">交换起终点</button>
+              <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('source')">当前节点填入起点</button>
+              <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('target')">当前节点填入终点</button>
+            </div>
             <div class="detail-actions">
               <button @click="submitEdge">保存修改</button>
               <button class="danger" @click="deleteEdge">删除</button>
@@ -324,11 +369,11 @@
         <div class="detail-body">
           <label>
             节点名
-            <input v-model="nodeForm.name" placeholder="请输入唯一节点名" />
+            <input v-model="nodeForm.name" placeholder="请输入唯一节点名" @keydown.enter.prevent="submitNode" />
           </label>
           <label>
             描述
-            <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述"></textarea>
+            <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述" @keydown.ctrl.enter.prevent="submitNode"></textarea>
           </label>
           <div class="detail-actions">
             <button class="ghost" @click="cancelCreateNode">取消</button>
@@ -344,12 +389,59 @@
         <div class="detail-body">
           <label>
             起点
-            <input list="node-list" v-model="edgeForm.source" placeholder="起点" />
+            <div class="edge-search-box">
+              <input
+                v-model="edgeForm.source"
+                placeholder="起点"
+                @input="handleEdgeFieldInput('source')"
+                @focus="handleEdgeFieldInput('source')"
+                @blur="deferHideEdgeNodeDropdown('source')"
+                @keydown.enter.prevent="submitEdge"
+              />
+              <div v-if="showEdgeNodeDropdown.source && edgeNodeSuggestions.source.length" class="search-dropdown edge-dropdown">
+                <button
+                  v-for="node in edgeNodeSuggestions.source"
+                  :key="`create-source-${node.id}`"
+                  type="button"
+                  class="search-dropdown-item"
+                  @mousedown.prevent="applyEdgeNodeSuggestion('source', node)"
+                >
+                  <strong>{{ node.name }}</strong>
+                  <small v-if="node.desc">{{ node.desc }}</small>
+                </button>
+              </div>
+            </div>
           </label>
           <label>
             终点
-            <input list="node-list" v-model="edgeForm.target" placeholder="终点" />
+            <div class="edge-search-box">
+              <input
+                v-model="edgeForm.target"
+                placeholder="终点"
+                @input="handleEdgeFieldInput('target')"
+                @focus="handleEdgeFieldInput('target')"
+                @blur="deferHideEdgeNodeDropdown('target')"
+                @keydown.enter.prevent="submitEdge"
+              />
+              <div v-if="showEdgeNodeDropdown.target && edgeNodeSuggestions.target.length" class="search-dropdown edge-dropdown">
+                <button
+                  v-for="node in edgeNodeSuggestions.target"
+                  :key="`create-target-${node.id}`"
+                  type="button"
+                  class="search-dropdown-item"
+                  @mousedown.prevent="applyEdgeNodeSuggestion('target', node)"
+                >
+                  <strong>{{ node.name }}</strong>
+                  <small v-if="node.desc">{{ node.desc }}</small>
+                </button>
+              </div>
+            </div>
           </label>
+          <div class="edge-quick-actions">
+            <button class="ghost" type="button" @click="swapEdgeDirection">交换起终点</button>
+            <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('source')">当前节点填入起点</button>
+            <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('target')">当前节点填入终点</button>
+          </div>
           <div class="detail-actions">
             <button class="ghost" @click="cancelCreateEdge">取消</button>
             <button @click="submitEdge">确认创建</button>
@@ -357,10 +449,6 @@
         </div>
       </div>
     </div>
-
-    <datalist id="node-list">
-      <option v-for="node in graph.nodes" :key="node.id" :value="node.name"></option>
-    </datalist>
   </section>
 </template>
 
@@ -417,6 +505,8 @@ const nodeForm = reactive({ name: "", desc: "" });
 const edgeForm = reactive({ source: "", relation: "DEPENDS_ON", target: "" });
 const reviewNodeDrafts = reactive({});
 const reviewEdgeDrafts = reactive({});
+const edgeNodeSuggestions = reactive({ source: [], target: [] });
+const showEdgeNodeDropdown = reactive({ source: false, target: false });
 
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value) || null);
 const selectedEdge = computed(() => graph.value.edges.find((edge) => edge.id === selectedEdgeId.value) || null);
@@ -456,6 +546,7 @@ const editableReviewNode = computed(() => (selectedReviewNode.value ? reviewNode
 const editableReviewEdge = computed(() => (selectedReviewEdge.value ? reviewEdgeDrafts[selectedReviewEdge.value.id] : null));
 const isActiveGraphLoading = computed(() => activeMode.value === "graph" ? isGraphLoading.value : isReviewLoading.value);
 let graphSuggestTimer = null;
+const edgeSearchTimers = { source: null, target: null };
 
 onMounted(async () => {
   await Promise.all([loadGraph(), loadPendingBatches()]);
@@ -653,6 +744,8 @@ function startCreateEdge() {
   edgeForm.source = selectedNode.value ? selectedNode.value.name : "";
   edgeForm.target = "";
   edgeForm.relation = "DEPENDS_ON";
+  showEdgeNodeDropdown.source = false;
+  showEdgeNodeDropdown.target = false;
 }
 
 function cancelCreateEdge() {
@@ -664,6 +757,7 @@ async function submitNode() {
     errorMessage.value = "节点名不能为空";
     return;
   }
+  const targetName = nodeForm.name.trim();
   try {
     if (isCreatingNode.value) {
       await createTeacherNodeApi({ ...nodeForm });
@@ -672,6 +766,12 @@ async function submitNode() {
       await updateTeacherNodeApi(selectedNode.value.name, { ...nodeForm });
     }
     await refreshGraph();
+    const nextNode = graph.value.nodes.find((node) => node.name === targetName);
+    if (nextNode) {
+      handleSelectNode(nextNode.id);
+      await nextTick();
+      graphCanvas.value?.focusNodes?.([nextNode.id]);
+    }
   } catch (error) {
     handleApiError(error, "保存节点失败。");
   }
@@ -682,6 +782,8 @@ async function submitEdge() {
     errorMessage.value = "请填写起点和终点";
     return;
   }
+  const sourceName = edgeForm.source.trim();
+  const targetName = edgeForm.target.trim();
   try {
     if (isCreatingEdge.value) {
       await createTeacherEdgeApi({ ...edgeForm, relation: "DEPENDS_ON" });
@@ -690,6 +792,14 @@ async function submitEdge() {
       await updateTeacherEdgeApi(selectedEdge.value.edge_key, { ...edgeForm, relation: "DEPENDS_ON" });
     }
     await refreshGraph();
+    const nextEdge = graph.value.edges.find(
+      (edge) => edge.source_name === sourceName && edge.target_name === targetName && edge.relation === "DEPENDS_ON",
+    );
+    if (nextEdge) {
+      handleSelectEdge(nextEdge.id);
+      await nextTick();
+      graphCanvas.value?.focusNodes?.([nextEdge.source, nextEdge.target]);
+    }
   } catch (error) {
     handleApiError(error, "保存关系失败。");
   }
@@ -763,7 +873,7 @@ async function fetchGraphSuggestions(query) {
   if (!query || activeMode.value !== "graph") return;
   isGraphSuggesting.value = true;
   try {
-    const { data } = await getTeacherGraphApi({ keyword: query, limit: 12 });
+    const { data } = await getTeacherGraphApi({ keyword: query, limit: 50 });
     graphSuggestions.value = data.nodes || [];
     showGraphSuggestions.value = graphSuggestions.value.length > 0;
   } catch (error) {
@@ -783,6 +893,55 @@ async function selectGraphSuggestion(node) {
     await nextTick();
     graphCanvas.value?.focusNodes?.([exactNode.id]);
   }
+}
+
+function handleEdgeFieldInput(field) {
+  if (edgeSearchTimers[field]) clearTimeout(edgeSearchTimers[field]);
+  const query = String(edgeForm[field] || "").trim();
+  if (!query) {
+    edgeNodeSuggestions[field] = [];
+    showEdgeNodeDropdown[field] = false;
+    return;
+  }
+  edgeSearchTimers[field] = setTimeout(() => {
+    fetchEdgeNodeSuggestions(field, query);
+  }, 180);
+}
+
+async function fetchEdgeNodeSuggestions(field, query) {
+  try {
+    const { data } = await getTeacherGraphApi({ keyword: query, limit: 20 });
+    edgeNodeSuggestions[field] = data.nodes || [];
+    showEdgeNodeDropdown[field] = edgeNodeSuggestions[field].length > 0;
+  } catch (error) {
+    edgeNodeSuggestions[field] = [];
+    showEdgeNodeDropdown[field] = false;
+  }
+}
+
+function applyEdgeNodeSuggestion(field, node) {
+  edgeForm[field] = node.name;
+  showEdgeNodeDropdown[field] = false;
+}
+
+function deferHideEdgeNodeDropdown(field) {
+  setTimeout(() => {
+    showEdgeNodeDropdown[field] = false;
+  }, 120);
+}
+
+function swapEdgeDirection() {
+  const source = edgeForm.source;
+  edgeForm.source = edgeForm.target;
+  edgeForm.target = source;
+  showEdgeNodeDropdown.source = false;
+  showEdgeNodeDropdown.target = false;
+}
+
+function useSelectedNodeForEdge(field) {
+  if (!selectedNode.value) return;
+  edgeForm[field] = selectedNode.value.name;
+  showEdgeNodeDropdown[field] = false;
 }
 
 async function approveSelectedBatch() {
@@ -898,6 +1057,10 @@ function handleApiError(error, fallbackMessage) {
   min-width: 260px;
 }
 
+.edge-search-box {
+  position: relative;
+}
+
 .toolbar-input,
 .detail-body input,
 .detail-body textarea {
@@ -936,6 +1099,10 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
 }
 
+.edge-dropdown {
+  z-index: 12;
+}
+
 .search-dropdown-item {
   display: grid;
   gap: 3px;
@@ -960,6 +1127,17 @@ function handleApiError(error, fallbackMessage) {
 
 .search-dropdown-item:hover small {
   color: rgba(255, 255, 255, 0.78);
+}
+
+.edge-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.edge-quick-actions .ghost {
+  padding: 8px 12px;
+  border-radius: 12px;
 }
 
 button {
