@@ -20,6 +20,8 @@ from backend.services.teacher_service import (
     get_graph,
     get_pending_graph_batch_detail,
     get_weak_point_dashboard,
+    list_knowledge_node_refs,
+    list_student_mastery,
     list_pending_graph_batches,
     list_student_weak_points,
     reject_pending_graph_batch,
@@ -135,6 +137,22 @@ def get_students(
     return list_students_with_weak_points(db)
 
 
+@router.get("/knowledge-nodes")
+def get_knowledge_nodes(
+    keyword: str = Query(default="", max_length=255),
+    include_neighbors: bool = Query(default=False),
+    limit: int = Query(default=200, ge=1, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return list_knowledge_node_refs(
+        db,
+        keyword=keyword,
+        include_neighbors=include_neighbors,
+        limit=limit,
+    )
+
+
 @router.get("/students/{student_id}/weak-points")
 def get_student_weak_points(
     student_id: int,
@@ -142,6 +160,15 @@ def get_student_weak_points(
     current_user: User = Depends(get_current_teacher),
 ):
     return list_student_weak_points(db, student_id)
+
+
+@router.get("/students/{student_id}/mastery")
+def get_student_mastery(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return list_student_mastery(db, student_id)
 
 
 @router.get("/dashboard/weak-points")

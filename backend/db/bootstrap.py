@@ -11,6 +11,7 @@ def ensure_schema_and_seed(engine: Engine) -> None:
     _ensure_user_role_column(engine)
     _ensure_assignment_submission_timing_columns(engine)
     _ensure_assignment_grading_columns(engine)
+    _ensure_assignment_graph_linkage(engine)
     _ensure_teacher_seed(engine)
 
 
@@ -83,6 +84,63 @@ def _ensure_assignment_grading_columns(engine: Engine) -> None:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN reviewed_at DATETIME NULL"))
             if "reviewed_by" not in submission_columns:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN reviewed_by INT NULL"))
+
+
+def _ensure_assignment_graph_linkage(engine: Engine) -> None:
+    inspector = inspect(engine)
+    try:
+        table_names = set(inspector.get_table_names())
+        submission_columns = {column["name"] for column in inspector.get_columns("assignment_submissions")} if "assignment_submissions" in table_names else set()
+    except Exception:
+        return
+
+    with engine.begin() as connection:
+        if "assignment_question_knowledge_nodes" not in table_names:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE assignment_question_knowledge_nodes (
+                        id INTEGER PRIMARY KEY,
+                        question_id INTEGER NOT NULL,
+                        knowledge_node_id INTEGER NOT NULL,
+                        sort_order INTEGER NOT NULL DEFAULT 0,
+                        CONSTRAINT uq_assignment_question_knowledge_node UNIQUE (question_id, knowledge_node_id)
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX ix_assignment_question_knowledge_nodes_question_id ON assignment_question_knowledge_nodes (question_id)"))
+            connection.execute(text("CREATE INDEX ix_assignment_question_knowledge_nodes_knowledge_node_id ON assignment_question_knowledge_nodes (knowledge_node_id)"))
+
+        if "user_concept_mastery" not in table_names:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE user_concept_mastery (
+                        id INTEGER PRIMARY KEY,
+                        student_id INTEGER NOT NULL,
+                        knowledge_node_id INTEGER NOT NULL,
+                        mastery_score INTEGER NOT NULL DEFAULT 50,
+                        positive_evidence_count INTEGER NOT NULL DEFAULT 0,
+                        negative_evidence_count INTEGER NOT NULL DEFAULT 0,
+                        status VARCHAR(32) NOT NULL DEFAULT 'partial',
+                        last_source_submission_id INTEGER NULL,
+                        last_evaluated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_student_knowledge_mastery UNIQUE (student_id, knowledge_node_id)
+                    )
+                    """
+                )
+            )
+            connection.execute(text("CREATE INDEX ix_user_concept_mastery_student_id ON user_concept_mastery (student_id)"))
+            connection.execute(text("CREATE INDEX ix_user_concept_mastery_knowledge_node_id ON user_concept_mastery (knowledge_node_id)"))
+
+        if "assignment_submissions" in table_names:
+            if "trust_label" not in submission_columns:
+                connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_label VARCHAR(64) NULL"))
+            if "trust_score" not in submission_columns:
+                connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_score FLOAT NULL"))
+            if "excluded_from_mastery_update" not in submission_columns:
+                connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN excluded_from_mastery_update BOOLEAN NOT NULL DEFAULT 0"))
 
 
 def _ensure_teacher_seed(engine: Engine) -> None:

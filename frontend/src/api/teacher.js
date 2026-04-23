@@ -20,8 +20,11 @@ export const approvePendingTeacherBatchApi = (batchId, payload) =>
 export const rejectPendingTeacherBatchApi = (batchId, payload) =>
   http.post(`/api/teacher/graph/pending-batches/${encodeURIComponent(batchId)}/reject`, payload);
 
+export const listTeacherKnowledgeNodesApi = (params = {}) => http.get("/api/teacher/knowledge-nodes", { params });
 export const listTeacherStudentsApi = () => http.get("/api/teacher/students");
 export const listTeacherStudentWeakPointsApi = (studentId) =>
   http.get(`/api/teacher/students/${studentId}/weak-points`);
+export const listTeacherStudentMasteryApi = (studentId) =>
+  http.get(`/api/teacher/students/${studentId}/mastery`);
 
 export const getTeacherDashboardApi = () => http.get("/api/teacher/dashboard/weak-points");

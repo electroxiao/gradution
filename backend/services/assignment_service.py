@@ -10,9 +10,12 @@ from backend.models.assignment import (
     Assignment,
     AssignmentAssignee,
     AssignmentQuestion,
+    AssignmentQuestionKnowledgeNode,
     AssignmentSubmission,
     AssignmentTestCase,
 )
+from backend.models.knowledge import KnowledgeNode
+from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
 from backend.schemas.assignment import (
     AssignmentAiHelpRequest,
@@ -41,6 +44,7 @@ from backend.schemas.assignment import (
 )
 from backend.services import rag_engine
 from backend.services.chat_service import get_neo4j_driver, get_openai_client
+from backend.services.knowledge_progress_service import get_or_create_knowledge_node, mark_node_mastered, mark_node_weak
 from backend.services.sandbox_service import run_java_submission
 
 
@@ -50,6 +54,7 @@ VALID_AI_REVIEW_LEVELS = {"light", "deep"}
 VALID_REVIEW_STATUSES = {"accepted", "ai_rejected", "needs_manual_review"}
 DEFAULT_AI_GRADING_PASS_THRESHOLD = 85
 DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD = 0.85
+FAST_PASS_THRESHOLD_SECONDS = 60
 
 
 def list_teacher_assignments(db: Session, teacher: User) -> list[AssignmentSummaryResponse]:
@@ -298,6 +303,8 @@ def submit_assignment_question(
     status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
     started_at = _strip_timezone(started_at)
     submitted_at = datetime.now()
+    duration_seconds = _duration_seconds(started_at, submitted_at)
+    trust_label, trust_score, excluded_from_mastery_update = _resolve_submission_trust(status_value, duration_seconds)
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
         question_id=question.id,
@@ -308,11 +315,16 @@ def submit_assignment_question(
         ai_review_json=ai_review,
         final_decision_source=decision_source,
         teacher_review_status="pending" if status_value == "needs_manual_review" else None,
+        trust_label=trust_label,
+        trust_score=trust_score,
+        excluded_from_mastery_update=excluded_from_mastery_update,
         started_at=started_at,
-        duration_seconds=_duration_seconds(started_at, submitted_at),
+        duration_seconds=duration_seconds,
         submitted_at=submitted_at,
     )
     db.add(submission)
+    db.flush()
+    _apply_submission_mastery_evidence(db, student, question, submission)
     db.commit()
     db.refresh(submission)
     return AssignmentRunResultResponse(
@@ -394,7 +406,16 @@ def get_teacher_assignment_progress(db: Session, teacher: User, assignment_id: i
         assignment_id=assignment.id,
         title=assignment.title,
         questions=[
-            AssignmentProgressQuestionResponse(id=question.id, title=question.title or f"第 {index + 1} 题", sort_order=question.sort_order)
+            AssignmentProgressQuestionResponse(
+                id=question.id,
+                title=question.title or f"第 {index + 1} 题",
+                sort_order=question.sort_order,
+                knowledge_nodes=[
+                    {"id": relation.knowledge_node.id, "node_name": relation.knowledge_node.node_name}
+                    for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
+                    if relation.knowledge_node
+                ],
+            )
             for index, question in enumerate(questions)
         ],
         students=[
@@ -443,6 +464,9 @@ def get_teacher_submission_detail(
         manual_review_required=_submission_requires_manual_review(submission),
         teacher_review_status=submission.teacher_review_status,
         teacher_review_note=submission.teacher_review_note,
+        trust_label=submission.trust_label,
+        trust_score=submission.trust_score,
+        excluded_from_mastery_update=bool(submission.excluded_from_mastery_update),
         reviewed_at=submission.reviewed_at,
         reviewed_by=submission.reviewed_by,
         reviewed_by_username=submission.reviewer.username if submission.reviewer else None,
@@ -681,6 +705,9 @@ def _get_teacher_assignment(db: Session, teacher: User, assignment_id: int) -> A
         db.query(Assignment)
         .options(
             selectinload(Assignment.questions).selectinload(AssignmentQuestion.test_cases),
+            selectinload(Assignment.questions)
+            .selectinload(AssignmentQuestion.knowledge_nodes)
+            .selectinload(AssignmentQuestionKnowledgeNode.knowledge_node),
             selectinload(Assignment.assignees).selectinload(AssignmentAssignee.student),
         )
         .filter(Assignment.id == assignment_id, Assignment.teacher_id == teacher.id)
@@ -697,6 +724,9 @@ def _get_student_assignment(db: Session, student: User, assignment_id: int) -> A
         .join(AssignmentAssignee, AssignmentAssignee.assignment_id == Assignment.id)
         .options(
             selectinload(Assignment.questions).selectinload(AssignmentQuestion.test_cases),
+            selectinload(Assignment.questions)
+            .selectinload(AssignmentQuestion.knowledge_nodes)
+            .selectinload(AssignmentQuestionKnowledgeNode.knowledge_node),
             selectinload(Assignment.assignees).selectinload(AssignmentAssignee.student),
         )
         .filter(
@@ -778,6 +808,7 @@ def _sync_questions(db: Session, assignment: Assignment, payload_questions: list
             db.flush()
             keep_ids.add(question.id)
         _sync_test_cases(db, question, item.test_cases)
+        _sync_question_knowledge_nodes(db, question, item.knowledge_node_ids)
 
     for question in list(assignment.questions):
         if question.id not in keep_ids:
@@ -813,6 +844,35 @@ def _sync_test_cases(db: Session, question: AssignmentQuestion, payload_cases: l
             db.delete(test_case)
 
 
+def _sync_question_knowledge_nodes(db: Session, question: AssignmentQuestion, knowledge_node_ids: list[int]) -> None:
+    normalized_ids = list(dict.fromkeys(int(item) for item in knowledge_node_ids if str(item).strip()))
+    if normalized_ids:
+        count = db.query(func.count(KnowledgeNode.id)).filter(KnowledgeNode.id.in_(normalized_ids)).scalar()
+        if count != len(normalized_ids):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="题目绑定的知识点包含无效节点。")
+
+    existing = {item.knowledge_node_id: item for item in question.knowledge_nodes}
+    keep_ids: set[int] = set()
+    for index, node_id in enumerate(normalized_ids):
+        relation = existing.get(node_id)
+        if relation:
+            relation.sort_order = index
+            keep_ids.add(relation.id)
+            continue
+        relation = AssignmentQuestionKnowledgeNode(
+            question=question,
+            knowledge_node_id=node_id,
+            sort_order=index,
+        )
+        db.add(relation)
+        db.flush()
+        keep_ids.add(relation.id)
+
+    for relation in list(question.knowledge_nodes):
+        if relation.id not in keep_ids:
+            db.delete(relation)
+
+
 def _assignment_summary(db: Session, assignment: Assignment, student: User | None = None) -> AssignmentSummaryResponse:
     query = db.query(AssignmentSubmission).filter(AssignmentSubmission.assignment_id == assignment.id)
     if student:
@@ -843,6 +903,14 @@ def _assignment_detail(
     questions = []
     for question in sorted(assignment.questions, key=lambda item: (item.sort_order, item.id)):
         test_cases = []
+        knowledge_nodes = [
+            {
+                "id": relation.knowledge_node.id,
+                "node_name": relation.knowledge_node.node_name,
+            }
+            for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
+            if relation.knowledge_node
+        ]
         for test_case in sorted(question.test_cases, key=lambda item: (item.sort_order, item.id)):
             expected_output = test_case.expected_output if teacher_view or test_case.is_sample else None
             test_cases.append(
@@ -860,6 +928,8 @@ def _assignment_detail(
                     "title": question.title,
                     "prompt": question.prompt,
                     "starter_code": question.starter_code or "",
+                    "knowledge_node_ids": [item["id"] for item in knowledge_nodes],
+                    "knowledge_nodes": knowledge_nodes,
                     "language": question.language,
                     "enable_testcases": _question_enable_testcases(question),
                     "ai_review_level": _question_ai_review_level(question),
@@ -1002,10 +1072,88 @@ def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmi
         manual_review_required=_submission_requires_manual_review(submission),
         teacher_review_status=submission.teacher_review_status,
         teacher_review_note=submission.teacher_review_note,
+        trust_label=submission.trust_label,
+        trust_score=submission.trust_score,
+        excluded_from_mastery_update=bool(submission.excluded_from_mastery_update),
         started_at=submission.started_at,
         duration_seconds=submission.duration_seconds,
         submitted_at=submission.submitted_at,
     )
+
+
+def _resolve_submission_trust(status_value: str, duration_seconds: int | None) -> tuple[str, float, bool]:
+    if duration_seconds is not None and duration_seconds <= FAST_PASS_THRESHOLD_SECONDS and status_value == "accepted":
+        return "suspicious_fast_pass", 0.0, True
+    return "normal", 1.0, False
+
+
+def _apply_submission_mastery_evidence(
+    db: Session,
+    student: User,
+    question: AssignmentQuestion,
+    submission: AssignmentSubmission,
+) -> None:
+    if submission.excluded_from_mastery_update:
+        return
+    relations = sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
+    if not relations:
+        return
+
+    delta = 5 if submission.status == "accepted" else -3
+    positive = 1 if submission.status == "accepted" else 0
+    negative = 0 if submission.status == "accepted" else 1
+    for relation in relations:
+        node = relation.knowledge_node or db.query(KnowledgeNode).filter(KnowledgeNode.id == relation.knowledge_node_id).first()
+        if not node:
+            continue
+        mastery = _get_or_create_user_concept_mastery(db, student.id, node.id)
+        mastery.mastery_score = max(0, min(100, int(mastery.mastery_score or 50) + delta))
+        mastery.positive_evidence_count = int(mastery.positive_evidence_count or 0) + positive
+        mastery.negative_evidence_count = int(mastery.negative_evidence_count or 0) + negative
+        mastery.status = _mastery_status_for_score(mastery.mastery_score)
+        mastery.last_source_submission_id = submission.id
+        _sync_legacy_knowledge_status(db, student, node.node_name, mastery.status)
+
+
+def _get_or_create_user_concept_mastery(db: Session, student_id: int, knowledge_node_id: int) -> UserConceptMastery:
+    mastery = (
+        db.query(UserConceptMastery)
+        .filter(
+            UserConceptMastery.student_id == student_id,
+            UserConceptMastery.knowledge_node_id == knowledge_node_id,
+        )
+        .first()
+    )
+    if mastery:
+        return mastery
+    mastery = UserConceptMastery(
+        student_id=student_id,
+        knowledge_node_id=knowledge_node_id,
+        mastery_score=50,
+        positive_evidence_count=0,
+        negative_evidence_count=0,
+        status="partial",
+    )
+    db.add(mastery)
+    db.flush()
+    return mastery
+
+
+def _mastery_status_for_score(score: int) -> str:
+    if score <= 39:
+        return "weak"
+    if score <= 69:
+        return "partial"
+    return "good"
+
+
+def _sync_legacy_knowledge_status(db: Session, student: User, node_name: str, mastery_status: str) -> None:
+    if mastery_status == "weak":
+        mark_node_weak(db, student, node_name)
+    elif mastery_status == "good":
+        mark_node_mastered(db, student, node_name)
+    else:
+        get_or_create_knowledge_node(db, node_name)
 
 
 def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code: str) -> tuple[str, list[dict], dict | None, str]:

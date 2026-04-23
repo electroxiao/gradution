@@ -152,6 +152,62 @@
                   placeholder="学生首次打开这道题时，编辑器将默认填入这段代码；若学生已存在草稿，则不会覆盖。"
                 />
               </label>
+              <div class="knowledge-card">
+                <div class="card-heading compact-heading">
+                  <div>
+                    <h5>关联知识点</h5>
+                    <p>绑定已有知识图谱节点后，这道题的提交结果才会参与掌握度更新。</p>
+                  </div>
+                </div>
+                <div class="knowledge-search">
+                  <div class="knowledge-search-box">
+                    <input
+                      v-model="knowledgeNodeKeyword"
+                      placeholder="输入关键词搜索图谱节点"
+                      @input="handleKnowledgeNodeInput"
+                      @focus="handleKnowledgeNodeInput"
+                      @keydown.enter.prevent="searchKnowledgeNodes"
+                    />
+                    <div v-if="showKnowledgeNodeDropdown && knowledgeNodeSuggestions.length" class="knowledge-dropdown">
+                      <button
+                        v-for="node in knowledgeNodeSuggestions"
+                        :key="node.id"
+                        type="button"
+                        class="knowledge-dropdown-item"
+                        @mousedown.prevent="toggleKnowledgeNode(node)"
+                      >
+                        <strong>{{ node.node_name }}</strong>
+                        <span>
+                          <small v-if="node.match_type === 'neighbor'">相邻节点</small>
+                          <small v-else>直接匹配</small>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                  <button type="button" :disabled="knowledgeNodeLoading" @click="searchKnowledgeNodes()">
+                    {{ knowledgeNodeLoading ? "搜索中..." : "搜索" }}
+                  </button>
+                  <button type="button" class="ghost-btn" @click="resetKnowledgeNodeSearch">全部</button>
+                </div>
+                <p v-if="knowledgeNodeKeyword.trim()" class="helper-text">
+                  搜索结果会包含直接命中的节点，并补充与其相连的节点，便于一起绑定。
+                </p>
+                <div v-if="selectedKnowledgeNodes.length" class="knowledge-grid">
+                  <button
+                    v-for="node in selectedKnowledgeNodes"
+                    :key="node.id"
+                    type="button"
+                    class="knowledge-check selected"
+                    @click="toggleKnowledgeNode(node)"
+                  >
+                    <span>
+                      {{ node.node_name }}
+                      <small v-if="node.match_type === 'neighbor'">相邻节点</small>
+                    </span>
+                  </button>
+                </div>
+                <p v-else class="helper-text">尚未选择知识点。输入关键词后可在下拉列表里直接添加。</p>
+              </div>
             </div>
           </section>
 
@@ -301,7 +357,7 @@ import {
   updateTeacherAssignmentApi,
   updateTeacherAssignmentQuestionsApi,
 } from "../api/assignments";
-import { listTeacherStudentsApi } from "../api/teacher";
+import { listTeacherKnowledgeNodesApi, listTeacherStudentsApi } from "../api/teacher";
 import { clearAuthSession } from "../utils/authStorage";
 
 const route = useRoute();
@@ -318,6 +374,11 @@ const focusGenerating = ref(false);
 const generateKnowledge = ref("");
 const generateRequirement = ref("");
 const activeQuestionIndex = ref(0);
+const knowledgeNodeOptions = ref([]);
+const allKnowledgeNodeOptions = ref([]);
+const knowledgeNodeKeyword = ref("");
+const knowledgeNodeLoading = ref(false);
+const showKnowledgeNodeDropdown = ref(false);
 const form = ref({
   title: "",
   description: "",
@@ -327,9 +388,30 @@ const form = ref({
 });
 
 const activeQuestion = computed(() => form.value.questions[activeQuestionIndex.value] || null);
+const displayKnowledgeNodeOptions = computed(() => {
+  const selectedIds = new Set((activeQuestion.value?.knowledge_node_ids || []).map(Number));
+  const merged = new Map();
+  for (const node of knowledgeNodeOptions.value) {
+    merged.set(Number(node.id), node);
+  }
+  for (const node of allKnowledgeNodeOptions.value) {
+    if (selectedIds.has(Number(node.id))) {
+      merged.set(Number(node.id), node);
+    }
+  }
+  return [...merged.values()];
+});
+const knowledgeNodeSuggestions = computed(() => displayKnowledgeNodeOptions.value.slice(0, 12));
+const selectedKnowledgeNodes = computed(() => {
+  const selectedIds = new Set((activeQuestion.value?.knowledge_node_ids || []).map(Number));
+  return [...new Map(allKnowledgeNodeOptions.value.map((node) => [Number(node.id), node])).values()]
+    .filter((node) => selectedIds.has(Number(node.id)));
+});
+let knowledgeNodeSuggestTimer = null;
 
 onMounted(async () => {
   await loadStudents();
+  await loadKnowledgeNodes();
   if (!isNew.value) {
     await loadAssignment();
   } else {
@@ -343,6 +425,81 @@ async function loadStudents() {
     students.value = data;
   } catch (error) {
     handleApiError(error, "加载学生失败。");
+  }
+}
+
+async function loadKnowledgeNodes() {
+  knowledgeNodeLoading.value = true;
+  try {
+    const { data } = await listTeacherKnowledgeNodesApi({ limit: 200 });
+    knowledgeNodeOptions.value = data || [];
+    allKnowledgeNodeOptions.value = data || [];
+  } catch (error) {
+    handleApiError(error, "加载知识图谱节点失败。");
+  } finally {
+    knowledgeNodeLoading.value = false;
+  }
+}
+
+function handleKnowledgeNodeInput() {
+  if (knowledgeNodeSuggestTimer) clearTimeout(knowledgeNodeSuggestTimer);
+  const query = knowledgeNodeKeyword.value.trim();
+  if (!query) {
+    knowledgeNodeOptions.value = allKnowledgeNodeOptions.value;
+    showKnowledgeNodeDropdown.value = false;
+    return;
+  }
+  knowledgeNodeSuggestTimer = setTimeout(() => {
+    searchKnowledgeNodes(query);
+  }, 180);
+}
+
+async function searchKnowledgeNodes(queryOverride = "") {
+  const query = (queryOverride || knowledgeNodeKeyword.value).trim();
+  if (!query) {
+    knowledgeNodeOptions.value = allKnowledgeNodeOptions.value;
+    showKnowledgeNodeDropdown.value = false;
+    return;
+  }
+  knowledgeNodeLoading.value = true;
+  try {
+    const { data } = await listTeacherKnowledgeNodesApi({
+      keyword: query,
+      include_neighbors: true,
+      limit: 200,
+    });
+    knowledgeNodeOptions.value = data || [];
+    for (const node of data || []) {
+      if (!allKnowledgeNodeOptions.value.some((item) => Number(item.id) === Number(node.id))) {
+        allKnowledgeNodeOptions.value.push(node);
+      }
+    }
+    showKnowledgeNodeDropdown.value = knowledgeNodeOptions.value.length > 0;
+  } catch (error) {
+    handleApiError(error, "搜索知识图谱节点失败。");
+    showKnowledgeNodeDropdown.value = false;
+  } finally {
+    knowledgeNodeLoading.value = false;
+  }
+}
+
+function resetKnowledgeNodeSearch() {
+  knowledgeNodeKeyword.value = "";
+  knowledgeNodeOptions.value = allKnowledgeNodeOptions.value;
+  showKnowledgeNodeDropdown.value = false;
+}
+
+function toggleKnowledgeNode(node) {
+  if (!activeQuestion.value) return;
+  const nodeId = Number(node.id);
+  const selected = new Set((activeQuestion.value.knowledge_node_ids || []).map(Number));
+  if (selected.has(nodeId)) {
+    activeQuestion.value.knowledge_node_ids = activeQuestion.value.knowledge_node_ids.filter((id) => Number(id) !== nodeId);
+  } else {
+    activeQuestion.value.knowledge_node_ids = [...activeQuestion.value.knowledge_node_ids, nodeId];
+  }
+  if (!allKnowledgeNodeOptions.value.some((item) => Number(item.id) === nodeId)) {
+    allKnowledgeNodeOptions.value.push(node);
   }
 }
 
@@ -373,6 +530,7 @@ function normalizeQuestion(question = {}) {
     title: question.title || "",
     prompt: question.prompt || "",
     starter_code: question.starter_code || "",
+    knowledge_node_ids: Array.isArray(question.knowledge_node_ids) ? question.knowledge_node_ids.map(Number) : [],
     language: "java",
     enable_testcases: question.enable_testcases !== false,
     ai_review_level: question.ai_review_level || "light",
@@ -401,6 +559,7 @@ function addQuestion(source = {}) {
       title: source.title || "",
       prompt: source.prompt || "",
       starter_code: source.starter_code || "",
+      knowledge_node_ids: source.knowledge_node_ids || [],
       enable_testcases: (source.test_cases || []).length > 0,
       ai_review_level: source.ai_review_level || "light",
       ai_grading_focus: source.ai_grading_focus || [],
@@ -551,6 +710,7 @@ function buildPayload() {
       title: question.title,
       prompt: question.prompt,
       starter_code: question.starter_code || "",
+      knowledge_node_ids: (question.knowledge_node_ids || []).map(Number),
       language: "java",
       enable_testcases: !!question.enable_testcases,
       ai_review_level: question.ai_review_level || "light",
@@ -856,6 +1016,116 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   gap: 12px;
   padding-top: 4px;
+}
+
+.knowledge-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(248, 251, 255, 0.72);
+  border: 1px solid #dbe4f0;
+}
+
+.compact-heading {
+  align-items: flex-start;
+}
+
+.knowledge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.knowledge-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+}
+
+.knowledge-search-box {
+  position: relative;
+}
+
+.knowledge-search input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #d8e2ee;
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+}
+
+.knowledge-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 6;
+  display: grid;
+  gap: 6px;
+  max-height: 280px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid #dce8f5;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+}
+
+.knowledge-dropdown-item {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid #deebf7;
+  border-radius: 14px;
+  background: #fff;
+  color: #234462;
+}
+
+.knowledge-dropdown-item span {
+  display: flex;
+  gap: 6px;
+}
+
+.knowledge-dropdown-item:hover {
+  background: #1e63a7;
+  color: #fff;
+}
+
+.knowledge-dropdown-item:hover small {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.knowledge-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #deebf7;
+  color: #234462;
+}
+
+.knowledge-check.selected {
+  cursor: pointer;
+}
+
+.knowledge-check span {
+  display: grid;
+  gap: 3px;
+}
+
+.knowledge-check small {
+  width: fit-content;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eef5fd;
+  color: #5f7284;
+  font-size: 11px;
 }
 
 .switch {

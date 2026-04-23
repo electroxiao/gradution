@@ -17,6 +17,7 @@ class AssignmentQuestionInput(BaseModel):
     title: str = Field(default="", max_length=255)
     prompt: str = Field(min_length=1)
     starter_code: str = Field(default="")
+    knowledge_node_ids: list[int] = Field(default_factory=list)
     language: str = Field(default="java", max_length=32)
     enable_testcases: bool = True
     ai_review_level: str = Field(default="light", max_length=32)
@@ -100,6 +101,8 @@ class AssignmentQuestionResponse(BaseModel):
     title: str
     prompt: str
     starter_code: str = ""
+    knowledge_node_ids: list[int] = Field(default_factory=list)
+    knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
     language: str
     enable_testcases: bool = True
     ai_review_level: str = "light"
@@ -126,6 +129,9 @@ class AssignmentSubmissionResponse(BaseModel):
     manual_review_required: bool = False
     teacher_review_status: str | None = None
     teacher_review_note: str | None = None
+    trust_label: str | None = None
+    trust_score: float | None = None
+    excluded_from_mastery_update: bool = False
     started_at: datetime | None = None
     duration_seconds: int | None = None
     submitted_at: datetime
@@ -197,6 +203,7 @@ class AssignmentProgressQuestionResponse(BaseModel):
     id: int
     title: str
     sort_order: int
+    knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AssignmentProgressStudentResponse(BaseModel):
@@ -238,6 +245,9 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     manual_review_required: bool = False
     teacher_review_status: str | None = None
     teacher_review_note: str | None = None
+    trust_label: str | None = None
+    trust_score: float | None = None
+    excluded_from_mastery_update: bool = False
     reviewed_at: datetime | None = None
     reviewed_by: int | None = None
     reviewed_by_username: str | None = None

@@ -4,7 +4,7 @@
       <div>
         <p class="eyebrow">Students</p>
         <h2>学生薄弱点</h2>
-        <p class="page-copy">按学生查看当前未掌握节点，快速了解谁卡在什么知识点上。</p>
+        <p class="page-copy">按学生查看当前未掌握节点，以及作业驱动的知识点掌握分数。</p>
       </div>
     </header>
 
@@ -28,17 +28,48 @@
         <div v-if="activeStudent" class="detail-header">
           <div>
             <h3>{{ activeStudent.username }}</h3>
-            <p>当前未掌握 {{ studentWeakPoints.length }} 个节点</p>
+            <p>当前未掌握 {{ studentWeakPoints.length }} 个节点，已记录 {{ studentMastery.length }} 个作业掌握条目</p>
           </div>
         </div>
 
-        <div v-if="studentWeakPoints.length" class="weak-cards">
-          <article v-for="item in studentWeakPoints" :key="item.id" class="weak-card">
-            <strong>{{ item.node_name }}</strong>
-            <span>最近出现 {{ formatDate(item.last_seen_at) }}</span>
-          </article>
-        </div>
-        <div v-else class="empty">该学生当前没有未掌握薄弱点。</div>
+        <section class="detail-section">
+          <div class="section-head">
+            <h4>当前未掌握节点</h4>
+            <span>{{ studentWeakPoints.length }} 个</span>
+          </div>
+          <div v-if="studentWeakPoints.length" class="weak-cards">
+            <article v-for="item in studentWeakPoints" :key="item.id" class="weak-card">
+              <strong>{{ item.node_name }}</strong>
+              <span>最近出现 {{ formatDate(item.last_seen_at) }}</span>
+            </article>
+          </div>
+          <div v-else class="empty">该学生当前没有未掌握薄弱点。</div>
+        </section>
+
+        <section class="detail-section">
+          <div class="section-head">
+            <h4>作业驱动掌握情况</h4>
+            <span>{{ studentMastery.length }} 项</span>
+          </div>
+          <div v-if="studentMastery.length" class="mastery-list">
+            <article v-for="item in studentMastery" :key="item.knowledge_node_id" class="mastery-card" :class="item.status">
+              <div class="mastery-top">
+                <strong>{{ item.node_name }}</strong>
+                <span class="status-pill" :class="item.status">{{ masteryStatusText(item.status) }}</span>
+              </div>
+              <div class="score-row">
+                <span>掌握分</span>
+                <strong>{{ item.mastery_score }}</strong>
+              </div>
+              <div class="meta-row">
+                <span>正向证据 {{ item.positive_evidence_count }}</span>
+                <span>负向证据 {{ item.negative_evidence_count }}</span>
+              </div>
+              <small>最近更新 {{ formatDate(item.last_evaluated_at) }}</small>
+            </article>
+          </div>
+          <div v-else class="empty">该学生还没有作业驱动的掌握记录。</div>
+        </section>
       </section>
     </div>
   </section>
@@ -48,13 +79,14 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { listTeacherStudentWeakPointsApi, listTeacherStudentsApi } from "../api/teacher";
+import { listTeacherStudentMasteryApi, listTeacherStudentWeakPointsApi, listTeacherStudentsApi } from "../api/teacher";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
 const students = ref([]);
 const activeStudentId = ref(null);
 const studentWeakPoints = ref([]);
+const studentMastery = ref([]);
 const errorMessage = ref("");
 
 const activeStudent = computed(() =>
@@ -80,11 +112,23 @@ async function loadStudents() {
 async function selectStudent(studentId) {
   activeStudentId.value = studentId;
   try {
-    const { data } = await listTeacherStudentWeakPointsApi(studentId);
-    studentWeakPoints.value = data;
+    const [weakPointsResponse, masteryResponse] = await Promise.all([
+      listTeacherStudentWeakPointsApi(studentId),
+      listTeacherStudentMasteryApi(studentId),
+    ]);
+    studentWeakPoints.value = weakPointsResponse.data;
+    studentMastery.value = masteryResponse.data;
   } catch (error) {
-    handleApiError(error, "加载学生薄弱点失败。");
+    handleApiError(error, "加载学生知识画像失败。");
   }
+}
+
+function masteryStatusText(status) {
+  return {
+    weak: "薄弱",
+    partial: "基本掌握",
+    good: "掌握较好",
+  }[status] || status;
 }
 
 function formatDate(value) {
@@ -182,6 +226,8 @@ function handleApiError(error, fallbackMessage) {
 
 .student-detail {
   padding: 20px 22px;
+  display: grid;
+  gap: 18px;
 }
 
 .detail-header h3 {
@@ -190,19 +236,40 @@ function handleApiError(error, fallbackMessage) {
   color: #10283d;
 }
 
-.detail-header p {
+.detail-header p,
+.section-head span,
+.mastery-card small {
   margin: 6px 0 0;
   color: #6f8297;
 }
 
-.weak-cards {
+.detail-section {
+  display: grid;
+  gap: 14px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.section-head h4 {
+  margin: 0;
+  color: #15314a;
+  font-size: 18px;
+}
+
+.weak-cards,
+.mastery-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
-  margin-top: 18px;
 }
 
 .weak-card,
+.mastery-card,
 .feedback.error,
 .empty {
   padding: 18px;
@@ -211,11 +278,65 @@ function handleApiError(error, fallbackMessage) {
   color: #5f7287;
 }
 
-.weak-card strong {
+.weak-card strong,
+.mastery-card strong {
   display: block;
-  margin-bottom: 8px;
   color: #16314a;
-  font-size: 18px;
+}
+
+.mastery-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e2ebf4;
+}
+
+.mastery-card.weak {
+  background: #fff4f4;
+}
+
+.mastery-card.partial {
+  background: #fff8ea;
+}
+
+.mastery-card.good {
+  background: #eefbf3;
+}
+
+.mastery-top,
+.score-row,
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-pill.weak {
+  background: #fde7e7;
+  color: #b42318;
+}
+
+.status-pill.partial {
+  background: #fff0d8;
+  color: #9a6700;
+}
+
+.status-pill.good {
+  background: #dff7e7;
+  color: #027a48;
+}
+
+.score-row span,
+.meta-row span {
+  color: #5f7287;
+  font-size: 13px;
 }
 
 .feedback.error {

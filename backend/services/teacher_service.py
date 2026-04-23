@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.config import settings
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
+from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
 from backend.schemas.teacher import (
     DashboardMetricResponse,
@@ -16,6 +17,8 @@ from backend.schemas.teacher import (
     PendingBatchApproveRequest,
     PendingBatchRejectRequest,
     GraphQueryResponse,
+    TeacherKnowledgeNodeRefResponse,
+    TeacherStudentMasteryResponse,
     TeacherStudentResponse,
     TeacherStudentWeakPointResponse,
 )
@@ -57,6 +60,177 @@ def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
     ]
 
 
+def _split_search_terms(keyword: str) -> list[str]:
+    normalized = keyword.strip()
+    if not normalized:
+        return []
+    terms = [term.strip().lower() for term in re.split(r"[\s,，;；、]+", normalized) if term.strip()]
+    if normalized.lower() not in terms:
+        terms.insert(0, normalized.lower())
+    return terms
+
+
+def _compute_relevance_score(name: str, desc: str, terms: list[str], match_type: str = "match") -> int:
+    if not terms:
+        return 0
+    name_lower = (name or "").lower()
+    desc_lower = (desc or "").lower()
+    phrase = terms[0]
+    score = 0
+
+    if name_lower == phrase:
+        score += 1200
+    elif name_lower.startswith(phrase):
+        score += 900
+    elif phrase in name_lower:
+        score += 700
+
+    if phrase and phrase in desc_lower:
+        score += 120
+
+    for term in terms:
+        if not term:
+            continue
+        if name_lower == term:
+            score += 280
+        elif name_lower.startswith(term):
+            score += 180
+        elif term in name_lower:
+            score += 110
+
+        if term in desc_lower:
+            score += 30
+
+    if match_type == "neighbor":
+        score -= 220
+    return score
+
+
+def _ensure_knowledge_nodes(
+    db: Session,
+    node_items: list[dict],
+) -> list[TeacherKnowledgeNodeRefResponse]:
+    if not node_items:
+        return []
+
+    existing = {
+        row.node_name: row
+        for row in db.query(KnowledgeNode).filter(KnowledgeNode.node_name.in_([item["node_name"] for item in node_items])).all()
+    }
+    responses = []
+    for item in node_items:
+        node_name = item["node_name"]
+        row = existing.get(node_name)
+        if not row:
+            row = KnowledgeNode(node_name=node_name, node_type=item.get("node_type") or None)
+            db.add(row)
+            db.flush()
+            existing[node_name] = row
+        elif item.get("node_type") and row.node_type != item["node_type"]:
+            row.node_type = item["node_type"]
+        responses.append(
+            TeacherKnowledgeNodeRefResponse(
+                id=row.id,
+                node_name=row.node_name,
+                node_type=row.node_type,
+                match_type=item.get("match_type") or "match",
+                relevance_score=int(item.get("relevance_score") or 0),
+            )
+        )
+    db.commit()
+    return responses
+
+
+def list_knowledge_node_refs(
+    db: Session,
+    keyword: str = "",
+    include_neighbors: bool = False,
+    limit: int = 200,
+) -> list[TeacherKnowledgeNodeRefResponse]:
+    terms = _split_search_terms(keyword)
+    if not terms:
+        rows = db.query(KnowledgeNode).order_by(KnowledgeNode.node_name.asc()).limit(limit).all()
+        return [
+            TeacherKnowledgeNodeRefResponse(id=row.id, node_name=row.node_name, node_type=row.node_type)
+            for row in rows
+        ]
+
+    driver = get_neo4j_driver()
+    query = """
+    MATCH (n:Knowledge)
+    WHERE any(term IN $terms WHERE
+        toLower(n.name) CONTAINS term
+        OR toLower(coalesce(properties(n)["desc"], "")) CONTAINS term
+    )
+    RETURN n.name AS node_name,
+           coalesce(properties(n)["desc"], "") AS node_desc,
+           coalesce(properties(n)["node_type"], "") AS node_type
+    ORDER BY n.name ASC
+    LIMIT $limit
+    """
+    items = []
+    seen: set[tuple[str, str]] = set()
+    with driver.session(database=settings.neo4j_db_name) as session:
+        records = list(
+            session.run(
+                query,
+                terms=terms,
+                include_neighbors=include_neighbors,
+                limit=limit,
+            )
+        )
+        for record in records:
+            node_name = record["node_name"]
+            if not node_name or (node_name, "match") in seen:
+                continue
+            seen.add((node_name, "match"))
+            items.append(
+                {
+                    "node_name": node_name,
+                    "node_type": record["node_type"],
+                    "match_type": "match",
+                    "relevance_score": _compute_relevance_score(
+                        node_name,
+                        record["node_desc"],
+                        terms,
+                        "match",
+                    ),
+                }
+            )
+
+        if include_neighbors:
+            neighbor_query = """
+            UNWIND $names AS node_name
+            MATCH (:Knowledge {name: node_name})-[r]-(neighbor:Knowledge)
+            RETURN DISTINCT neighbor.name AS node_name,
+                            coalesce(properties(neighbor)["desc"], "") AS node_desc,
+                            coalesce(properties(neighbor)["node_type"], "") AS node_type
+            LIMIT $limit
+            """
+            match_names = [item["node_name"] for item in items if item["match_type"] == "match"]
+            for record in session.run(neighbor_query, names=match_names, limit=limit):
+                node_name = record["node_name"]
+                if not node_name or (node_name, "neighbor") in seen or any(item["node_name"] == node_name for item in items):
+                    continue
+                seen.add((node_name, "neighbor"))
+                items.append(
+                    {
+                        "node_name": node_name,
+                        "node_type": record["node_type"],
+                        "match_type": "neighbor",
+                        "relevance_score": _compute_relevance_score(
+                            node_name,
+                            record["node_desc"],
+                            terms,
+                            "neighbor",
+                        ),
+                    }
+                )
+
+    items.sort(key=lambda item: (-int(item["relevance_score"]), item["match_type"] != "match", item["node_name"]))
+    return _ensure_knowledge_nodes(db, items[:limit])
+
+
 def list_student_weak_points(db: Session, student_id: int) -> list[TeacherStudentWeakPointResponse]:
     student = db.query(User).filter(User.id == student_id, User.role == "student").first()
     if not student:
@@ -78,6 +252,36 @@ def list_student_weak_points(db: Session, student_id: int) -> list[TeacherStuden
             last_seen_at=weak_point.last_seen_at,
         )
         for weak_point, node in rows
+    ]
+
+
+def list_student_mastery(db: Session, student_id: int) -> list[TeacherStudentMasteryResponse]:
+    student = db.query(User).filter(User.id == student_id, User.role == "student").first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+
+    rows = (
+        db.query(UserConceptMastery, KnowledgeNode)
+        .join(KnowledgeNode, UserConceptMastery.knowledge_node_id == KnowledgeNode.id)
+        .filter(UserConceptMastery.student_id == student_id)
+        .order_by(
+            UserConceptMastery.mastery_score.asc(),
+            UserConceptMastery.last_evaluated_at.desc(),
+            KnowledgeNode.node_name.asc(),
+        )
+        .all()
+    )
+    return [
+        TeacherStudentMasteryResponse(
+            knowledge_node_id=node.id,
+            node_name=node.node_name,
+            mastery_score=int(mastery.mastery_score or 0),
+            status=mastery.status,
+            positive_evidence_count=int(mastery.positive_evidence_count or 0),
+            negative_evidence_count=int(mastery.negative_evidence_count or 0),
+            last_evaluated_at=mastery.last_evaluated_at,
+        )
+        for mastery, node in rows
     ]
 
 
@@ -125,14 +329,18 @@ def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricRes
 
 def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
     driver = get_neo4j_driver()
+    raw_nodes = []
     node_rows = []
     edge_rows = []
     node_id_map: dict[str, str] = {}
+    terms = _split_search_terms(keyword)
     query = """
     MATCH (n:Knowledge)
-    WHERE $keyword = "" 
-       OR toLower(n.name) CONTAINS toLower($keyword)
-       OR toLower(coalesce(properties(n)["desc"], "")) CONTAINS toLower($keyword)
+    WHERE size($terms) = 0
+       OR any(term IN $terms WHERE
+           toLower(n.name) CONTAINS term
+           OR toLower(coalesce(properties(n)["desc"], "")) CONTAINS term
+       )
     RETURN n.name AS name,
            coalesce(properties(n)["desc"], "") AS desc,
            coalesce(properties(n)["node_type"], "") AS node_type
@@ -140,19 +348,35 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
     LIMIT $limit
     """
     with driver.session(database=settings.neo4j_db_name) as session:
-        for index, record in enumerate(session.run(query, keyword=keyword.strip(), limit=limit), start=1):
-            node_id = str(index)
+        for record in session.run(query, terms=terms, limit=limit):
             node_name = record["name"]
-            node_id_map[node_name] = node_id
-            node_rows.append(
+            raw_nodes.append(
                 {
-                    "id": node_id,
                     "label": node_name,
                     "name": node_name,
                     "desc": record["desc"],
                     "node_type": record["node_type"],
+                    "search_match": bool(terms),
+                    "relevance_score": _compute_relevance_score(
+                        node_name,
+                        record["desc"],
+                        terms,
+                        "match",
+                    ),
                 }
             )
+
+        raw_nodes.sort(
+            key=lambda item: (
+                -int(item["relevance_score"]),
+                item["name"],
+            )
+        )
+        for index, item in enumerate(raw_nodes[:limit], start=1):
+            node_id = str(index)
+            item["id"] = node_id
+            node_id_map[item["name"]] = node_id
+            node_rows.append(item)
 
         if node_rows:
             edge_query = """

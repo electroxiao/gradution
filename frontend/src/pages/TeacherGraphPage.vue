@@ -11,12 +11,28 @@
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
     <div class="toolbar">
-      <input
-        v-model="keyword"
-        class="toolbar-input"
-        placeholder="搜索节点名或描述"
-        @keydown.enter.prevent="searchGraph"
-      />
+      <div class="toolbar-search">
+        <input
+          v-model="keyword"
+          class="toolbar-input"
+          placeholder="搜索节点名或描述"
+          @input="handleGraphKeywordInput"
+          @focus="handleGraphKeywordInput"
+          @keydown.enter.prevent="searchGraph()"
+        />
+        <div v-if="showGraphSuggestions && graphSuggestions.length" class="search-dropdown">
+          <button
+            v-for="node in graphSuggestions"
+            :key="node.id"
+            type="button"
+            class="search-dropdown-item"
+            @mousedown.prevent="selectGraphSuggestion(node)"
+          >
+            <strong>{{ node.name }}</strong>
+            <small v-if="node.desc">{{ node.desc }}</small>
+          </button>
+        </div>
+      </div>
       <span class="graph-meta">节点 {{ graph.nodes.length }} / 边 {{ graph.edges.length }}</span>
       <button class="ghost" @click="searchGraph">搜索</button>
       <button class="ghost" @click="toggleFullscreen">全屏</button>
@@ -373,10 +389,13 @@ const keyword = ref("");
 const errorMessage = ref("");
 const activeMode = ref("graph");
 const isGraphLoading = ref(false);
+const isGraphSuggesting = ref(false);
 const isPendingLoading = ref(false);
 const isReviewLoading = ref(false);
 const fullGraph = ref({ nodes: [], edges: [] });
 const graph = ref({ nodes: [], edges: [] });
+const graphSuggestions = ref([]);
+const showGraphSuggestions = ref(false);
 const pendingBatches = ref([]);
 const selectedBatchId = ref("");
 const selectedBatchDetail = ref(null);
@@ -436,6 +455,7 @@ const selectedEdgeDrafts = computed(() =>
 const editableReviewNode = computed(() => (selectedReviewNode.value ? reviewNodeDrafts[selectedReviewNode.value.id] : null));
 const editableReviewEdge = computed(() => (selectedReviewEdge.value ? reviewEdgeDrafts[selectedReviewEdge.value.id] : null));
 const isActiveGraphLoading = computed(() => activeMode.value === "graph" ? isGraphLoading.value : isReviewLoading.value);
+let graphSuggestTimer = null;
 
 onMounted(async () => {
   await Promise.all([loadGraph(), loadPendingBatches()]);
@@ -703,14 +723,17 @@ async function searchGraph() {
   const query = keyword.value.trim();
   if (!query) {
     graph.value = fullGraph.value;
+    clearSelection();
+    showGraphSuggestions.value = false;
     return;
   }
   try {
     isGraphLoading.value = true;
     const { data } = await getTeacherGraphApi({ keyword: query, limit: 2000 });
     graph.value = data;
+    clearSelection();
+    showGraphSuggestions.value = false;
     if (data.nodes.length) {
-      handleSelectNode(data.nodes[0].id);
       await nextTick();
       graphCanvas.value?.focusNodes?.(data.nodes.map((node) => node.id));
     }
@@ -718,6 +741,47 @@ async function searchGraph() {
     handleApiError(error, "搜索图谱失败。");
   } finally {
     isGraphLoading.value = false;
+  }
+}
+
+function handleGraphKeywordInput() {
+  if (graphSuggestTimer) clearTimeout(graphSuggestTimer);
+  const query = keyword.value.trim();
+  if (!query) {
+    graphSuggestions.value = [];
+    showGraphSuggestions.value = false;
+    graph.value = fullGraph.value;
+    clearSelection();
+    return;
+  }
+  graphSuggestTimer = setTimeout(() => {
+    fetchGraphSuggestions(query);
+  }, 180);
+}
+
+async function fetchGraphSuggestions(query) {
+  if (!query || activeMode.value !== "graph") return;
+  isGraphSuggesting.value = true;
+  try {
+    const { data } = await getTeacherGraphApi({ keyword: query, limit: 12 });
+    graphSuggestions.value = data.nodes || [];
+    showGraphSuggestions.value = graphSuggestions.value.length > 0;
+  } catch (error) {
+    graphSuggestions.value = [];
+    showGraphSuggestions.value = false;
+  } finally {
+    isGraphSuggesting.value = false;
+  }
+}
+
+async function selectGraphSuggestion(node) {
+  keyword.value = node.name;
+  await searchGraph();
+  const exactNode = graph.value.nodes.find((item) => item.name === node.name);
+  if (exactNode) {
+    handleSelectNode(exactNode.id);
+    await nextTick();
+    graphCanvas.value?.focusNodes?.([exactNode.id]);
   }
 }
 
@@ -828,6 +892,12 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.05);
 }
 
+.toolbar-search {
+  position: relative;
+  flex: 1;
+  min-width: 260px;
+}
+
 .toolbar-input,
 .detail-body input,
 .detail-body textarea {
@@ -840,14 +910,56 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .toolbar-input {
-  flex: 1;
-  min-width: 260px;
+  min-width: 0;
 }
 
 .graph-meta {
   color: #6f8297;
   font-size: 13px;
   white-space: nowrap;
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: grid;
+  gap: 6px;
+  max-height: 320px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid #dce8f5;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+}
+
+.search-dropdown-item {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  text-align: left;
+  color: #214666;
+  background: #fff;
+  border: 1px solid #d8e7f6;
+}
+
+.search-dropdown-item small {
+  overflow: hidden;
+  color: #73869a;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-dropdown-item:hover {
+  color: #fff;
+  background: #1e63a7;
+}
+
+.search-dropdown-item:hover small {
+  color: rgba(255, 255, 255, 0.78);
 }
 
 button {

@@ -104,6 +104,26 @@
             </dl>
 
             <section class="detail-section">
+              <h4>作业画像信息</h4>
+              <dl class="meta-grid">
+                <div>
+                  <dt>可信度标签</dt>
+                  <dd>{{ trustLabelText(selectedSubmission.trust_label) }}</dd>
+                </div>
+                <div>
+                  <dt>计入图谱画像</dt>
+                  <dd>{{ selectedSubmission.excluded_from_mastery_update ? "否" : "是" }}</dd>
+                </div>
+              </dl>
+              <div v-if="selectedQuestion?.knowledge_nodes?.length" class="tag-list">
+                <span v-for="node in selectedQuestion.knowledge_nodes" :key="node.id" class="tag-pill">{{ node.node_name }}</span>
+              </div>
+              <p v-if="selectedSubmission.excluded_from_mastery_update" class="muted">
+                该次提交因“异常速通”未计入知识图谱画像更新。
+              </p>
+            </section>
+
+            <section class="detail-section">
               <h4>提交代码</h4>
               <pre class="code-block">{{ selectedSubmission.code }}</pre>
             </section>
@@ -330,6 +350,13 @@ function teacherReviewText(value) {
     approved: "教师通过",
     rejected: "教师驳回",
   }[value] || value;
+}
+
+function trustLabelText(value) {
+  return {
+    normal: "正常",
+    suspicious_fast_pass: "异常速通",
+  }[value] || "正常";
 }
 
 function formatDateTime(value) {
@@ -650,6 +677,24 @@ function handleApiError(error, fallbackMessage) {
 .detail-section h4 {
   margin: 0;
   color: #10283d;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef6ff;
+  color: #1f5f99;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .decision-pill {

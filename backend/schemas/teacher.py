@@ -9,6 +9,14 @@ class TeacherStudentResponse(BaseModel):
     weak_point_count: int
 
 
+class TeacherKnowledgeNodeRefResponse(BaseModel):
+    id: int
+    node_name: str
+    node_type: str | None = None
+    match_type: str = "match"
+    relevance_score: int = 0
+
+
 class TeacherStudentWeakPointResponse(BaseModel):
     id: int
     node_name: str
@@ -17,12 +25,24 @@ class TeacherStudentWeakPointResponse(BaseModel):
     last_seen_at: datetime
 
 
+class TeacherStudentMasteryResponse(BaseModel):
+    knowledge_node_id: int
+    node_name: str
+    mastery_score: int
+    status: str
+    positive_evidence_count: int
+    negative_evidence_count: int
+    last_evaluated_at: datetime | None = None
+
+
 class GraphNodeResponse(BaseModel):
     id: str
     label: str
     name: str
     desc: str
     node_type: str
+    search_match: bool = True
+    relevance_score: int = 0
 
 
 class GraphEdgeResponse(BaseModel):

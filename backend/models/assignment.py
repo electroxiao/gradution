@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.session import Base
@@ -62,6 +62,12 @@ class AssignmentQuestion(Base):
         back_populates="question",
         cascade="all, delete-orphan",
     )
+    knowledge_nodes = relationship(
+        "AssignmentQuestionKnowledgeNode",
+        back_populates="question",
+        cascade="all, delete-orphan",
+        order_by="AssignmentQuestionKnowledgeNode.sort_order",
+    )
 
 
 class AssignmentTestCase(Base):
@@ -109,6 +115,9 @@ class AssignmentSubmission(Base):
     teacher_review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    trust_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    trust_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    excluded_from_mastery_update: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -117,3 +126,18 @@ class AssignmentSubmission(Base):
     question = relationship("AssignmentQuestion", back_populates="submissions")
     student = relationship("User", foreign_keys=[student_id])
     reviewer = relationship("User", foreign_keys=[reviewed_by])
+
+
+class AssignmentQuestionKnowledgeNode(Base):
+    __tablename__ = "assignment_question_knowledge_nodes"
+    __table_args__ = (
+        UniqueConstraint("question_id", "knowledge_node_id", name="uq_assignment_question_knowledge_node"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    question_id: Mapped[int] = mapped_column(ForeignKey("assignment_questions.id", ondelete="CASCADE"), index=True)
+    knowledge_node_id: Mapped[int] = mapped_column(ForeignKey("knowledge_nodes.id", ondelete="CASCADE"), index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    question = relationship("AssignmentQuestion", back_populates="knowledge_nodes")
+    knowledge_node = relationship("KnowledgeNode")
