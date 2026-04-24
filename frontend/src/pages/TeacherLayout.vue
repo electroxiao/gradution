@@ -80,7 +80,7 @@ function logout() {
 
 <style scoped>
 .console-shell {
-  --sidebar-width: 262px;
+  --sidebar-width: 210px;
   --sidebar-collapsed-width: 82px;
   --sidebar-current-width: var(--sidebar-width);
   display: grid;
@@ -276,7 +276,7 @@ function logout() {
 }
 
 .console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover {
-  width: 262px;
+  width: 210px;
   z-index: 20;
   box-shadow: var(--app-shadow-strong);
 }
@@ -298,7 +298,7 @@ function logout() {
 
 @media (max-width: 980px) {
   .console-shell {
-    --sidebar-width: 220px;
+    --sidebar-width: 176px;
     --sidebar-collapsed-width: 74px;
   }
 
@@ -316,7 +316,7 @@ function logout() {
 
 @media (max-width: 640px) {
   .console-shell {
-    --sidebar-width: 196px;
+    --sidebar-width: 157px;
     --sidebar-collapsed-width: 68px;
   }
 

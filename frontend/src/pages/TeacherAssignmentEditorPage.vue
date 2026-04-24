@@ -1,102 +1,100 @@
 <template>
   <section class="editor-page">
-    <header class="page-header">
-      <div>
+    <header class="editor-hero">
+      <div class="hero-copy">
+        <span class="eyebrow">Assignment Studio</span>
         <h2>{{ isNew ? "新建作业" : "编辑作业" }}</h2>
-        <p class="page-copy">AI 默认参与判题，测试用例按题目需要启用。</p>
+        <p>在同一个工作台完成发布对象、题目内容、知识点绑定、AI 判题和测试用例配置。</p>
+      </div>
+      <div class="hero-actions">
+        <router-link class="btn btn-quiet" to="/teacher/assignments">返回列表</router-link>
+        <router-link
+          v-if="!isNew"
+          class="btn btn-quiet"
+          :to="`/teacher/assignments/${assignmentId}/progress`"
+        >
+          完成情况
+        </router-link>
+        <button type="button" class="btn btn-primary" :disabled="saving" @click="saveAssignment">
+          {{ saving ? "保存中..." : "保存作业" }}
+        </button>
       </div>
     </header>
-
-    <div class="toolbar-actions">
-      <router-link class="secondary-link" to="/teacher/assignments">返回列表</router-link>
-      <router-link
-        v-if="!isNew"
-        class="secondary-link"
-        :to="`/teacher/assignments/${assignmentId}/progress`"
-      >
-        完成情况
-      </router-link>
-      <button type="button" class="primary-btn" :disabled="saving" @click="saveAssignment">
-        {{ saving ? "保存中..." : "保存作业" }}
-      </button>
-    </div>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
 
-    <section class="assignment-meta shell-card">
-      <div class="meta-banner">
-        <div class="meta-banner-copy">
-          <h3>作业基础信息</h3>
-          <p>先确定标题、状态和说明，再继续配置题目、知识点和 AI 判题规则。</p>
-        </div>
-        <div class="meta-glance">
-          <span class="meta-chip">{{ form.questions.length }} 题</span>
-          <span class="meta-chip">{{ form.student_ids.length }} 名学生</span>
-          <span class="meta-chip status">{{ assignmentStatusText(form.status) }}</span>
-        </div>
-      </div>
-      <label class="title-field">
-        作业标题
+    <section class="meta-strip">
+      <label class="field title-field">
+        <span>作业标题</span>
         <input v-model="form.title" placeholder="例如：JDBC 事务与资源释放练习" />
       </label>
-      <label>
-        状态
-        <select v-model="form.status">
-          <option value="draft">草稿</option>
-          <option value="published">发布</option>
-          <option value="closed">关闭</option>
-        </select>
+      <label class="field status-field">
+        <span>状态</span>
+        <span class="status-select">
+          <select v-model="form.status">
+            <option value="draft">草稿</option>
+            <option value="published">发布</option>
+            <option value="closed">关闭</option>
+          </select>
+        </span>
       </label>
-      <label class="description-field">
-        作业说明
-        <textarea v-model="form.description" rows="3" placeholder="写给学生的作业说明" />
+      <label class="field description-field">
+        <span>作业说明</span>
+        <textarea v-model="form.description" rows="1" placeholder="写给学生的作业说明" />
       </label>
+      <div class="meta-kpis">
+        <span><strong>{{ form.questions.length }}</strong>题目</span>
+        <span><strong>{{ form.student_ids.length }}</strong>学生</span>
+        <span class="state">{{ assignmentStatusText(form.status) }}</span>
+      </div>
     </section>
 
-    <main class="editor-workbench">
-      <aside class="editor-sidebar">
-        <section class="side-panel shell-card">
-          <div class="panel-title">
-            <h3>发布学生</h3>
-            <span>{{ form.student_ids.length }} / {{ students.length }}</span>
+    <main class="studio-layout">
+      <aside class="studio-sidebar">
+        <section class="panel roster-panel">
+          <div class="panel-head">
+            <div>
+              <h3>发布学生</h3>
+              <p>{{ form.student_ids.length }} / {{ students.length }} 已选择</p>
+            </div>
           </div>
-          <div class="student-grid">
-            <label v-for="student in students" :key="student.id" class="student-check">
+          <div class="student-list">
+            <label v-for="student in students" :key="student.id" class="student-item">
               <input v-model="form.student_ids" type="checkbox" :value="student.id" />
               <span>{{ student.username }}</span>
             </label>
           </div>
         </section>
 
-        <section class="side-panel shell-card question-index">
-          <div class="panel-title">
+        <section class="panel question-nav">
+          <div class="panel-head">
             <div>
               <h3>题目目录</h3>
-              <p>{{ form.questions.length }} 题</p>
+              <p>{{ form.questions.length }} 道题</p>
             </div>
-            <button type="button" class="primary-btn compact-btn" @click="addQuestion">新增题目</button>
+            <button type="button" class="btn btn-primary btn-small" @click="addQuestion">新增</button>
           </div>
 
           <article
             v-for="(question, qIndex) in form.questions"
             :key="question.localKey"
-            class="question-tab"
+            class="question-item"
             :class="{ active: qIndex === activeQuestionIndex }"
             @click="selectQuestion(qIndex)"
           >
-            <div class="question-tab-copy">
-              <span>第 {{ qIndex + 1 }} 题</span>
-              <strong>{{ question.title || "未命名题目" }}</strong>
-              <div class="question-badges">
-                <span class="badge">{{ reviewLevelText(question.ai_review_level) }}</span>
-                <span class="badge subtle">{{ question.enable_testcases ? `${question.test_cases.length} 个用例` : "无测试用例" }}</span>
-              </div>
-            </div>
-            <div class="question-tab-actions">
+            <button type="button" class="question-main">
+              <span class="question-order">Q{{ qIndex + 1 }}</span>
+              <span class="question-title">{{ question.title || "未命名题目" }}</span>
+              <span class="question-meta">
+                {{ reviewLevelText(question.ai_review_level) }} ·
+                {{ question.enable_testcases ? `${question.test_cases.length} 个用例` : "无测试用例" }}
+              </span>
+            </button>
+            <div class="question-actions">
               <button
                 type="button"
-                class="icon-action"
+                class="icon-btn"
                 title="上移题目"
                 :disabled="qIndex === 0"
                 @click.stop="moveQuestion(qIndex, -1)"
@@ -105,14 +103,14 @@
               </button>
               <button
                 type="button"
-                class="icon-action"
+                class="icon-btn"
                 title="下移题目"
                 :disabled="qIndex === form.questions.length - 1"
                 @click.stop="moveQuestion(qIndex, 1)"
               >
                 ↓
               </button>
-              <button type="button" class="icon-action danger-action" title="删除题目" @click.stop="removeQuestion(qIndex)">
+              <button type="button" class="icon-btn danger" title="删除题目" @click.stop="removeQuestion(qIndex)">
                 ×
               </button>
             </div>
@@ -120,245 +118,286 @@
         </section>
       </aside>
 
-      <section class="editor-main">
-        <section class="idea-panel shell-card">
-          <div>
-            <h3>AI 生成题目草稿</h3>
-            <p>先生成题面，再按需要生成测试用例和 AI 审查关注点。</p>
+      <section class="studio-main">
+        <section class="ai-draft-panel panel">
+          <div class="draft-heading">
+            <span class="section-index">AI</span>
+            <div>
+              <h3>AI 生成题目草稿</h3>
+              <p>输入题目要求和知识点后，系统会追加一题草稿；生成后仍可手动调整题面、判题规则和测试用例。</p>
+            </div>
           </div>
-          <div class="idea-fields">
-            <input v-model="generateKnowledge" placeholder="知识点，例如 Java 事务处理" />
-            <input v-model="generateRequirement" placeholder="题目要求，例如 设计转账事务并处理异常" />
-            <button type="button" class="primary-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestion">
-              {{ generating ? "生成中..." : "生成题目" }}
-            </button>
+          <div class="draft-fields">
+            <label class="field">
+              <span>题目要求</span>
+              <textarea
+                v-model="generateRequirement"
+                rows="5"
+                placeholder="例如：设计转账事务并处理异常，要求说明事务边界、资源释放、输入输出格式和错误处理。"
+              />
+            </label>
+            <div class="draft-bottom-row">
+              <label class="field">
+                <span>知识点</span>
+                <input v-model="generateKnowledge" placeholder="例如：Java 事务处理、异常回滚" />
+              </label>
+              <button type="button" class="btn btn-primary" :disabled="generating || !generateRequirement.trim()" @click="generateQuestion">
+                {{ generating ? "生成中..." : "生成题目" }}
+              </button>
+            </div>
           </div>
         </section>
 
-        <section v-if="activeQuestion" class="question-editor">
-          <header class="question-header shell-card">
-            <div>
+        <section v-if="activeQuestion" class="question-workspace">
+          <div class="question-summary panel">
+            <div class="question-summary-title">
               <h3>{{ activeQuestion.title || "未命名题目" }}</h3>
-              <p>先定义题面和 AI 审查策略，再决定是否用测试用例补充功能验证。</p>
             </div>
-          </header>
+            <div class="summary-tags">
+              <span>{{ reviewLevelText(activeQuestion.ai_review_level) }}</span>
+              <span>{{ activeQuestion.enable_testcases ? `${activeQuestion.test_cases.length} 个测试用例` : "AI 独立审查" }}</span>
+              <span>{{ selectedKnowledgeNodes.length }} 个知识点</span>
+            </div>
+          </div>
 
-          <section class="content-card shell-card">
-            <div class="card-heading">
+          <section class="editor-section panel">
+            <div class="section-head">
               <div>
                 <h4>题目内容</h4>
-                <p>题面越清晰，AI 生成测试用例和关注点越稳定。</p>
+                <p>题面、初始代码和知识图谱绑定会直接影响学生作答与画像更新。</p>
               </div>
             </div>
-            <div class="card-grid">
-              <label>
-                题目标题
+            <div class="content-grid">
+              <label class="field">
+                <span>题目标题</span>
                 <input v-model="activeQuestion.title" placeholder="例如：实现线程安全的库存扣减" />
               </label>
-              <label class="prompt-field">
-                题目描述
+              <label class="field prompt-field">
+                <span>题目描述</span>
                 <textarea
+                  v-auto-resize
                   v-model="activeQuestion.prompt"
                   class="prompt-input"
-                  rows="12"
+                  rows="5"
                   placeholder="题目描述、输入输出要求、实现约束、评分重点"
                 />
               </label>
-              <label class="prompt-field">
-                初始代码
+              <label class="field prompt-field">
+                <span>初始代码</span>
                 <textarea
+                  v-auto-resize
                   v-model="activeQuestion.starter_code"
                   class="prompt-input code-input"
-                  rows="11"
+                  rows="5"
                   placeholder="学生首次打开这道题时，编辑器将默认填入这段代码；若学生已存在草稿，则不会覆盖。"
                 />
               </label>
-              <div class="knowledge-card">
-                <div class="card-heading compact-heading">
-                  <div>
-                    <h5>关联知识点</h5>
-                    <p>绑定已有知识图谱节点后，这道题的提交结果才会参与掌握度更新。</p>
-                  </div>
+            </div>
+
+            <div class="knowledge-block">
+              <div class="section-head compact">
+                <div>
+                  <h4>关联知识点</h4>
+                  <p>绑定已有知识图谱节点后，这道题的提交结果才会参与掌握度更新。</p>
                 </div>
-                <div class="knowledge-search">
-                  <div class="knowledge-search-box">
-                    <input
-                      v-model="knowledgeNodeKeyword"
-                      placeholder="输入关键词搜索图谱节点"
-                      @input="handleKnowledgeNodeInput"
-                      @focus="handleKnowledgeNodeInput"
-                      @keydown.enter.prevent="searchKnowledgeNodes"
-                    />
-                    <div v-if="showKnowledgeNodeDropdown && knowledgeNodeSuggestions.length" class="knowledge-dropdown">
-                      <button
-                        v-for="node in knowledgeNodeSuggestions"
-                        :key="node.id"
-                        type="button"
-                        class="knowledge-dropdown-item"
-                        @mousedown.prevent="toggleKnowledgeNode(node)"
-                      >
-                        <strong>{{ node.node_name }}</strong>
-                        <span>
-                          <small v-if="node.match_type === 'neighbor'">相邻节点</small>
-                          <small v-else>直接匹配</small>
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                  <button type="button" :disabled="knowledgeNodeLoading" @click="searchKnowledgeNodes()">
-                    {{ knowledgeNodeLoading ? "搜索中..." : "搜索" }}
-                  </button>
-                  <button type="button" class="ghost-btn" @click="resetKnowledgeNodeSearch">全部</button>
-                </div>
-                <p v-if="knowledgeNodeKeyword.trim()" class="helper-text">
-                  搜索结果会包含直接命中的节点，并补充与其相连的节点，便于一起绑定。
-                </p>
-                <div v-if="selectedKnowledgeNodes.length" class="knowledge-grid">
-                  <button
-                    v-for="node in selectedKnowledgeNodes"
-                    :key="node.id"
-                    type="button"
-                    class="knowledge-check selected"
-                    @click="toggleKnowledgeNode(node)"
-                  >
-                    <span>
-                      {{ node.node_name }}
-                      <small v-if="node.match_type === 'neighbor'">相邻节点</small>
-                    </span>
-                  </button>
-                </div>
-                <p v-else class="helper-text">尚未选择知识点。输入关键词后可在下拉列表里直接添加。</p>
               </div>
+              <div class="knowledge-search">
+                <div class="knowledge-search-box">
+                  <input
+                    v-model="knowledgeNodeKeyword"
+                    placeholder="输入关键词搜索图谱节点"
+                    @input="handleKnowledgeNodeInput"
+                    @focus="handleKnowledgeNodeInput"
+                    @keydown.enter.prevent="searchKnowledgeNodes"
+                  />
+                  <button
+                    v-if="knowledgeNodeKeyword.trim()"
+                    type="button"
+                    class="knowledge-clear"
+                    title="清空搜索"
+                    @mousedown.prevent
+                    @click="resetKnowledgeNodeSearch"
+                  >
+                    ×
+                  </button>
+                  <div v-if="showKnowledgeNodeDropdown && knowledgeNodeSuggestions.length" class="knowledge-dropdown">
+                    <button
+                      v-for="node in knowledgeNodeSuggestions"
+                      :key="node.id"
+                      type="button"
+                      class="knowledge-dropdown-item"
+                      @mousedown.prevent="toggleKnowledgeNode(node)"
+                    >
+                      <strong>{{ node.node_name }}</strong>
+                      <small v-if="node.match_type === 'neighbor'">相邻节点</small>
+                      <small v-else>直接匹配</small>
+                    </button>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-quiet" :disabled="knowledgeNodeLoading" @click="searchKnowledgeNodes()">
+                  {{ knowledgeNodeLoading ? "搜索中..." : "搜索" }}
+                </button>
+                <button type="button" class="btn btn-quiet" @click="resetKnowledgeNodeSearch">全部</button>
+              </div>
+              <p v-if="knowledgeNodeKeyword.trim()" class="helper-text">
+                搜索结果会包含直接命中的节点，并补充与其相连的节点。
+              </p>
+              <div v-if="selectedKnowledgeNodes.length" class="knowledge-tags">
+                <span
+                  v-for="node in selectedKnowledgeNodes"
+                  :key="node.id"
+                  class="knowledge-tag"
+                >
+                  <span class="knowledge-tag-name">
+                    {{ node.node_name }}
+                    <small v-if="node.match_type === 'neighbor'">相邻</small>
+                  </span>
+                  <button
+                    type="button"
+                    class="knowledge-remove"
+                    :title="`移除 ${node.node_name}`"
+                    @click="removeKnowledgeNode(node.id)"
+                  >
+                    ×
+                  </button>
+                </span>
+              </div>
+              <p v-else class="helper-text">尚未选择知识点。输入关键词后可在下拉列表里直接添加。</p>
             </div>
           </section>
 
-          <section class="grading-card shell-card">
-            <div class="card-heading">
-              <div>
-                <h4>AI 判题设置</h4>
-                <p>AI 默认参与判题。普通题建议轻审查，数据库/并发/开放题建议深审查。</p>
-              </div>
-              <div class="status-chip">AI 默认开启</div>
-            </div>
-
-            <div class="review-level-switch">
-              <button
-                type="button"
-                class="level-btn"
-                :class="{ active: activeQuestion.ai_review_level === 'light' }"
-                @click="activeQuestion.ai_review_level = 'light'"
-              >
-                轻审查
-                <small>只抓明显问题，不额外挑刺</small>
-              </button>
-              <button
-                type="button"
-                class="level-btn"
-                :class="{ active: activeQuestion.ai_review_level === 'deep' }"
-                @click="activeQuestion.ai_review_level = 'deep'"
-              >
-                深审查
-                <small>重点看事务、并发、资源和设计风险</small>
-              </button>
-            </div>
-
-            <label>
-              评分标准
-              <textarea
-                v-model="activeQuestion.ai_grading_rubric"
-                rows="5"
-                placeholder="例如：重点检查事务边界、异常处理、资源释放，以及是否满足题目业务约束"
-              />
-            </label>
-
-            <div class="focus-card">
-              <div class="card-heading">
+          <section class="assessment-stack">
+            <section class="editor-section panel grading-panel">
+              <div class="section-head">
                 <div>
-                  <h5>AI 关注点</h5>
-                  <p>教师可以手动填写，也可以让 AI 根据题目自动补全。</p>
+                  <h4>AI 判题设置</h4>
+                  <p>AI 默认参与判题，审查深度决定反馈严谨程度。</p>
                 </div>
+                <span class="pill">AI 开启</span>
+              </div>
+
+              <div class="review-level-switch">
                 <button
                   type="button"
-                  class="secondary-btn"
-                  :disabled="focusGenerating || !canGenerateFocus(activeQuestion)"
-                  @click="generateFocus(activeQuestion)"
+                  class="level-option"
+                  :class="{ active: activeQuestion.ai_review_level === 'light' }"
+                  @click="activeQuestion.ai_review_level = 'light'"
                 >
-                  {{ focusGenerating ? "生成中..." : "AI 生成关注点" }}
+                  <strong>轻审查</strong>
+                  <span>适合输入输出明确、主要靠测试用例验证的练习。</span>
+                </button>
+                <button
+                  type="button"
+                  class="level-option"
+                  :class="{ active: activeQuestion.ai_review_level === 'deep' }"
+                  @click="activeQuestion.ai_review_level = 'deep'"
+                >
+                  <strong>深审查</strong>
+                  <span>适合事务、并发、资源释放、设计约束较强的题目。</span>
                 </button>
               </div>
-              <label>
-                关注点输入
-                <input
-                  v-model="activeQuestion.ai_grading_focus_text"
-                  placeholder="例如：事务边界, 异常处理, 资源释放"
+
+              <label class="field">
+                <span>评分标准</span>
+                <textarea
+                  v-model="activeQuestion.ai_grading_rubric"
+                  rows="6"
+                  placeholder="例如：重点检查事务边界、异常处理、资源释放，以及是否满足题目业务约束"
                 />
               </label>
-              <p class="helper-text">{{ activeQuestion.focus_summary || "系统会结合题目内容和教师要求，引导 AI 审查代码重点。" }}</p>
-            </div>
-          </section>
 
-          <section class="testcase-card shell-card">
-            <div class="card-heading">
-              <div>
-                <h4>测试用例</h4>
-                <p>用于给 AI 提供功能正确性的显式证据。不开启时，系统会自动加严 AI 审查。</p>
-              </div>
-              <label class="switch">
-                <input v-model="activeQuestion.enable_testcases" type="checkbox" />
-                <span>启用测试用例</span>
-              </label>
-            </div>
-
-            <transition name="fade-slide">
-              <div v-if="activeQuestion.enable_testcases" class="testcase-body">
-                <div class="card-heading">
+              <div class="focus-block">
+                <div class="section-head compact">
                   <div>
-                    <h5>用例配置</h5>
-                    <p>可手动维护，也可让 AI 基于题面自动生成一版初稿。</p>
+                    <h4>AI 关注点</h4>
+                    <p>教师可手动填写，也可以让 AI 根据题目自动补全。</p>
                   </div>
-                  <div class="inline-actions">
+                  <button
+                    type="button"
+                    class="btn btn-quiet"
+                    :disabled="focusGenerating || !canGenerateFocus(activeQuestion)"
+                    @click="generateFocus(activeQuestion)"
+                  >
+                    {{ focusGenerating ? "生成中..." : "AI 生成" }}
+                  </button>
+                </div>
+                <label class="field">
+                  <span>关注点输入</span>
+                  <input
+                    v-model="activeQuestion.ai_grading_focus_text"
+                    placeholder="例如：事务边界, 异常处理, 资源释放"
+                  />
+                </label>
+                <p class="helper-text">{{ activeQuestion.focus_summary || "系统会结合题目内容和教师要求，引导 AI 审查代码重点。" }}</p>
+              </div>
+            </section>
+
+            <section class="editor-section panel testcase-panel">
+              <div class="section-head">
+                <div>
+                  <h4>测试用例</h4>
+                  <p>显式验证功能正确性；关闭后会更依赖 AI 审查。</p>
+                </div>
+                <label class="switch">
+                  <input v-model="activeQuestion.enable_testcases" type="checkbox" />
+                  <span>启用</span>
+                </label>
+              </div>
+
+              <transition name="fade-slide">
+                <div v-if="activeQuestion.enable_testcases" class="testcase-body">
+                  <div class="testcase-actions">
                     <button
                       type="button"
-                      class="secondary-btn"
+                      class="btn btn-quiet"
                       :disabled="testcaseGenerating || !canGenerateTestCases(activeQuestion)"
                       @click="generateTestCases(activeQuestion)"
                     >
                       {{ testcaseGenerating ? "生成中..." : "AI 生成测试用例" }}
                     </button>
-                    <button type="button" class="primary-btn compact-btn" @click="addTestCase(activeQuestion)">新增用例</button>
+                    <button type="button" class="btn btn-primary" @click="addTestCase(activeQuestion)">新增用例</button>
                   </div>
-                </div>
 
-                <div class="case-table">
-                  <div class="case-head">
-                    <span>输入</span>
-                    <span>期望输出</span>
-                    <span>示例</span>
-                    <span>操作</span>
-                  </div>
                   <article
                     v-for="(testCase, cIndex) in activeQuestion.test_cases"
                     :key="testCase.localKey"
-                    class="case-row"
+                    class="case-card"
                   >
-                    <textarea v-model="testCase.input_data" rows="3" placeholder="stdin 输入" />
-                    <textarea v-model="testCase.expected_output" rows="3" placeholder="期望 stdout" />
-                    <label class="sample-check">
-                      <input v-model="testCase.is_sample" type="checkbox" />
-                      <span>示例</span>
-                    </label>
-                    <button type="button" class="ghost-btn" @click="removeTestCase(activeQuestion, cIndex)">删除</button>
+                    <div class="case-title">
+                      <strong>用例 {{ cIndex + 1 }}</strong>
+                      <label class="sample-check">
+                        <input v-model="testCase.is_sample" type="checkbox" />
+                        <span>示例</span>
+                      </label>
+                    </div>
+                    <div class="case-fields">
+                      <label class="field">
+                        <span>输入</span>
+                        <textarea v-model="testCase.input_data" rows="4" placeholder="stdin 输入" />
+                      </label>
+                      <label class="field">
+                        <span>期望输出</span>
+                        <textarea v-model="testCase.expected_output" rows="4" placeholder="期望 stdout" />
+                      </label>
+                    </div>
+                    <div class="case-footer">
+                      <button type="button" class="btn btn-danger" @click="removeTestCase(activeQuestion, cIndex)">删除用例</button>
+                    </div>
                   </article>
                 </div>
-              </div>
-            </transition>
+              </transition>
+
+              <p v-if="!activeQuestion.enable_testcases" class="helper-text">
+                当前题目未启用测试用例，保存时不会提交用例列表。
+              </p>
+            </section>
           </section>
         </section>
 
-        <section v-else class="empty-editor shell-card">
+        <section v-else class="empty-editor panel">
           <strong>还没有题目</strong>
           <p>先新增一道题目，或用 AI 生成题目草稿。</p>
-          <button type="button" class="primary-btn" @click="addQuestion">新增题目</button>
+          <button type="button" class="btn btn-primary" @click="addQuestion">新增题目</button>
         </section>
       </section>
     </main>
@@ -366,7 +405,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
@@ -430,6 +469,19 @@ const selectedKnowledgeNodes = computed(() => {
 });
 let knowledgeNodeSuggestTimer = null;
 
+const vAutoResize = {
+  mounted(element) {
+    element.addEventListener("input", resizeTextarea);
+    resizeTextarea({ target: element });
+  },
+  updated(element) {
+    nextTick(() => resizeTextarea({ target: element }));
+  },
+  beforeUnmount(element) {
+    element.removeEventListener("input", resizeTextarea);
+  },
+};
+
 onMounted(async () => {
   await loadStudents();
   await loadKnowledgeNodes();
@@ -439,6 +491,13 @@ onMounted(async () => {
     addQuestion();
   }
 });
+
+function resizeTextarea(event) {
+  const element = event?.target;
+  if (!element) return;
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
 
 async function loadStudents() {
   try {
@@ -515,13 +574,20 @@ function toggleKnowledgeNode(node) {
   const nodeId = Number(node.id);
   const selected = new Set((activeQuestion.value.knowledge_node_ids || []).map(Number));
   if (selected.has(nodeId)) {
-    activeQuestion.value.knowledge_node_ids = activeQuestion.value.knowledge_node_ids.filter((id) => Number(id) !== nodeId);
+    showKnowledgeNodeDropdown.value = false;
+    return;
   } else {
     activeQuestion.value.knowledge_node_ids = [...activeQuestion.value.knowledge_node_ids, nodeId];
+    showKnowledgeNodeDropdown.value = false;
   }
   if (!allKnowledgeNodeOptions.value.some((item) => Number(item.id) === nodeId)) {
     allKnowledgeNodeOptions.value.push(node);
   }
+}
+
+function removeKnowledgeNode(nodeId) {
+  if (!activeQuestion.value) return;
+  activeQuestion.value.knowledge_node_ids = activeQuestion.value.knowledge_node_ids.filter((id) => Number(id) !== Number(nodeId));
 }
 
 async function loadAssignment() {
@@ -785,549 +851,688 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .editor-page {
-  --editor-accent: #2b6cb0;
-  --editor-accent-soft: #edf4ff;
-  --editor-border: #dfe8f2;
-  --editor-surface: rgba(255, 255, 255, 0.94);
-  --editor-text: #10283d;
-  --editor-muted: #6f8297;
+  --editor-accent: var(--app-primary);
+  --editor-accent-strong: var(--app-primary-deep);
+  --editor-accent-soft: var(--app-primary-soft);
+  --editor-border: var(--app-line);
+  --editor-border-strong: var(--app-line-strong);
+  --editor-surface: var(--app-panel);
+  --editor-soft: var(--app-panel-soft);
+  --editor-text: var(--app-text);
+  --editor-muted: var(--app-text-muted);
+  --editor-danger: var(--app-danger);
+  --editor-success: var(--app-success);
   display: grid;
+  gap: 20px;
+}
+
+.panel,
+.feedback {
+  border: 1px solid var(--editor-border);
+  border-radius: var(--app-radius-xl);
+  background: var(--editor-surface);
+  box-shadow: var(--app-shadow);
+}
+
+.editor-hero,
+.hero-actions,
+.panel-head,
+.section-head,
+.summary-tags,
+.testcase-actions,
+.case-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.editor-hero {
+  justify-content: space-between;
   gap: 18px;
 }
 
-.shell-card,
-.feedback {
-  border: 1px solid var(--editor-border);
-  border-radius: 28px;
-  background: var(--editor-surface);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
+.hero-copy {
+  min-width: 0;
 }
 
-.editor-toolbar,
-.toolbar-actions,
-.panel-title,
-.card-heading,
-.inline-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.eyebrow {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: #60748a;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.page-header h2 {
+.editor-hero h2 {
   margin: 0 0 8px;
-  color: #0f2840;
+  color: var(--editor-text);
   font-size: 32px;
+  line-height: 1.08;
   font-weight: 500;
 }
 
-.page-copy,
-.panel-title p,
-.card-heading p,
+.editor-hero p,
+.panel-head p,
+.section-head p,
 .helper-text,
 .empty-editor p {
   margin: 0;
   color: var(--editor-muted);
+  line-height: 1.65;
 }
 
-.toolbar-actions {
-  width: fit-content;
-  max-width: 100%;
-  margin-left: auto;
-  justify-content: flex-end;
+.hero-actions {
   flex-wrap: wrap;
-  padding: 8px;
-  border: 1px solid var(--editor-border);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+  justify-content: flex-end;
 }
 
-.assignment-meta {
+.meta-strip {
   display: grid;
-  grid-template-columns: minmax(240px, 1.1fr) 180px minmax(360px, 1.25fr);
-  gap: 16px;
-  padding: 22px;
-  overflow: hidden;
-  position: relative;
+  grid-template-columns: minmax(260px, 1fr) 180px minmax(320px, 1.1fr) auto;
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid var(--editor-border);
+  border-radius: var(--app-radius-xl);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--app-shadow);
 }
 
-.assignment-meta::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at top right, rgba(67, 123, 194, 0.12), transparent 34%),
-    linear-gradient(180deg, rgba(244, 249, 255, 0.66), rgba(255, 255, 255, 0));
-  pointer-events: none;
-}
-
-.meta-banner {
-  grid-column: 1 / -1;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.meta-banner-copy {
+.field {
   display: grid;
   gap: 8px;
-}
-
-.meta-banner-copy h3 {
-  margin: 0;
-  color: var(--editor-text);
-  font-size: 24px;
+  align-content: start;
+  color: #34495f;
+  font-size: 14px;
   font-weight: 500;
 }
 
-.meta-banner-copy p {
-  margin: 0;
-  max-width: 640px;
-  color: var(--editor-muted);
-  line-height: 1.7;
+.field span {
+  color: #53687e;
 }
 
-.meta-glance {
+.meta-kpis {
   display: flex;
-  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
   justify-content: flex-end;
-  gap: 10px;
+  min-height: 78px;
+  min-width: 260px;
+  flex-wrap: wrap;
 }
 
-.meta-chip {
+.meta-kpis span {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0 14px;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #dfe7f1;
   border-radius: 999px;
-  border: 1px solid #d8e6f5;
-  background: rgba(255, 255, 255, 0.88);
-  color: #49657f;
+  background: #fff;
+  color: #50657a;
   font-size: 13px;
 }
 
-.meta-chip.status {
-  border-color: #cfe0f2;
+.meta-kpis strong {
+  color: var(--editor-text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.meta-kpis .state {
   background: var(--editor-accent-soft);
-  color: var(--editor-accent);
+  color: var(--editor-accent-strong);
+  border-color: #cfe0ff;
 }
 
-.assignment-meta > label {
+.status-select {
   position: relative;
-  z-index: 1;
-  padding: 16px 18px;
-  border: 1px solid #e6edf6;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.88);
+  display: block;
 }
 
-.editor-workbench {
+.status-select::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #49657f;
+  border-bottom: 2px solid #49657f;
+  pointer-events: none;
+  transform: translateY(-65%) rotate(45deg);
+}
+
+.status-select select {
+  height: 44px;
+  appearance: none;
+  padding-right: 42px;
+  background: #fff;
+  color: var(--editor-text);
+  font-weight: 500;
+}
+
+.studio-layout {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: 318px minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
 
-.editor-sidebar,
-.editor-main,
-.question-editor {
+.studio-sidebar,
+.studio-main,
+.question-workspace {
   display: grid;
   gap: 18px;
 }
 
-.editor-sidebar {
+.studio-sidebar {
   position: sticky;
-  top: 18px;
+  top: 16px;
 }
 
-.side-panel,
-.idea-panel,
-.question-header,
-.content-card,
-.grading-card,
-.testcase-card,
+.roster-panel,
+.question-nav,
+.ai-draft-panel,
+.question-summary,
+.editor-section,
 .empty-editor {
   padding: 22px;
-  border: 1px solid #e6edf6;
 }
 
-.panel-title,
-.card-heading {
+.panel-head,
+.section-head {
   justify-content: space-between;
-}
-
-.panel-title h3,
-.card-heading h4,
-.card-heading h5,
-.idea-panel h3,
-.question-header h3 {
-  margin: 0;
-  color: var(--editor-text);
-}
-
-.student-grid {
-  display: grid;
-  gap: 8px;
-  max-height: 220px;
-  overflow: auto;
-  padding-top: 12px;
-}
-
-.student-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 11px 13px;
-  border: 1px solid #e7eef7;
-  border-radius: 16px;
-  background: #fbfdff;
-}
-
-.question-index {
-  gap: 12px;
-}
-
-.question-index .panel-title {
   align-items: flex-start;
 }
 
-.question-tab {
+.panel-head h3,
+.section-head h4,
+.ai-draft-panel h3,
+.question-summary h3,
+.empty-editor strong {
+  margin: 0;
+  color: var(--editor-text);
+  font-weight: 600;
+}
+
+.panel-head h3,
+.ai-draft-panel h3 {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.section-head h4 {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.student-list {
+  display: grid;
+  gap: 8px;
+  max-height: 232px;
+  margin-top: 14px;
+  overflow: auto;
+}
+
+.student-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #e5edf5;
+  border-radius: var(--app-radius-md);
+  background: var(--editor-soft);
+  color: #31445f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.question-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.question-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #deebf7;
-  border-radius: 18px;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #e3ebf4;
+  border-radius: var(--app-radius-lg);
   background: #fff;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.question-tab:hover {
-  transform: translateY(-1px);
-  border-color: #b7d2ec;
-  box-shadow: 0 14px 28px rgba(30, 99, 167, 0.08);
+.question-item:hover {
+  border-color: #bdd1e8;
+  background: #fbfdff;
 }
 
-.question-tab.active {
-  border-color: #8cbce7;
-  background: linear-gradient(180deg, #fbfdff, #f1f7ff);
-  box-shadow: inset 0 0 0 1px rgba(140, 188, 231, 0.22);
+.question-item.active {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent-soft);
+  box-shadow: none;
 }
 
-.question-tab-copy {
+.question-item.active .question-order,
+.question-item.active .question-title {
+  color: var(--editor-accent-strong);
+}
+
+.question-main {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
 
-.question-tab-copy span {
-  color: #708294;
+.question-order {
+  color: var(--editor-accent);
   font-size: 12px;
+  font-weight: 700;
 }
 
-.question-tab-copy strong {
+.question-title {
+  min-width: 0;
+  overflow: hidden;
   color: var(--editor-text);
   font-weight: 500;
-  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.question-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.badge,
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: #eaf4ff;
-  color: var(--editor-accent);
+.question-meta {
+  color: var(--editor-muted);
   font-size: 12px;
-  font-weight: 500;
 }
 
-.badge.subtle {
-  background: #eef2f6;
-  color: #5f7284;
-}
-
-.status-chip {
-  background: linear-gradient(135deg, #143450, #285f90);
-  color: #fff;
-}
-
-.question-tab-actions {
+.question-actions {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(3, 28px);
+  gap: 4px;
   align-content: start;
 }
 
-.question-tab-actions button {
-  min-width: 36px;
-  min-height: 36px;
-  padding: 0;
-  border-radius: 12px;
+.ai-draft-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: start;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(47, 103, 246, 0.08), transparent 32%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
-.icon-action {
-  border-color: #d9e6f4;
-  background: #f8fbff;
-  color: #365879;
-  font-size: 16px;
-  line-height: 1;
-  box-shadow: none;
+.draft-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
 }
 
-.icon-action:hover:not(:disabled) {
-  background: #eef5fd;
-  border-color: #c8dff4;
+.section-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--app-radius-md);
+  background: var(--editor-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
-.danger-action {
-  color: #b42318;
-  background: #fff7f6;
-  border-color: #f3d0cc;
-}
-
-.danger-action:hover:not(:disabled) {
-  background: #fdeceb;
-  border-color: #efc0ba;
-}
-
-.idea-panel {
+.draft-fields {
   display: grid;
   gap: 14px;
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at top right, rgba(64, 136, 222, 0.12), transparent 34%),
-    linear-gradient(180deg, rgba(248, 251, 255, 0.96), rgba(255, 255, 255, 0.94));
+  width: 100%;
 }
 
-.idea-fields,
-.card-grid,
-.review-level-switch {
+.draft-bottom-row {
   display: grid;
-  gap: 12px;
-}
-
-.idea-fields {
-  grid-template-columns: minmax(0, 220px) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
   align-items: end;
 }
 
-.card-grid {
-  grid-template-columns: minmax(0, 1fr);
+.draft-bottom-row .btn {
+  min-width: 132px;
 }
 
-.question-header {
-  background:
-    linear-gradient(135deg, rgba(247, 251, 255, 0.98), rgba(255, 255, 255, 0.92));
-  border-color: #dbe8f5;
+.question-summary {
+  justify-content: space-between;
+  display: flex;
+  gap: 16px;
+  align-items: center;
 }
 
-.review-level-switch {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.question-summary-title {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
 }
 
-.level-btn {
+.question-summary h3 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.summary-tags {
+  flex-wrap: wrap;
+  justify-content: center;
+  align-self: center;
+}
+
+.summary-tags span,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #d8e5f3;
+  background: #f4f8fd;
+  color: #49627c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pill {
+  background: #ecfdf3;
+  border-color: #cce7d8;
+  color: var(--editor-success);
+}
+
+.editor-section {
   display: grid;
-  justify-items: start;
-  gap: 6px;
-  min-height: 108px;
-  padding: 16px;
-  border: 1px solid #dbe7f3;
-  border-radius: 20px;
-  background: #fff;
-  color: #163552;
+  gap: 18px;
 }
 
-.level-btn small {
-  color: #66788a;
+.content-grid {
+  display: grid;
+  gap: 12px;
 }
 
-.level-btn.active {
-  border-color: #79b0e1;
-  background: #f6fbff;
-  box-shadow: inset 0 0 0 1px rgba(121, 176, 225, 0.18);
+.assessment-stack {
+  display: grid;
+  gap: 18px;
 }
 
-.focus-card,
+.knowledge-block,
+.focus-block,
 .testcase-body {
   display: grid;
-  gap: 12px;
-  padding-top: 4px;
-}
-
-.knowledge-card {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #f9fbfe, #f4f8fd);
-  border: 1px solid #dde8f3;
-}
-
-.compact-heading {
-  align-items: flex-start;
-}
-
-.knowledge-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
+  gap: 14px;
+  padding-top: 2px;
 }
 
 .knowledge-search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
+  align-items: start;
 }
 
 .knowledge-search-box {
   position: relative;
 }
 
-.knowledge-search input {
-  width: 100%;
-  padding: 11px 12px;
-  border: 1px solid #d8e2ee;
-  border-radius: 14px;
-  background: #fff;
-  font: inherit;
+.knowledge-search-box input {
+  padding-right: 44px;
+}
+
+.knowledge-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  z-index: 2;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: #d8e5f3;
+  background: #f7fafc;
+  color: #66788b;
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.knowledge-clear:hover:not(:disabled) {
+  background: #eef5ff;
+  color: var(--editor-accent-strong);
+  box-shadow: none;
+  transform: translateY(-50%);
 }
 
 .knowledge-dropdown {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 6;
+  z-index: 10;
   display: grid;
   gap: 6px;
   max-height: 280px;
   padding: 8px;
   overflow-y: auto;
-  border: 1px solid #dce8f5;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--editor-border);
+  border-radius: var(--app-radius-lg);
+  background: #fff;
+  box-shadow: 0 16px 34px rgba(20, 34, 53, 0.12);
 }
 
 .knowledge-dropdown-item {
-  display: grid;
-  gap: 5px;
-  padding: 10px 12px;
-  text-align: left;
-  justify-items: start;
-  justify-content: start;
-  border: 1px solid #deebf7;
-  border-radius: 14px;
-  background: #fff;
-  color: #234462;
-}
-
-.knowledge-dropdown-item span {
   display: flex;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #e3ebf4;
+  border-radius: var(--app-radius-md);
+  background: #fff;
+  color: #29455f;
+  text-align: left;
 }
 
 .knowledge-dropdown-item:hover {
-  background: #1e63a7;
-  color: #fff;
+  border-color: #9bbdf2;
+  background: var(--editor-accent-soft);
 }
 
-.knowledge-dropdown-item:hover small {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+.knowledge-dropdown-item small {
+  color: var(--editor-muted);
+  white-space: nowrap;
 }
 
-.knowledge-check {
+.knowledge-tags {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: #fff;
-  border: 1px solid #deebf7;
-  color: #234462;
 }
 
-.knowledge-check.selected {
-  cursor: pointer;
-}
-
-.knowledge-check span {
-  display: grid;
-  gap: 3px;
-}
-
-.knowledge-check small {
-  width: fit-content;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: #eef5fd;
-  color: #5f7284;
-  font-size: 11px;
-}
-
-.switch {
+.knowledge-tag {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 6px 0 10px;
+  border: 1px solid #cfe0ff;
   border-radius: 999px;
-  border: 1px solid #e1ebf5;
-  background: #f8fbff;
+  background: var(--editor-accent-soft);
+  color: #2454a6;
   font-weight: 500;
 }
 
+.knowledge-tag-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.knowledge-tag small {
+  color: #60748a;
+}
+
+.knowledge-remove {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border-color: #bfd3f5;
+  background: #fff;
+  color: #37659f;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.knowledge-remove:hover:not(:disabled) {
+  background: #e7f0ff;
+  box-shadow: none;
+  transform: none;
+}
+
+.review-level-switch {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.level-option {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-height: 96px;
+  padding: 16px;
+  border: 1px solid #dbe5f0;
+  border-radius: var(--app-radius-lg);
+  background: #fff;
+  color: var(--editor-text);
+}
+
+.level-option strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.level-option span {
+  color: var(--editor-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.level-option.active {
+  border-color: var(--editor-accent);
+  background: var(--editor-accent-soft);
+  box-shadow: none;
+}
+
+.level-option.active strong {
+  color: var(--editor-accent-strong);
+}
+
+.level-option.active span {
+  color: #37659f;
+}
+
+.switch,
+.sample-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #35495e;
+  font-weight: 600;
+}
+
+.switch {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #dfe7f1;
+  background: #fff;
+  font-size: 13px;
+}
+
 .switch input,
-.student-check input,
+.student-item input,
 .sample-check input {
   width: auto;
 }
 
-label {
+.testcase-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.case-card {
   display: grid;
-  gap: 8px;
-  color: #34495f;
-  font-size: 14px;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid #e3ebf4;
+  border-radius: var(--app-radius-lg);
+  background: var(--editor-soft);
+}
+
+.case-title {
+  justify-content: space-between;
+}
+
+.case-title strong {
+  color: var(--editor-text);
+  font-weight: 500;
+}
+
+.case-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.case-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 
 input,
 textarea,
 select {
   width: 100%;
+  min-height: 44px;
   padding: 12px 14px;
   border: 1px solid var(--editor-border);
-  border-radius: 16px;
+  border-radius: var(--app-radius-md);
   color: #12263a;
-  background: rgba(255, 255, 255, 0.98);
+  background: #fff;
   font: inherit;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: #8cbce7;
-  box-shadow: 0 0 0 4px rgba(122, 176, 244, 0.14);
+  border-color: #9bbdf2;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
 textarea {
-  resize: vertical;
+  resize: none;
+}
+
+.description-field textarea {
+  height: 44px;
+  min-height: 44px;
+  overflow: hidden;
 }
 
 .prompt-input,
@@ -1335,91 +1540,86 @@ textarea {
   font-family: Consolas, "Courier New", monospace;
 }
 
-.code-input {
-  min-height: clamp(220px, 32vh, 360px);
-}
-
 .prompt-input {
-  min-height: clamp(260px, 38vh, 460px);
-}
-
-.case-table {
-  border: 1px solid #dbe4f0;
-  border-radius: 22px;
+  min-height: 150px;
   overflow: hidden;
-  background: #fff;
 }
 
-.case-head,
-.case-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 92px 76px;
-  gap: 12px;
-  align-items: center;
-  padding: 12px;
+.prompt-input.code-input {
+  min-height: 140px;
 }
 
-.case-head {
-  background: #f5f9fd;
-  color: #6a7d90;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.case-row {
-  border-top: 1px solid #edf2f7;
-}
-
-.sample-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-button,
-.secondary-link,
-.primary-btn,
-.secondary-btn {
+.btn,
+.icon-btn,
+button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 42px;
   padding: 0 14px;
-  border: 1px solid #d5e1ed;
-  border-radius: 16px;
+  border: 1px solid var(--editor-border);
+  border-radius: var(--app-radius-md);
   background: #fff;
   color: #18344f;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-button:hover,
-.secondary-link:hover {
+.btn:hover:not(:disabled),
+.icon-btn:hover:not(:disabled),
+button:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 20px rgba(20, 34, 53, 0.08);
 }
 
-.primary-btn {
-  background: linear-gradient(135deg, #2f67f6, #6f96ff);
-  border-color: #2f67f6;
+.btn-primary {
+  background: var(--editor-accent);
+  border-color: var(--editor-accent);
   color: #fff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
 }
 
-.secondary-btn {
+.btn-primary:hover:not(:disabled) {
+  background: var(--editor-accent-strong);
+  border-color: var(--editor-accent-strong);
+}
+
+.btn-quiet {
   background: #f7fafc;
+  color: #31445f;
 }
 
-.compact-btn {
-  min-height: 38px;
+.btn-danger {
+  width: fit-content;
+  min-height: 36px;
+  border-color: #efcaca;
+  background: #fff5f5;
+  color: var(--editor-danger);
 }
 
-.ghost-btn {
-  color: #b42318;
+.btn-small {
+  min-height: 34px;
+  padding: 0 10px;
 }
 
-button:disabled {
+.icon-btn {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 10px;
+  color: #4a627a;
+  font-size: 13px;
+}
+
+.icon-btn.danger {
+  border-color: #efcaca;
+  background: #fff5f5;
+  color: var(--editor-danger);
+}
+
+button:disabled,
+.btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
@@ -1434,7 +1634,7 @@ button:disabled {
 .empty-editor strong {
   color: var(--editor-text);
   font-size: 22px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .feedback {
@@ -1442,13 +1642,15 @@ button:disabled {
 }
 
 .feedback.error {
-  color: #b42318;
+  color: var(--editor-danger);
   background: #fff8f8;
+  border-color: #efcaca;
 }
 
 .feedback.success {
-  color: #027a48;
+  color: var(--editor-success);
   background: #ecfdf3;
+  border-color: #cce7d8;
 }
 
 .fade-slide-enter-active,
@@ -1463,41 +1665,73 @@ button:disabled {
 }
 
 @media (max-width: 1260px) {
-  .assignment-meta,
-  .editor-workbench,
-  .idea-fields,
-  .review-level-switch,
-  .case-head,
-  .case-row {
+  .meta-strip,
+  .studio-layout,
+  .ai-draft-panel,
+  .draft-fields,
+  .knowledge-search {
     grid-template-columns: 1fr;
   }
 
-  .meta-banner {
-    display: grid;
+  .meta-kpis,
+  .summary-tags {
+    justify-content: center;
+    min-width: 0;
   }
 
-  .meta-glance {
-    justify-content: flex-start;
-  }
-
-  .editor-sidebar {
+  .studio-sidebar {
     position: static;
   }
 }
 
 @media (max-width: 760px) {
-  .toolbar-actions,
-  .card-heading,
-  .panel-title,
-  .inline-actions {
+  .editor-hero,
+  .hero-actions,
+  .panel-head,
+  .section-head,
+  .question-summary,
+  .testcase-actions,
+  .case-title {
     display: grid;
     justify-content: stretch;
   }
 
-  .toolbar-actions > *,
-  .inline-actions > *,
-  .idea-fields > * {
+  .hero-actions > *,
+  .draft-fields > *,
+  .draft-bottom-row > *,
+  .testcase-actions > *,
+  .knowledge-search > * {
     width: 100%;
+  }
+
+  .editor-hero h2 {
+    font-size: 28px;
+  }
+
+  .question-item {
+    grid-template-columns: 1fr;
+  }
+
+  .question-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .draft-bottom-row,
+  .review-level-switch {
+    grid-template-columns: 1fr;
+  }
+
+  .case-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .roster-panel,
+  .question-nav,
+  .ai-draft-panel,
+  .question-summary,
+  .editor-section,
+  .empty-editor {
+    padding: 18px;
   }
 }
 </style>
