@@ -1,29 +1,31 @@
 <template>
-  <div class="weak-page">
-    <header class="hero">
-      <div class="hero-copy">
-        <h1>我的薄弱点</h1>
-        <p class="hero-text">系统会根据已选路径收敛出最值得优先补齐的 1 到 2 个核心节点，帮助你把复习重点压缩到真正关键的地方。</p>
+  <section class="app-page weak-page">
+    <header class="dashboard-hero">
+      <div class="app-header-copy">
+        <h1 class="app-title">我的薄弱点</h1>
+        <p class="app-subtitle">系统会根据已选路径收敛出最值得优先补齐的 1 到 2 个核心节点，帮助你把复习重点压缩到真正关键的地方。</p>
       </div>
     </header>
 
-    <section class="summary-strip">
+    <section class="summary-row">
       <article class="summary-card">
-        <span class="summary-label">当前待掌握</span>
+        <span class="summary-dot blue" />
+        <span>当前待掌握</span>
         <strong>{{ weakPoints.length }}</strong>
       </article>
-      <article class="summary-card muted">
-        <span class="summary-label">历史薄弱点</span>
+      <article class="summary-card">
+        <span class="summary-dot cyan" />
+        <span>历史薄弱点</span>
         <strong>{{ historyWeakPoints.length }}</strong>
       </article>
     </section>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <div class="main-layout">
+    <div class="weak-grid-layout">
       <section class="graph-section">
         <div class="graph-header">
-          <h2 class="section-title">知识点掌握情况图谱</h2>
+          <h2>知识点掌握情况图谱</h2>
           <div class="legend">
             <span class="legend-item"><span class="legend-dot weak"></span> 薄弱</span>
             <span class="legend-item"><span class="legend-dot recommended"></span> 推荐学习</span>
@@ -46,7 +48,7 @@
         </div>
       </section>
 
-      <aside v-if="showQuizPanel" class="quiz-panel">
+      <aside v-if="showQuizPanel" class="panel quiz-panel">
         <header class="quiz-header">
           <h3>薄弱点训练</h3>
           <button class="close-btn" @click="closeQuizPanel">&times;</button>
@@ -123,7 +125,7 @@
         </div>
       </aside>
 
-      <aside v-else-if="currentWeakPointId" class="recommendation-panel">
+      <aside v-else-if="currentWeakPointId" class="panel recommendation-panel">
         <header class="recommendation-header">
           <h3>{{ currentWeakPointName || "当前暂无薄弱点" }}</h3>
         </header>
@@ -189,7 +191,7 @@
       </article>
     </section>
 
-    <section v-if="historyWeakPoints.length && !showQuizPanel" class="history-section">
+    <section v-if="historyWeakPoints.length && !showQuizPanel" class="panel history-section">
       <div class="history-header">
         <h2>历史薄弱点</h2>
         <p>这里保留已经通过推荐学习完成巩固的知识点，方便回看你的成长轨迹。</p>
@@ -206,13 +208,13 @@
       </div>
     </section>
 
-    <section v-else-if="!errorMessage && !graphNodes.length && !showQuizPanel" class="empty-state">
+    <section v-else-if="!errorMessage && !graphNodes.length && !showQuizPanel" class="panel empty-state">
       <div class="empty-orbit" />
       <h2>当前没有待补齐的薄弱点</h2>
       <p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识节点。</p>
       <router-link class="empty-link" to="/chat">去聊天页继续提问</router-link>
     </section>
-  </div>
+  </section>
 </template>
 
 <script setup>
@@ -481,103 +483,91 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .weak-page {
-  min-height: 100vh;
-  padding: 0;
-  background: transparent;
+  gap: 22px;
 }
 
-.hero {
+.dashboard-hero {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 28px;
+  gap: 18px;
 }
 
-.hero h1 {
+.app-title {
   margin: 0;
-  font-size: clamp(27px, 3.4vw, 34px);
+  font-size: 32px;
+  line-height: 1.08;
   font-weight: 500;
-  line-height: 1.05;
-  color: var(--app-text);
 }
 
-.hero-text {
+.app-subtitle {
+  margin: 0;
   max-width: 700px;
-  margin: 14px 0 0;
-  color: #5f7287;
+  color: var(--app-text-muted);
   line-height: 1.75;
 }
 
-.back-link,
 .empty-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 11px 16px;
-  border: 1px solid #dbe6f1;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  color: #274863;
-  font: inherit;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-md);
+  background: #fff;
+  color: #31445f;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
-.summary-strip {
+.summary-row {
   display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(260px, 1fr);
-  gap: 16px;
-  margin-bottom: 28px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.summary-card,
+.panel {
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .summary-card {
+  display: grid;
+  gap: 10px;
   padding: 18px 20px;
-  border: 1px solid var(--app-line);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: var(--app-shadow);
 }
 
 .summary-card strong {
   display: block;
-  margin-top: 8px;
   color: var(--app-text);
   font-size: 28px;
   font-weight: 500;
 }
 
-.summary-card.muted strong {
-  font-size: 18px;
-  line-height: 1.5;
-}
-
-.summary-label {
-  color: #718399;
-  font-size: 13px;
+.summary-card span {
+  color: var(--app-text-muted);
 }
 
 .feedback {
-  margin: 0 0 20px;
+  margin: 0;
   padding: 14px 16px;
-  border-radius: 16px;
 }
 
 .feedback.error {
-  background: #fff4f4;
+  background: #fff5f5;
   color: #b42318;
+  border: 1px solid #f0d3d3;
 }
 
-.main-layout {
+.weak-grid-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 20px;
-  margin-bottom: 32px;
-}
-
-.main-layout:not(:has(.quiz-panel)):not(:has(.recommendation-panel)) {
-  grid-template-columns: 1fr;
+  align-items: start;
 }
 
 .graph-section {
@@ -593,11 +583,25 @@ function handleApiError(error, fallbackMessage) {
   gap: 12px;
 }
 
-.section-title {
+.graph-header h2,
+.history-header h2,
+.recommendation-header h3,
+.quiz-header h3,
+.empty-state h2 {
   margin: 0;
-  color: #10283d;
-  font-size: 18px;
+  color: var(--app-text);
   font-weight: 500;
+}
+
+.graph-header h2,
+.history-header h2,
+.recommendation-header h3,
+.empty-state h2 {
+  font-size: 22px;
+}
+
+.quiz-header h3 {
+  font-size: 16px;
 }
 
 .legend {
@@ -610,7 +614,7 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #64748b;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
@@ -674,31 +678,48 @@ function handleApiError(error, fallbackMessage) {
 
 .quiz-panel,
 .recommendation-panel {
-  border: 1px solid var(--app-line);
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: var(--app-shadow);
   display: flex;
   flex-direction: column;
-  max-height: 600px;
+  min-height: 0;
 }
 
 .recommendation-panel {
-  padding: 22px 22px 20px;
+  padding: 22px;
   gap: 18px;
+  max-height: 552px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c7d7e8 transparent;
+}
+
+.recommendation-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.recommendation-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.recommendation-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(147, 175, 204, 0.78), rgba(118, 147, 178, 0.9));
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+.recommendation-panel::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(118, 147, 178, 0.95), rgba(92, 124, 156, 0.98));
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 .recommendation-header h3 {
-  margin: 0;
-  color: #10283d;
   font-size: 22px;
-  font-weight: 500;
 }
 
 .recommendation-summary {
   margin: 0;
-  color: #52677c;
+  color: var(--app-text-muted);
   line-height: 1.8;
 }
 
@@ -719,7 +740,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .recommendation-label {
-  color: #6d8094;
+  color: var(--app-text-muted);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -749,13 +770,13 @@ function handleApiError(error, fallbackMessage) {
 .recommendation-list li {
   padding: 14px 14px 12px;
   border: 1px solid #e8eef6;
-  border-radius: 16px;
-  background: #f8fbff;
+  border-radius: var(--app-radius-lg);
+  background: var(--app-panel-soft);
 }
 
 .recommendation-list strong {
   display: block;
-  color: #12324a;
+  color: var(--app-text);
   margin-bottom: 6px;
   font-weight: 500;
 }
@@ -763,7 +784,7 @@ function handleApiError(error, fallbackMessage) {
 .recommendation-list p,
 .recommendation-empty {
   margin: 0;
-  color: #61758a;
+  color: var(--app-text-muted);
   line-height: 1.75;
 }
 
@@ -776,10 +797,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .quiz-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #10283d;
-  font-weight: 500;
+  font-size: 22px;
 }
 
 .close-btn {
@@ -1018,8 +1036,8 @@ function handleApiError(error, fallbackMessage) {
 .weak-card {
   padding: 22px;
   border: 1px solid var(--app-line);
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.96);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
   box-shadow: var(--app-shadow);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -1075,7 +1093,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .history-section {
-  margin-top: 14px;
+  padding: 22px;
 }
 
 .history-header {
@@ -1083,15 +1101,12 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .history-header h2 {
-  margin: 0 0 6px;
-  color: #10283d;
   font-size: 22px;
-  font-weight: 500;
 }
 
 .history-header p {
   margin: 0;
-  color: #66788b;
+  color: var(--app-text-muted);
   line-height: 1.7;
 }
 
@@ -1102,10 +1117,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .history-card {
-  padding: 18px 20px;
+  padding: 22px;
   border: 1px solid var(--app-line);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.96);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
   box-shadow: var(--app-shadow);
 }
 
@@ -1144,8 +1159,8 @@ function handleApiError(error, fallbackMessage) {
   overflow: hidden;
   padding: 64px 24px;
   border: 1px solid var(--app-line);
-  border-radius: 28px;
-  background: #ffffff;
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
   text-align: center;
   box-shadow: var(--app-shadow);
 }
@@ -1173,7 +1188,7 @@ function handleApiError(error, fallbackMessage) {
   position: relative;
   max-width: 560px;
   margin: 0 auto 22px;
-  color: #64748b;
+  color: var(--app-text-muted);
   line-height: 1.7;
 }
 
@@ -1192,15 +1207,12 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 860px) {
-  .weak-page {
-    padding: 24px 18px 36px;
-  }
-
-  .hero {
+  .dashboard-hero {
     flex-direction: column;
   }
 
-  .summary-strip {
+  .summary-row,
+  .weak-grid-layout {
     grid-template-columns: 1fr;
   }
 

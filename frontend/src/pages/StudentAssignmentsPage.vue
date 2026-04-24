@@ -8,15 +8,18 @@
     </header>
 
     <section class="summary-row">
-      <article>
+      <article class="summary-card">
+        <span class="summary-dot blue" />
         <span>作业总数</span>
         <strong>{{ assignments.length }}</strong>
       </article>
-      <article>
+      <article class="summary-card">
+        <span class="summary-dot cyan" />
         <span>待完成</span>
         <strong>{{ pendingCount }}</strong>
       </article>
-      <article>
+      <article class="summary-card">
+        <span class="summary-dot green" />
         <span>已通过题目</span>
         <strong>{{ acceptedTotal }}</strong>
       </article>
@@ -141,7 +144,7 @@ function handleApiError(error, fallbackMessage) {
   gap: 14px;
 }
 
-.summary-row article,
+.summary-card,
 .assignment-card,
 .empty,
 .feedback {
@@ -151,41 +154,60 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: var(--app-shadow);
 }
 
-.summary-row article {
-  padding: 18px 20px;
+.summary-card {
   display: grid;
-  gap: 6px;
+  gap: 10px;
+  padding: 18px 20px;
 }
 
-.summary-row span,
+.summary-card span,
 .card-copy p,
 .progress-text,
 .empty p {
   color: var(--app-text-muted);
 }
 
-.summary-row strong {
+.summary-card strong {
+  display: block;
   color: var(--app-text);
   font-size: 28px;
   font-weight: 500;
 }
 
+.summary-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.summary-dot.blue {
+  background: #2f67f6;
+}
+
+.summary-dot.cyan {
+  background: #1fb5a8;
+}
+
+.summary-dot.green {
+  background: #22c55e;
+}
+
 .assignment-list {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .assignment-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: 16px;
   padding: 22px;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .card-main {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .card-head {
@@ -316,7 +338,7 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   gap: 10px;
   justify-items: start;
-  padding: 24px;
+  padding: 22px;
 }
 
 .empty-actions {
