@@ -153,7 +153,8 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .students-page {
-  gap: 22px;
+  display: grid;
+  gap: var(--app-gap-xl);
 }
 
 .page-header h2 {

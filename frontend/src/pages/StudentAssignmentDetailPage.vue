@@ -539,14 +539,18 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .problem-header h1 {
-  margin: 6px 0 8px;
-  font-size: 26px;
+  margin: 0 0 8px;
+  font-size: 32px;
+  line-height: 1.08;
+  font-weight: 500;
 }
 
 .problem-header p,
 .muted {
   margin: 0;
   color: var(--app-text-muted);
+  font-size: 14px;
+  line-height: 1.7;
 }
 
 .question-tabs {

@@ -249,7 +249,7 @@ function logout() {
 
 .console-content {
   min-width: 0;
-  padding: 18px 28px 28px;
+  padding: 0 28px 28px;
 }
 
 .console-shell.collapsed .console-sidebar {

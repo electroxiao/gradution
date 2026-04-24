@@ -187,6 +187,19 @@ function handleApiError(error, fallbackMessage, target) {
   gap: 22px;
 }
 
+.dashboard-page .app-title {
+  margin: 0 0 8px;
+  font-size: 32px;
+  line-height: 1.08;
+  font-weight: 500;
+}
+
+.dashboard-page .app-subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
 .dashboard-hero {
   display: flex;
   align-items: flex-end;
