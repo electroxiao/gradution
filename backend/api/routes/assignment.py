@@ -59,9 +59,10 @@ def post_teacher_assignment(
 @teacher_router.post("/generate-question")
 def post_generate_assignment_question(
     payload: AssignmentGenerateQuestionRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return generate_assignment_question(payload)
+    return generate_assignment_question(db, payload)
 
 
 @teacher_router.post("/generate-testcases")

@@ -49,7 +49,7 @@ from backend.services.sandbox_service import run_java_submission
 
 
 VALID_ASSIGNMENT_STATUSES = {"draft", "published", "closed"}
-VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid"}
+VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid", "observed_ai"}
 VALID_AI_REVIEW_LEVELS = {"light", "deep"}
 VALID_REVIEW_STATUSES = {"accepted", "ai_rejected", "needs_manual_review"}
 DEFAULT_AI_GRADING_PASS_THRESHOLD = 85
@@ -124,7 +124,7 @@ def update_assignment_questions(
     return get_teacher_assignment_detail(db, teacher, assignment_id)
 
 
-def generate_assignment_question(payload: AssignmentGenerateQuestionRequest) -> AssignmentGeneratedQuestionResponse:
+def generate_assignment_question(db: Session, payload: AssignmentGenerateQuestionRequest) -> AssignmentGeneratedQuestionResponse:
     prompt = f"""
 你是一名 Java 编程作业设计助手。请根据教师要求生成一道 Java 编程题草稿和 2 到 4 个测试用例。
 
@@ -167,17 +167,121 @@ JSON 格式：
         ]
         if not test_cases:
             test_cases = [AssignmentTestCaseInput(input_data="", expected_output="", is_sample=True, sort_order=0)]
+        title = data.get("title") or "Java 编程题"
+        prompt_text = data.get("prompt") or payload.requirement
+        knowledge_nodes = _recommend_assignment_knowledge_nodes(db, title, prompt_text, payload)
         return AssignmentGeneratedQuestionResponse(
-            title=data.get("title") or "Java 编程题",
-            prompt=data.get("prompt") or payload.requirement,
+            title=title,
+            prompt=prompt_text,
             language="java",
             test_cases=test_cases,
+            knowledge_node_ids=[item["id"] for item in knowledge_nodes],
+            knowledge_nodes=knowledge_nodes,
         )
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"生成题目失败：{error}",
         ) from error
+
+
+def _recommend_assignment_knowledge_nodes(
+    db: Session,
+    title: str,
+    prompt: str,
+    payload: AssignmentGenerateQuestionRequest,
+    limit: int = 5,
+) -> list[dict]:
+    query_text = "\n".join(
+        item
+        for item in [
+            f"知识点：{payload.knowledge_point}" if payload.knowledge_point else "",
+            f"教师要求：{payload.requirement}",
+            f"题目标题：{title}",
+            f"题目描述：{prompt}",
+        ]
+        if item
+    )
+    keywords = []
+    try:
+        client = get_openai_client()
+        driver = get_neo4j_driver()
+        keywords = rag_engine.extract_keywords_with_llm(client, query_text)
+        facts = rag_engine.query_graph_with_reasoning(
+            driver,
+            client,
+            query_text,
+            keywords=keywords,
+            max_depth=2,
+            width=4,
+            entity_top_k=6,
+        )
+    except Exception:
+        facts = []
+
+    candidates: list[str] = []
+    for keyword in [payload.knowledge_point, *keywords]:
+        if keyword:
+            candidates.append(str(keyword))
+    for fact in facts:
+        if not isinstance(fact, dict):
+            continue
+        for key in ["node_name", "seed", "target", "source"]:
+            if fact.get(key):
+                candidates.append(str(fact[key]))
+
+    seen: set[str] = set()
+    node_names = []
+    for name in candidates:
+        value = name.strip()
+        if value and value not in seen:
+            seen.add(value)
+            node_names.append(value)
+        if len(node_names) >= limit:
+            break
+
+    graph_node_names = _filter_existing_graph_node_names(node_names)
+    return _ensure_assignment_knowledge_node_refs(db, graph_node_names)
+
+
+def _filter_existing_graph_node_names(node_names: list[str]) -> list[str]:
+    if not node_names:
+        return []
+    try:
+        driver = get_neo4j_driver()
+        with driver.session(database=settings.neo4j_db_name) as session:
+            records = session.run(
+                """
+                UNWIND $names AS candidate
+                MATCH (n:Knowledge {name: candidate})
+                RETURN DISTINCT n.name AS node_name
+                """,
+                names=node_names,
+            )
+            existing = {record["node_name"] for record in records if record["node_name"]}
+    except Exception:
+        return []
+    return [name for name in node_names if name in existing]
+
+
+def _ensure_assignment_knowledge_node_refs(db: Session, node_names: list[str]) -> list[dict]:
+    if not node_names:
+        return []
+    existing = {
+        row.node_name: row
+        for row in db.query(KnowledgeNode).filter(KnowledgeNode.node_name.in_(node_names)).all()
+    }
+    result = []
+    for node_name in node_names:
+        row = existing.get(node_name)
+        if not row:
+            row = KnowledgeNode(node_name=node_name)
+            db.add(row)
+            db.flush()
+            existing[node_name] = row
+        result.append({"id": row.id, "node_name": row.node_name})
+    db.commit()
+    return result
 
 
 def generate_assignment_test_cases(payload: AssignmentGenerateTestCasesRequest) -> list[AssignmentTestCaseInput]:
@@ -297,13 +401,13 @@ def submit_assignment_question(
     question = _get_assignment_question(assignment, question_id)
     if question.language != "java":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前仅支持 Java 作业。")
-    if _question_enable_testcases(question) and not question.test_cases:
+    if _normalize_grading_mode(question.grading_mode) in {"testcase", "hybrid"} and not question.test_cases:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该题目尚未配置测试用例。")
 
-    status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
-    started_at = _strip_timezone(started_at)
+    started_at = _to_naive_local(started_at)
     submitted_at = datetime.now()
     duration_seconds = _duration_seconds(started_at, submitted_at)
+    status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
     trust_label, trust_score, excluded_from_mastery_update = _resolve_submission_trust(status_value, duration_seconds)
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
@@ -775,7 +879,7 @@ def _sync_questions(db: Session, assignment: Assignment, payload_questions: list
         if item.language != "java":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前仅支持 Java 题目。")
         ai_review_level = _normalize_ai_review_level(item.ai_review_level)
-        grading_mode = _grading_mode_from_new_fields(bool(item.enable_testcases), ai_review_level)
+        grading_mode = _resolve_grading_mode(item)
         sort_order = item.sort_order if item.sort_order is not None else index
         if item.id and item.id in existing:
             question = existing[item.id]
@@ -823,15 +927,15 @@ def _sync_test_cases(db: Session, question: AssignmentQuestion, payload_cases: l
         if item.id and item.id in existing:
             test_case = existing[item.id]
             keep_ids.add(test_case.id)
-            test_case.input_data = item.input_data
-            test_case.expected_output = item.expected_output
+            test_case.input_data = item.input_data or ""
+            test_case.expected_output = item.expected_output or ""
             test_case.is_sample = item.is_sample
             test_case.sort_order = sort_order
         else:
             test_case = AssignmentTestCase(
                 question=question,
-                input_data=item.input_data,
-                expected_output=item.expected_output,
+                input_data=item.input_data or "",
+                expected_output=item.expected_output or "",
                 is_sample=item.is_sample,
                 sort_order=sort_order,
             )
@@ -931,6 +1035,7 @@ def _assignment_detail(
                     "knowledge_node_ids": [item["id"] for item in knowledge_nodes],
                     "knowledge_nodes": knowledge_nodes,
                     "language": question.language,
+                    "grading_mode": _normalize_grading_mode(question.grading_mode),
                     "enable_testcases": _question_enable_testcases(question),
                     "ai_review_level": _question_ai_review_level(question),
                     "ai_grading_rubric": question.ai_grading_rubric or "",
@@ -984,14 +1089,14 @@ def _parse_json_object(content: str) -> dict:
 def _duration_seconds(started_at: datetime | None, submitted_at: datetime) -> int | None:
     if not started_at:
         return None
-    started_at = _strip_timezone(started_at)
-    submitted_at = _strip_timezone(submitted_at) or submitted_at
+    started_at = _to_naive_local(started_at)
+    submitted_at = _to_naive_local(submitted_at) or submitted_at
     return max(0, int((submitted_at - started_at).total_seconds()))
 
 
-def _strip_timezone(value: datetime | None) -> datetime | None:
+def _to_naive_local(value: datetime | None) -> datetime | None:
     if value and value.tzinfo is not None:
-        return value.replace(tzinfo=None)
+        return value.astimezone().replace(tzinfo=None)
     return value
 
 
@@ -1011,7 +1116,10 @@ def _sum_run_time_ms(results_json) -> int | None:
 def _normalize_grading_mode(value: str | None) -> str:
     value = (value or "testcase").strip().lower()
     if value not in VALID_GRADING_MODES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="判题模式必须是 testcase、ai_review 或 hybrid。")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="判题模式必须是 testcase、observed_ai、ai_review 或 hybrid。",
+        )
     return value
 
 
@@ -1029,6 +1137,12 @@ def _grading_mode_from_new_fields(enable_testcases: bool, ai_review_level: str) 
     if enable_testcases and ai_review_level == "deep":
         return "hybrid"
     return "ai_review"
+
+
+def _resolve_grading_mode(item: AssignmentQuestionInput) -> str:
+    if item.grading_mode:
+        return _normalize_grading_mode(item.grading_mode)
+    return _grading_mode_from_new_fields(bool(item.enable_testcases), item.ai_review_level)
 
 
 def _question_enable_testcases(question: AssignmentQuestion) -> bool:
@@ -1157,6 +1271,22 @@ def _sync_legacy_knowledge_status(db: Session, student: User, node_name: str, ma
 
 
 def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code: str) -> tuple[str, list[dict], dict | None, str]:
+    grading_mode = _normalize_grading_mode(question.grading_mode)
+    if grading_mode == "observed_ai":
+        observe_status, observe_results = run_java_submission(code, list(question.test_cases), observe_only=True)
+        if observe_status != "accepted":
+            return observe_status, observe_results, None, "observed_ai"
+        ai_review = _run_ai_code_review(
+            assignment,
+            question,
+            code,
+            observe_results,
+            "deep",
+            True,
+            True,
+        )
+        return _resolve_ai_only_status(question, ai_review), observe_results, ai_review, "observed_ai"
+
     if _question_enable_testcases(question):
         testcase_status, testcase_results = run_java_submission(code, list(question.test_cases))
         if testcase_status != "accepted":
@@ -1168,6 +1298,7 @@ def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code
             testcase_results,
             _effective_ai_review_level(question),
             True,
+            False,
         )
         return _resolve_ai_with_testcases_status(question, ai_review), testcase_results, ai_review, "ai_with_testcases"
 
@@ -1180,6 +1311,7 @@ def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code
         code,
         compile_results,
         _effective_ai_review_level(question),
+        False,
         False,
     )
     return _resolve_ai_only_status(question, ai_review), compile_results, ai_review, "ai_only"
@@ -1198,9 +1330,18 @@ def _run_ai_code_review(
     execution_results: list[dict],
     review_level: str,
     enable_testcases: bool,
+    observe_only: bool = False,
 ) -> dict:
     client = get_openai_client()
-    prompt = _build_ai_review_prompt(assignment, question, code, execution_results, review_level, enable_testcases)
+    prompt = _build_ai_review_prompt(
+        assignment,
+        question,
+        code,
+        execution_results,
+        review_level,
+        enable_testcases,
+        observe_only,
+    )
     fallback = {
         "decision": "needs_manual_review",
         "score": 0,
@@ -1231,6 +1372,7 @@ def _build_ai_review_prompt(
     execution_results: list[dict],
     review_level: str,
     enable_testcases: bool,
+    observe_only: bool = False,
 ) -> str:
     review_level = _normalize_ai_review_level(review_level)
     rubric = question.ai_grading_rubric or "请重点判断实现是否满足题意、是否存在明显正确性风险、资源管理问题或教学目标偏差。"
@@ -1242,6 +1384,7 @@ def _build_ai_review_prompt(
         if review_level == "light"
         else "深审查：重点检查事务、线程安全、资源释放、边界处理、设计偏差、异常处理与明显性能风险。"
     )
+    grading_mode_text = "观察运行 + AI 判题" if observe_only else "标准输出 + AI 复核" if enable_testcases else "仅 AI 判题"
     return f"""
 你是一名严格但克制的 Java 编程作业评审助手。请根据教师给出的评分标准，对学生代码进行保守评审。
 
@@ -1250,10 +1393,11 @@ def _build_ai_review_prompt(
 2. decision 只能是 accepted、ai_rejected、needs_manual_review 三者之一。
 3. 只有在你高置信度确认实现合理时，才允许 decision=accepted。
 4. 未启用测试用例时，请主动从题意、边界、资源管理和潜在风险角度深入检查。
-5. 启用测试用例且当前为轻审查时，只指出明显问题，不要为了工程洁癖过度挑刺。
-5. score 为 0 到 100 的整数；confidence 为 0 到 1 的小数。
-6. issues 和 strengths 必须是字符串数组。
-7. manual_review_required 为布尔值。
+5. 观察运行模式下，运行输出不是固定答案，请结合代码、输出证据和评分标准判断是否满足题意。
+6. 启用标准输出测试且当前为轻审查时，只指出明显问题，不要为了工程洁癖过度挑刺。
+7. score 为 0 到 100 的整数；confidence 为 0 到 1 的小数。
+8. issues 和 strengths 必须是字符串数组。
+9. manual_review_required 为布尔值。
 
 作业标题：{assignment.title}
 题目标题：{question.title or "未命名题目"}
@@ -1261,6 +1405,7 @@ def _build_ai_review_prompt(
 {question.prompt}
 
 是否启用测试用例：{"是" if enable_testcases else "否"}
+判题方式：{grading_mode_text}
 审查强度：{review_level}
 审查策略：
 {strategy_text}

@@ -87,8 +87,8 @@
               <span class="question-order">Q{{ qIndex + 1 }}</span>
               <span class="question-title">{{ question.title || "未命名题目" }}</span>
               <span class="question-meta">
-                {{ reviewLevelText(question.ai_review_level) }} ·
-                {{ question.enable_testcases ? `${question.test_cases.length} 个用例` : "无测试用例" }}
+                {{ gradingModeText(question.grading_mode) }} ·
+                {{ usesRunCases(question) ? `${question.test_cases.length || 1} 次运行` : "无需运行输入" }}
               </span>
             </button>
             <div class="question-actions">
@@ -154,8 +154,8 @@
               <h3>{{ activeQuestion.title || "未命名题目" }}</h3>
             </div>
             <div class="summary-tags">
-              <span>{{ reviewLevelText(activeQuestion.ai_review_level) }}</span>
-              <span>{{ activeQuestion.enable_testcases ? `${activeQuestion.test_cases.length} 个测试用例` : "AI 独立审查" }}</span>
+              <span>{{ gradingModeText(activeQuestion.grading_mode) }}</span>
+              <span>{{ usesRunCases(activeQuestion) ? `${activeQuestion.test_cases.length || 1} 次运行` : "AI 独立审查" }}</span>
               <span>{{ selectedKnowledgeNodes.length }} 个知识点</span>
             </div>
           </div>
@@ -270,8 +270,8 @@
             <section class="editor-section panel grading-panel">
               <div class="section-head">
                 <div>
-                  <h4>AI 判题设置</h4>
-                  <p>AI 默认参与判题，审查深度决定反馈严谨程度。</p>
+                  <h4>判题设置</h4>
+                  <p>选择一次判题方式；系统会自动匹配测试、观察运行或 AI 审查流程。</p>
                 </div>
                 <span class="pill">AI 开启</span>
               </div>
@@ -280,20 +280,29 @@
                 <button
                   type="button"
                   class="level-option"
-                  :class="{ active: activeQuestion.ai_review_level === 'light' }"
-                  @click="activeQuestion.ai_review_level = 'light'"
+                  :class="{ active: activeQuestion.grading_mode === 'testcase' }"
+                  @click="setGradingMode(activeQuestion, 'testcase')"
                 >
-                  <strong>轻审查</strong>
-                  <span>适合输入输出明确、主要靠测试用例验证的练习。</span>
+                  <strong>标准输出判题</strong>
+                  <span>适合结果确定的算法题，严格比对实际输出和期望输出。</span>
                 </button>
                 <button
                   type="button"
                   class="level-option"
-                  :class="{ active: activeQuestion.ai_review_level === 'deep' }"
-                  @click="activeQuestion.ai_review_level = 'deep'"
+                  :class="{ active: activeQuestion.grading_mode === 'observed_ai' }"
+                  @click="setGradingMode(activeQuestion, 'observed_ai')"
                 >
-                  <strong>深审查</strong>
-                  <span>适合事务、并发、资源释放、设计约束较强的题目。</span>
+                  <strong>观察运行 + AI 判题</strong>
+                  <span>适合多线程、随机性、模拟类题目，运行输出交给 AI 判断。</span>
+                </button>
+                <button
+                  type="button"
+                  class="level-option"
+                  :class="{ active: activeQuestion.grading_mode === 'ai_review' }"
+                  @click="setGradingMode(activeQuestion, 'ai_review')"
+                >
+                  <strong>仅 AI 判题</strong>
+                  <span>适合设计、代码审查类题目，只编译后由 AI 根据代码和标准评审。</span>
                 </button>
               </div>
 
@@ -335,27 +344,25 @@
             <section class="editor-section panel testcase-panel">
               <div class="section-head">
                 <div>
-                  <h4>测试用例</h4>
-                  <p>显式验证功能正确性；关闭后会更依赖 AI 审查。</p>
+                  <h4>{{ activeQuestion.grading_mode === 'observed_ai' ? '运行输入' : '测试用例' }}</h4>
+                  <p>{{ testcasePanelText(activeQuestion) }}</p>
                 </div>
-                <label class="switch">
-                  <input v-model="activeQuestion.enable_testcases" type="checkbox" />
-                  <span>启用</span>
-                </label>
               </div>
 
               <transition name="fade-slide">
-                <div v-if="activeQuestion.enable_testcases" class="testcase-body">
+                <div v-if="usesRunCases(activeQuestion)" class="testcase-body">
                   <div class="testcase-actions">
                     <button
                       type="button"
                       class="btn btn-quiet"
-                      :disabled="testcaseGenerating || !canGenerateTestCases(activeQuestion)"
+                      :disabled="activeQuestion.grading_mode !== 'testcase' || testcaseGenerating || !canGenerateTestCases(activeQuestion)"
                       @click="generateTestCases(activeQuestion)"
                     >
                       {{ testcaseGenerating ? "生成中..." : "AI 生成测试用例" }}
                     </button>
-                    <button type="button" class="btn btn-primary" @click="addTestCase(activeQuestion)">新增用例</button>
+                    <button type="button" class="btn btn-primary" @click="addTestCase(activeQuestion)">
+                      {{ activeQuestion.grading_mode === 'observed_ai' ? '新增运行输入' : '新增用例' }}
+                    </button>
                   </div>
 
                   <article
@@ -364,7 +371,7 @@
                     class="case-card"
                   >
                     <div class="case-title">
-                      <strong>用例 {{ cIndex + 1 }}</strong>
+                      <strong>{{ activeQuestion.grading_mode === 'observed_ai' ? '运行' : '用例' }} {{ cIndex + 1 }}</strong>
                       <label class="sample-check">
                         <input v-model="testCase.is_sample" type="checkbox" />
                         <span>示例</span>
@@ -373,12 +380,15 @@
                     <div class="case-fields">
                       <label class="field">
                         <span>输入</span>
-                        <textarea v-model="testCase.input_data" rows="4" placeholder="stdin 输入" />
+                        <textarea v-model="testCase.input_data" rows="4" placeholder="stdin 输入，可留空" />
                       </label>
-                      <label class="field">
+                      <label v-if="isExactOutputMode(activeQuestion)" class="field">
                         <span>期望输出</span>
                         <textarea v-model="testCase.expected_output" rows="4" placeholder="期望 stdout" />
                       </label>
+                      <p v-else class="helper-text observation-note">
+                        观察运行不会填写固定答案；程序 stdout、stderr、退出码和耗时会作为 AI 判题证据。
+                      </p>
                     </div>
                     <div class="case-footer">
                       <button type="button" class="btn btn-danger" @click="removeTestCase(activeQuestion, cIndex)">删除用例</button>
@@ -387,8 +397,8 @@
                 </div>
               </transition>
 
-              <p v-if="!activeQuestion.enable_testcases" class="helper-text">
-                当前题目未启用测试用例，保存时不会提交用例列表。
+              <p v-if="!usesRunCases(activeQuestion)" class="helper-text">
+                当前题目仅做编译检查和 AI 代码评审，保存时不会提交运行输入。
               </p>
             </section>
           </section>
@@ -590,6 +600,18 @@ function removeKnowledgeNode(nodeId) {
   activeQuestion.value.knowledge_node_ids = activeQuestion.value.knowledge_node_ids.filter((id) => Number(id) !== Number(nodeId));
 }
 
+function mergeKnowledgeNodeOptions(nodes) {
+  for (const node of nodes || []) {
+    if (!node?.id) continue;
+    if (!allKnowledgeNodeOptions.value.some((item) => Number(item.id) === Number(node.id))) {
+      allKnowledgeNodeOptions.value.push(node);
+    }
+    if (!knowledgeNodeOptions.value.some((item) => Number(item.id) === Number(node.id))) {
+      knowledgeNodeOptions.value.push(node);
+    }
+  }
+}
+
 async function loadAssignment() {
   try {
     const { data } = await getTeacherAssignmentApi(assignmentId.value);
@@ -611,6 +633,7 @@ function applyAssignmentData(data) {
 }
 
 function normalizeQuestion(question = {}) {
+  const gradingMode = normalizeGradingMode(question.grading_mode, question);
   return {
     id: question.id,
     localKey: question.id || `q-${Date.now()}-${Math.random()}`,
@@ -619,8 +642,9 @@ function normalizeQuestion(question = {}) {
     starter_code: question.starter_code || "",
     knowledge_node_ids: Array.isArray(question.knowledge_node_ids) ? question.knowledge_node_ids.map(Number) : [],
     language: "java",
-    enable_testcases: question.enable_testcases !== false,
-    ai_review_level: question.ai_review_level || "light",
+    grading_mode: gradingMode,
+    enable_testcases: gradingMode !== "ai_review",
+    ai_review_level: gradingMode === "testcase" ? "light" : "deep",
     ai_grading_rubric: question.ai_grading_rubric || "",
     ai_grading_focus_text: Array.isArray(question.ai_grading_focus) ? question.ai_grading_focus.join(", ") : "",
     focus_summary: question.focus_summary || "",
@@ -647,7 +671,7 @@ function addQuestion(source = {}) {
       prompt: source.prompt || "",
       starter_code: source.starter_code || "",
       knowledge_node_ids: source.knowledge_node_ids || [],
-      enable_testcases: (source.test_cases || []).length > 0,
+      grading_mode: source.grading_mode || ((source.test_cases || []).length > 0 ? "testcase" : "ai_review"),
       ai_review_level: source.ai_review_level || "light",
       ai_grading_focus: source.ai_grading_focus || [],
       test_cases: source.test_cases || [],
@@ -701,6 +725,7 @@ async function generateQuestion() {
       knowledge_point: generateKnowledge.value,
       requirement: generateRequirement.value,
     });
+    mergeKnowledgeNodeOptions(data.knowledge_nodes || []);
     addQuestion({
       ...data,
       ai_review_level: "light",
@@ -749,7 +774,7 @@ async function generateTestCases(question) {
       is_sample: item.is_sample !== false,
       sort_order: item.sort_order || index,
     }));
-    question.enable_testcases = true;
+    setGradingMode(question, "testcase");
   } catch (error) {
     handleApiError(error, "生成测试用例失败。");
   } finally {
@@ -762,6 +787,11 @@ async function saveAssignment() {
   errorMessage.value = "";
   successMessage.value = "";
   try {
+    const validationMessage = validateAssignmentForm();
+    if (validationMessage) {
+      errorMessage.value = validationMessage;
+      return;
+    }
     const payload = buildPayload();
     if (isNew.value) {
       const { data } = await createTeacherAssignmentApi(payload);
@@ -786,6 +816,24 @@ async function saveAssignment() {
   }
 }
 
+function validateAssignmentForm() {
+  if (!form.value.title.trim()) {
+    return "请填写作业标题。";
+  }
+  if (!form.value.description.trim()) {
+    return "请填写作业说明。";
+  }
+  if (!form.value.questions.length) {
+    return "请至少添加一道题目。";
+  }
+  const invalidQuestionIndex = form.value.questions.findIndex((question) => !String(question.prompt || "").trim());
+  if (invalidQuestionIndex >= 0) {
+    activeQuestionIndex.value = invalidQuestionIndex;
+    return `请填写第 ${invalidQuestionIndex + 1} 题的题目描述。`;
+  }
+  return "";
+}
+
 function buildPayload() {
   return {
     title: form.value.title,
@@ -799,15 +847,16 @@ function buildPayload() {
       starter_code: question.starter_code || "",
       knowledge_node_ids: (question.knowledge_node_ids || []).map(Number),
       language: "java",
-      enable_testcases: !!question.enable_testcases,
-      ai_review_level: question.ai_review_level || "light",
+      grading_mode: normalizeGradingMode(question.grading_mode, question),
+      enable_testcases: usesRunCases(question),
+      ai_review_level: question.grading_mode === "testcase" ? "light" : "deep",
       ai_grading_rubric: question.ai_grading_rubric || "",
       ai_grading_focus: parseFocusText(question.ai_grading_focus_text),
       sort_order: qIndex,
-      test_cases: (question.enable_testcases ? question.test_cases : []).map((testCase, cIndex) => ({
+      test_cases: (usesRunCases(question) ? question.test_cases : []).map((testCase, cIndex) => ({
         id: testCase.id,
-        input_data: testCase.input_data,
-        expected_output: testCase.expected_output,
+        input_data: String(testCase.input_data ?? ""),
+        expected_output: isExactOutputMode(question) ? testCase.expected_output : "",
         is_sample: testCase.is_sample,
         sort_order: cIndex,
       })),
@@ -824,6 +873,44 @@ function parseFocusText(value) {
 
 function reviewLevelText(value) {
   return value === "deep" ? "深审查" : "轻审查";
+}
+
+function normalizeGradingMode(value, question = {}) {
+  if (["testcase", "observed_ai", "ai_review"].includes(value)) return value;
+  if (value === "hybrid") return "testcase";
+  return question.enable_testcases === false ? "ai_review" : "testcase";
+}
+
+function setGradingMode(question, mode) {
+  question.grading_mode = normalizeGradingMode(mode, question);
+  question.enable_testcases = question.grading_mode !== "ai_review";
+  question.ai_review_level = question.grading_mode === "testcase" ? "light" : "deep";
+}
+
+function usesRunCases(question) {
+  return ["testcase", "observed_ai"].includes(normalizeGradingMode(question?.grading_mode, question || {}));
+}
+
+function isExactOutputMode(question) {
+  return normalizeGradingMode(question?.grading_mode, question || {}) === "testcase";
+}
+
+function gradingModeText(value) {
+  return {
+    testcase: "标准输出判题",
+    observed_ai: "观察运行 + AI",
+    ai_review: "仅 AI 判题",
+  }[normalizeGradingMode(value)] || "标准输出判题";
+}
+
+function testcasePanelText(question) {
+  if (question.grading_mode === "observed_ai") {
+    return "只配置运行输入；系统记录输出和错误信息，交给 AI 结合评分标准判断。";
+  }
+  if (question.grading_mode === "ai_review") {
+    return "无需配置用例；系统只检查编译结果，并由 AI 根据代码和评分标准评审。";
+  }
+  return "显式验证功能正确性，系统会严格比对实际输出和期望输出。";
 }
 
 function assignmentStatusText(value) {
@@ -845,7 +932,25 @@ function handleApiError(error, fallbackMessage) {
     router.push("/login");
     return;
   }
-  errorMessage.value = error?.response?.data?.detail || fallbackMessage;
+  errorMessage.value = formatApiErrorDetail(error?.response?.data?.detail) || fallbackMessage;
+}
+
+function formatApiErrorDetail(detail) {
+  if (!Array.isArray(detail)) {
+    return typeof detail === "string" ? detail : "";
+  }
+  const messages = detail.map((item) => {
+    const loc = item?.loc || [];
+    const field = loc[loc.length - 1];
+    if (field === "title") return "请填写作业标题。";
+    if (field === "description") return "请填写作业说明。";
+    if (field === "prompt") {
+      const questionIndex = loc[loc.indexOf("questions") + 1];
+      return Number.isInteger(questionIndex) ? `请填写第 ${questionIndex + 1} 题的题目描述。` : "请填写题目描述。";
+    }
+    return item?.msg || "";
+  }).filter(Boolean);
+  return [...new Set(messages)].join(" ");
 }
 </script>
 
@@ -1406,30 +1511,41 @@ function handleApiError(error, fallbackMessage) {
 .review-level-switch {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .level-option {
   display: grid;
   gap: 8px;
   justify-items: start;
+  min-width: 0;
   min-height: 96px;
   padding: 16px;
   border: 1px solid #dbe5f0;
   border-radius: var(--app-radius-lg);
   background: #fff;
   color: var(--editor-text);
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: normal;
 }
 
 .level-option strong {
+  min-width: 0;
   font-size: 16px;
   font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .level-option span {
+  min-width: 0;
   color: var(--editor-muted);
   font-size: 13px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .level-option.active {
@@ -1497,6 +1613,12 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+}
+
+.observation-note {
+  display: flex;
+  align-items: center;
+  min-height: 100%;
 }
 
 .case-footer {

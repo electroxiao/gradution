@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
+from backend.models.assignment import Assignment, AssignmentQuestion, AssignmentQuestionKnowledgeNode, AssignmentSubmission
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
@@ -18,6 +19,7 @@ from backend.schemas.teacher import (
     PendingBatchRejectRequest,
     GraphQueryResponse,
     TeacherKnowledgeNodeRefResponse,
+    TeacherStudentMasteryEvidenceResponse,
     TeacherStudentMasteryResponse,
     TeacherStudentResponse,
     TeacherStudentWeakPointResponse,
@@ -327,9 +329,71 @@ def list_student_mastery(db: Session, student_id: int) -> list[TeacherStudentMas
             positive_evidence_count=int(mastery.positive_evidence_count or 0),
             negative_evidence_count=int(mastery.negative_evidence_count or 0),
             last_evaluated_at=mastery.last_evaluated_at,
+            evidence=_list_student_mastery_evidence(db, student_id, node.id),
         )
         for mastery, node in rows
     ]
+
+
+def _list_student_mastery_evidence(
+    db: Session,
+    student_id: int,
+    knowledge_node_id: int,
+    limit: int = 8,
+) -> list[TeacherStudentMasteryEvidenceResponse]:
+    rows = (
+        db.query(AssignmentSubmission, Assignment, AssignmentQuestion)
+        .join(Assignment, AssignmentSubmission.assignment_id == Assignment.id)
+        .join(AssignmentQuestion, AssignmentSubmission.question_id == AssignmentQuestion.id)
+        .join(
+            AssignmentQuestionKnowledgeNode,
+            AssignmentQuestionKnowledgeNode.question_id == AssignmentQuestion.id,
+        )
+        .filter(
+            AssignmentSubmission.student_id == student_id,
+            AssignmentQuestionKnowledgeNode.knowledge_node_id == knowledge_node_id,
+        )
+        .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        _mastery_evidence_response(submission, assignment, question)
+        for submission, assignment, question in rows
+    ]
+
+
+def _mastery_evidence_response(
+    submission: AssignmentSubmission,
+    assignment: Assignment,
+    question: AssignmentQuestion,
+) -> TeacherStudentMasteryEvidenceResponse:
+    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
+    included = not bool(submission.excluded_from_mastery_update)
+    if not included:
+        contribution = "excluded"
+    elif submission.status == "accepted":
+        contribution = "positive"
+    else:
+        contribution = "negative"
+
+    return TeacherStudentMasteryEvidenceResponse(
+        submission_id=submission.id,
+        assignment_id=assignment.id,
+        assignment_title=assignment.title,
+        question_id=question.id,
+        question_title=question.title or "未命名题目",
+        status=submission.status,
+        decision_source=submission.final_decision_source,
+        trust_label=submission.trust_label,
+        included_in_mastery=included,
+        contribution=contribution,
+        duration_seconds=submission.duration_seconds,
+        submitted_at=submission.submitted_at,
+        ai_score=ai_review.get("score") if ai_review else None,
+        ai_confidence=ai_review.get("confidence") if ai_review else None,
+        ai_summary=ai_review.get("summary") if ai_review else None,
+    )
 
 
 def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricResponse:

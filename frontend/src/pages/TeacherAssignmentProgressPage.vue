@@ -133,13 +133,18 @@
                 class="result-card"
                 :class="item.status"
               >
-                <strong>用例 {{ item.case_index || "编译" }}：{{ statusText(item.status) }}</strong>
+                <strong>
+                  {{ item.check_mode === "observe_only" ? "运行" : "用例" }}
+                  {{ item.case_index || "编译" }}：{{ statusText(item.status) }}
+                </strong>
                 <p v-if="item.summary">{{ item.summary }}</p>
                 <template v-if="item.is_sample || item.case_index === 0">
                   <span>输入</span>
                   <pre>{{ item.input || "(空)" }}</pre>
-                  <span>期望输出</span>
-                  <pre>{{ item.expected_output || "(空)" }}</pre>
+                  <template v-if="item.check_mode !== 'observe_only'">
+                    <span>期望输出</span>
+                    <pre>{{ item.expected_output || "(空)" }}</pre>
+                  </template>
                   <span>实际输出</span>
                   <pre>{{ item.actual_output || "(空)" }}</pre>
                 </template>
@@ -336,6 +341,7 @@ function decisionSourceText(value) {
     ai_review: "AI 评审结果",
     hybrid: "混合判题结果",
     ai_with_testcases: "AI + 测试用例",
+    observed_ai: "观察运行 + AI",
     ai_only: "AI 判题结果",
     teacher_override: "教师改判",
   }[value] || "系统判定";

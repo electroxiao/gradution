@@ -7,7 +7,11 @@ from backend.core.config import settings
 from backend.models.assignment import AssignmentTestCase
 
 
-def run_java_submission(code: str, test_cases: list[AssignmentTestCase]) -> tuple[str, list[dict]]:
+def run_java_submission(
+    code: str,
+    test_cases: list[AssignmentTestCase],
+    observe_only: bool = False,
+) -> tuple[str, list[dict]]:
     with tempfile.TemporaryDirectory(prefix="java-assignment-") as temp_dir:
         workdir = Path(temp_dir)
         (workdir / "Main.java").write_text(code, encoding="utf-8")
@@ -23,11 +27,19 @@ def run_java_submission(code: str, test_cases: list[AssignmentTestCase]) -> tupl
 
         results = []
         overall_status = "accepted"
-        for index, test_case in enumerate(test_cases, start=1):
+        run_cases = list(test_cases)
+        if observe_only and not run_cases:
+            run_cases = [None]
+
+        for index, test_case in enumerate(run_cases, start=1):
             started_at = perf_counter()
-            run_result = _run_docker(["java", "Main"], workdir, input_text=test_case.input_data)
+            input_text = test_case.input_data if test_case is not None else ""
+            run_result = _run_docker(["java", "Main"], workdir, input_text=input_text)
             elapsed_ms = int((perf_counter() - started_at) * 1000)
-            result = _case_result(index, test_case, run_result, elapsed_ms)
+            if observe_only:
+                result = _observation_result(index, test_case, input_text, run_result, elapsed_ms)
+            else:
+                result = _case_result(index, test_case, run_result, elapsed_ms)
             results.append(result)
             if result["status"] != "accepted" and overall_status == "accepted":
                 overall_status = result["status"]
@@ -143,3 +155,39 @@ def _case_result(index: int, test_case: AssignmentTestCase, run_result: dict, el
     if not test_case.is_sample and status != "accepted":
         result["summary"] = "隐藏测试用例未通过"
     return result
+
+
+def _observation_result(
+    index: int,
+    test_case: AssignmentTestCase | None,
+    input_text: str,
+    run_result: dict,
+    elapsed_ms: int,
+) -> dict:
+    actual = (run_result.get("stdout") or "").rstrip()
+    if run_result["status"] == "timeout":
+        status = "timeout"
+        passed = False
+    elif run_result["status"] == "sandbox_error":
+        status = "sandbox_error"
+        passed = False
+    elif run_result["returncode"] != 0:
+        status = "runtime_error"
+        passed = False
+    else:
+        status = "accepted"
+        passed = True
+
+    return {
+        "case_index": index,
+        "is_sample": True if test_case is None else test_case.is_sample,
+        "status": status,
+        "passed": passed,
+        "input": input_text,
+        "expected_output": "",
+        "actual_output": actual,
+        "stderr": run_result.get("stderr", ""),
+        "elapsed_ms": elapsed_ms,
+        "check_mode": "observe_only",
+        "summary": "观察运行完成，输出将交由 AI 结合评分标准判断。",
+    }

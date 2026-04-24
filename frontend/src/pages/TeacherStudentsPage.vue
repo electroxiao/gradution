@@ -64,6 +64,39 @@
                 <span>正向证据 {{ item.positive_evidence_count }}</span>
                 <span>负向证据 {{ item.negative_evidence_count }}</span>
               </div>
+              <div class="evidence-strip">
+                <span class="evidence-chip positive">通过 {{ item.positive_evidence_count }}</span>
+                <span class="evidence-chip negative">未通过 {{ item.negative_evidence_count }}</span>
+                <span class="evidence-chip muted">最近证据 {{ item.evidence?.length || 0 }}</span>
+              </div>
+              <div v-if="item.evidence?.length" class="evidence-list">
+                <article
+                  v-for="evidence in item.evidence"
+                  :key="evidence.submission_id"
+                  class="evidence-item"
+                  :class="evidence.contribution"
+                >
+                  <div class="evidence-main">
+                    <span class="evidence-badge" :class="evidence.contribution">
+                      {{ contributionText(evidence.contribution) }}
+                    </span>
+                    <strong>{{ evidence.assignment_title }}</strong>
+                    <span>{{ evidence.question_title }}</span>
+                  </div>
+                  <div class="evidence-meta">
+                    <span>{{ statusText(evidence.status) }}</span>
+                    <span>{{ decisionSourceText(evidence.decision_source) }}</span>
+                    <span>作答 {{ formatDuration(evidence.duration_seconds) }}</span>
+                    <span>{{ formatDateTime(evidence.submitted_at) }}</span>
+                  </div>
+                  <p v-if="evidence.ai_summary" class="evidence-summary">{{ evidence.ai_summary }}</p>
+                  <div v-if="evidence.ai_score !== null || evidence.ai_confidence !== null" class="evidence-ai">
+                    <span>AI 评分 {{ evidence.ai_score ?? "--" }}</span>
+                    <span>置信度 {{ formatConfidence(evidence.ai_confidence) }}</span>
+                  </div>
+                </article>
+              </div>
+              <div v-else class="evidence-empty">暂无可展示的作业提交证据。</div>
               <small>最近更新 {{ formatDate(item.last_evaluated_at) }}</small>
             </article>
           </div>
@@ -130,6 +163,38 @@ function masteryStatusText(status) {
   }[status] || status;
 }
 
+function contributionText(value) {
+  return {
+    positive: "正向",
+    negative: "负向",
+    excluded: "未计入",
+  }[value] || value;
+}
+
+function statusText(status) {
+  return {
+    accepted: "通过",
+    wrong_answer: "答案错误",
+    runtime_error: "运行错误",
+    timeout: "超时",
+    sandbox_error: "沙箱错误",
+    needs_manual_review: "待人工复核",
+    ai_rejected: "AI 判定未通过",
+  }[status] || status;
+}
+
+function decisionSourceText(value) {
+  return {
+    testcase: "测试用例",
+    ai_review: "AI 评审",
+    hybrid: "混合判题",
+    ai_with_testcases: "AI + 测试",
+    observed_ai: "观察运行 + AI",
+    ai_only: "仅 AI",
+    teacher_override: "教师改判",
+  }[value] || "系统判定";
+}
+
 function formatDate(value) {
   if (!value) return "--";
   const date = new Date(value);
@@ -138,6 +203,32 @@ function formatDate(value) {
     month: "2-digit",
     day: "2-digit",
   });
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDuration(value) {
+  if (value === null || value === undefined) return "--";
+  const minutes = Math.floor(value / 60);
+  const seconds = value % 60;
+  return minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+function formatConfidence(value) {
+  if (value === null || value === undefined) return "--";
+  const number = Number(value);
+  if (Number.isNaN(number)) return "--";
+  return `${Math.round(number * 100)}%`;
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -259,7 +350,7 @@ function handleApiError(error, fallbackMessage) {
 .weak-cards,
 .mastery-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 14px;
 }
 
@@ -333,6 +424,102 @@ function handleApiError(error, fallbackMessage) {
 .meta-row span {
   color: var(--app-text-muted);
   font-size: 13px;
+}
+
+.evidence-strip,
+.evidence-meta,
+.evidence-ai {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.evidence-chip,
+.evidence-badge,
+.evidence-meta span,
+.evidence-ai span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.evidence-chip.positive,
+.evidence-badge.positive {
+  background: #dff7e7;
+  color: #027a48;
+}
+
+.evidence-chip.negative,
+.evidence-badge.negative {
+  background: #fde7e7;
+  color: #b42318;
+}
+
+.evidence-chip.muted,
+.evidence-badge.excluded {
+  background: #eef2f7;
+  color: #526071;
+}
+
+.evidence-list {
+  display: grid;
+  gap: 10px;
+}
+
+.evidence-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e1eaf3;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.evidence-item.positive {
+  border-color: #bfe8cd;
+}
+
+.evidence-item.negative {
+  border-color: #f0caca;
+}
+
+.evidence-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.evidence-main strong,
+.evidence-main span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidence-main span:last-child {
+  grid-column: 2;
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.evidence-meta span,
+.evidence-ai span {
+  background: #f4f7fb;
+  color: #526071;
+}
+
+.evidence-summary,
+.evidence-empty {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .feedback.error {

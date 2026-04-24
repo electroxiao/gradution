@@ -72,8 +72,10 @@
               <template v-if="shouldShowCaseIo(item)">
                 <span>输入</span>
                 <pre>{{ item.input || "(空)" }}</pre>
-                <span>期望输出</span>
-                <pre>{{ item.expected_output || "(空)" }}</pre>
+                <template v-if="item.check_mode !== 'observe_only'">
+                  <span>期望输出</span>
+                  <pre>{{ item.expected_output || "(空)" }}</pre>
+                </template>
                 <span>实际输出</span>
                 <pre>{{ item.actual_output || "(空)" }}</pre>
               </template>
@@ -187,6 +189,7 @@ import {
 } from "../api/assignments";
 import CodeEditor from "../components/CodeEditor.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
+import { useAuthStore } from "../stores/auth";
 import { clearAuthSession } from "../utils/authStorage";
 
 const STARTER_CODE = `public class Main {
@@ -196,9 +199,11 @@ const STARTER_CODE = `public class Main {
 }
 `;
 const DRAFT_PREFIX = "assignment-code-draft";
+const STARTED_AT_PREFIX = "assignment-started-at";
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const assignment = ref(null);
 const activeQuestion = ref(null);
 const codeByQuestion = ref({});
@@ -254,7 +259,19 @@ const activeCode = computed({
   },
 });
 
-onMounted(loadAssignment);
+onMounted(async () => {
+  await ensureCurrentUser();
+  await loadAssignment();
+});
+
+async function ensureCurrentUser() {
+  if (authStore.user || !authStore.token) return;
+  try {
+    await authStore.fetchMe();
+  } catch {
+    // Route guards will handle invalid sessions; draft keys still fall back to the current token namespace.
+  }
+}
 
 async function loadAssignment() {
   try {
@@ -274,7 +291,9 @@ function selectQuestion(question) {
     codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? resolveStarterCode(question);
   }
   if (!startedAtByQuestion.value[question.id]) {
-    startedAtByQuestion.value[question.id] = new Date().toISOString();
+    const startedAt = loadStartedAt(question.id) || new Date().toISOString();
+    startedAtByQuestion.value[question.id] = startedAt;
+    saveStartedAt(question.id, startedAt);
   }
   aiMessage.value = "";
   clearAiHelp();
@@ -354,7 +373,17 @@ function clearAiHelp() {
 }
 
 function getDraftKey(questionId) {
-  return `${DRAFT_PREFIX}:${route.params.assignmentId}:${questionId}`;
+  return `${DRAFT_PREFIX}:${getDraftOwnerKey()}:${route.params.assignmentId}:${questionId}`;
+}
+
+function getStartedAtKey(questionId) {
+  return `${STARTED_AT_PREFIX}:${getDraftOwnerKey()}:${route.params.assignmentId}:${questionId}`;
+}
+
+function getDraftOwnerKey() {
+  const user = authStore.user || {};
+  const value = user.id ?? user.username ?? authStore.token ?? "anonymous";
+  return encodeURIComponent(String(value));
 }
 
 function resolveStarterCode(question) {
@@ -375,6 +404,22 @@ function saveCodeDraft(questionId, code) {
     window.localStorage.setItem(getDraftKey(questionId), code);
   } catch {
     // Ignore storage failures so editing and submission are not blocked.
+  }
+}
+
+function loadStartedAt(questionId) {
+  try {
+    return window.localStorage.getItem(getStartedAtKey(questionId));
+  } catch {
+    return null;
+  }
+}
+
+function saveStartedAt(questionId, startedAt) {
+  try {
+    window.localStorage.setItem(getStartedAtKey(questionId), startedAt);
+  } catch {
+    // Ignore storage failures so timing does not block editing and submission.
   }
 }
 
@@ -436,6 +481,7 @@ function decisionSourceText(value) {
     ai_review: "AI 评审结果",
     hybrid: "混合判题结果",
     ai_with_testcases: "AI + 测试用例",
+    observed_ai: "观察运行 + AI",
     ai_only: "AI 判题结果",
     teacher_override: "教师改判",
   }[value] || "系统判定";
@@ -450,6 +496,9 @@ function formatConfidence(value) {
 function resultTitle(item) {
   if (item?.case_index === 0) {
     return `编译阶段：${statusText(item.status)}`;
+  }
+  if (item?.check_mode === "observe_only") {
+    return `运行 ${item?.case_index || "-"}：${statusText(item?.status)}`;
   }
   return `用例 ${item?.case_index || "-"}：${statusText(item?.status)}`;
 }

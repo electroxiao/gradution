@@ -19,6 +19,7 @@ class AssignmentQuestionInput(BaseModel):
     starter_code: str = Field(default="")
     knowledge_node_ids: list[int] = Field(default_factory=list)
     language: str = Field(default="java", max_length=32)
+    grading_mode: str | None = Field(default=None, max_length=32)
     enable_testcases: bool = True
     ai_review_level: str = Field(default="light", max_length=32)
     ai_grading_rubric: str = Field(default="")
@@ -104,6 +105,7 @@ class AssignmentQuestionResponse(BaseModel):
     knowledge_node_ids: list[int] = Field(default_factory=list)
     knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
     language: str
+    grading_mode: str = "testcase"
     enable_testcases: bool = True
     ai_review_level: str = "light"
     ai_grading_rubric: str = ""
@@ -192,6 +194,8 @@ class AssignmentGeneratedQuestionResponse(BaseModel):
     prompt: str
     language: str = "java"
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
+    knowledge_node_ids: list[int] = Field(default_factory=list)
+    knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AssignmentGeneratedFocusResponse(BaseModel):

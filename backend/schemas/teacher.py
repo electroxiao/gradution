@@ -25,6 +25,24 @@ class TeacherStudentWeakPointResponse(BaseModel):
     last_seen_at: datetime
 
 
+class TeacherStudentMasteryEvidenceResponse(BaseModel):
+    submission_id: int
+    assignment_id: int
+    assignment_title: str
+    question_id: int
+    question_title: str
+    status: str
+    decision_source: str | None = None
+    trust_label: str | None = None
+    included_in_mastery: bool = True
+    contribution: str
+    duration_seconds: int | None = None
+    submitted_at: datetime
+    ai_score: int | None = None
+    ai_confidence: float | None = None
+    ai_summary: str | None = None
+
+
 class TeacherStudentMasteryResponse(BaseModel):
     knowledge_node_id: int
     node_name: str
@@ -33,6 +51,8 @@ class TeacherStudentMasteryResponse(BaseModel):
     positive_evidence_count: int
     negative_evidence_count: int
     last_evaluated_at: datetime | None = None
+    evidence: list[TeacherStudentMasteryEvidenceResponse] = Field(default_factory=list)
+
 
 
 class GraphNodeResponse(BaseModel):
