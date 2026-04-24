@@ -2,7 +2,6 @@
   <div class="weak-page">
     <header class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">Learning Focus</p>
         <h1>我的薄弱点</h1>
         <p class="hero-text">系统会根据已选路径收敛出最值得优先补齐的 1 到 2 个核心节点，帮助你把复习重点压缩到真正关键的地方。</p>
       </div>
@@ -126,7 +125,6 @@
 
       <aside v-else-if="currentWeakPointId" class="recommendation-panel">
         <header class="recommendation-header">
-          <p class="recommendation-eyebrow">AI Recommendation</p>
           <h3>{{ currentWeakPointName || "当前暂无薄弱点" }}</h3>
         </header>
 
@@ -496,15 +494,6 @@ function handleApiError(error, fallbackMessage) {
   margin-bottom: 28px;
 }
 
-.eyebrow {
-  margin: 0 0 10px;
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .hero h1 {
   margin: 0;
   font-size: clamp(27px, 3.4vw, 34px);
@@ -701,19 +690,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .recommendation-header h3 {
-  margin: 6px 0 0;
+  margin: 0;
   color: #10283d;
   font-size: 22px;
   font-weight: 500;
-}
-
-.recommendation-eyebrow {
-  margin: 0;
-  color: #4f86c6;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .recommendation-summary {

@@ -2,68 +2,80 @@
   <section class="assignment-page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Assignments</p>
         <h2>作业管理</h2>
         <p class="page-copy">统一管理作业发布、题目配置与学生完成情况。</p>
       </div>
+      <router-link class="primary-link create-link" to="/teacher/assignments/new">新建作业</router-link>
     </header>
-
-    <div class="page-actions">
-      <router-link class="primary-link" to="/teacher/assignments/new">新建作业</router-link>
-    </div>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
     <section class="summary-row">
-      <article class="summary-item shell-card">
-        <span>全部作业</span>
-        <strong>{{ assignments.length }}</strong>
+      <article class="summary-item shell-card blue">
+        <div class="summary-icon">作</div>
+        <div class="summary-copy">
+          <span>全部作业</span>
+          <strong>{{ assignments.length }}</strong>
+        </div>
       </article>
-      <article class="summary-item shell-card">
-        <span>已发布</span>
-        <strong>{{ publishedCount }}</strong>
+      <article class="summary-item shell-card green">
+        <div class="summary-icon">发</div>
+        <div class="summary-copy">
+          <span>已发布</span>
+          <strong>{{ publishedCount }}</strong>
+        </div>
       </article>
-      <article class="summary-item shell-card">
-        <span>学生覆盖</span>
-        <strong>{{ totalAssignees }}</strong>
+      <article class="summary-item shell-card purple">
+        <div class="summary-icon">生</div>
+        <div class="summary-copy">
+          <span>学生覆盖</span>
+          <strong>{{ totalAssignees }}</strong>
+        </div>
       </article>
-      <article class="summary-item shell-card">
-        <span>通过提交</span>
-        <strong>{{ totalAccepted }}</strong>
+      <article class="summary-item shell-card amber">
+        <div class="summary-icon">通</div>
+        <div class="summary-copy">
+          <span>通过提交</span>
+          <strong>{{ totalAccepted }}</strong>
+        </div>
       </article>
     </section>
 
     <section v-if="assignments.length" class="assignment-list">
       <article v-for="item in assignments" :key="item.id" class="assignment-card shell-card">
-        <div class="assignment-card-top">
-          <div class="title-cell">
-            <p class="card-label">Assignment</p>
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.description || "暂无说明" }}</p>
+        <div class="assignment-main">
+          <div class="assignment-head">
+            <div class="assignment-badge">作</div>
+            <div class="assignment-copy">
+              <div class="title-row">
+                <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
+              </div>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.description || "暂无说明" }}</p>
+            </div>
           </div>
-          <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
+
+          <div class="metric-grid">
+            <div class="metric-item">
+              <span>题目</span>
+              <strong>{{ item.question_count }}</strong>
+            </div>
+            <div class="metric-item">
+              <span>学生</span>
+              <strong>{{ item.assignee_count }}</strong>
+            </div>
+            <div class="metric-item">
+              <span>提交</span>
+              <strong>{{ item.submitted_count }}</strong>
+            </div>
+            <div class="metric-item">
+              <span>通过</span>
+              <strong>{{ item.accepted_count }}</strong>
+            </div>
+          </div>
         </div>
 
-        <div class="metric-grid">
-          <div class="metric-item">
-            <span>题目</span>
-            <strong>{{ item.question_count }}</strong>
-          </div>
-          <div class="metric-item">
-            <span>学生</span>
-            <strong>{{ item.assignee_count }}</strong>
-          </div>
-          <div class="metric-item">
-            <span>提交</span>
-            <strong>{{ item.submitted_count }}</strong>
-          </div>
-          <div class="metric-item">
-            <span>通过</span>
-            <strong>{{ item.accepted_count }}</strong>
-          </div>
-        </div>
-
-        <div class="action-cell">
+        <div class="assignment-actions">
           <router-link class="open-link" :to="`/teacher/assignments/${item.id}/progress`">完成情况</router-link>
           <router-link class="primary-link compact-link" :to="`/teacher/assignments/${item.id}`">编辑作业</router-link>
         </div>
@@ -125,37 +137,27 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .assignment-page {
-  gap: 22px;
+  display: grid;
+  gap: 20px;
 }
 
-.page-actions {
+.page-header {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .page-header h2 {
-  margin: 10px 0 8px;
+  margin: 0 0 8px;
   color: var(--app-text);
   font-size: 32px;
   font-weight: 500;
 }
 
-.page-copy,
-.title-cell p,
-.empty,
-.empty p,
-.summary-item span,
-.metric-item span {
-  color: var(--app-text-muted);
-}
-
-.eyebrow {
+.page-copy {
   margin: 0;
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  color: var(--app-text-muted);
 }
 
 .shell-card,
@@ -166,6 +168,7 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: var(--app-shadow);
 }
 
+.create-link,
 .primary-link,
 .open-link {
   display: inline-flex;
@@ -173,20 +176,20 @@ function handleApiError(error, fallbackMessage) {
   justify-content: center;
   min-height: 44px;
   padding: 0 18px;
-  border-radius: 14px;
+  border-radius: var(--app-radius-md);
   text-decoration: none;
   white-space: nowrap;
 }
 
-.primary-link {
+.primary-link,
+.create-link {
   background: var(--app-primary);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(47, 103, 246, 0.2);
 }
 
 .open-link {
-  border: 1px solid var(--app-line);
   background: #fff;
+  border: 1px solid var(--app-line);
   color: #31445f;
 }
 
@@ -197,12 +200,56 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .summary-item {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
   padding: 20px 22px;
 }
 
-.summary-item strong {
+.summary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.blue .summary-icon {
+  background: #edf3ff;
+  color: #2f67f6;
+}
+
+.green .summary-icon {
+  background: #eefaf3;
+  color: #12a15c;
+}
+
+.purple .summary-icon {
+  background: #f2efff;
+  color: #7a5af8;
+}
+
+.amber .summary-icon {
+  background: #fff7e9;
+  color: #f79009;
+}
+
+.summary-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.summary-copy span,
+.metric-item span,
+.assignment-copy p,
+.empty p {
+  color: var(--app-text-muted);
+}
+
+.summary-copy strong {
   color: var(--app-text);
   font-size: 30px;
   font-weight: 500;
@@ -210,55 +257,72 @@ function handleApiError(error, fallbackMessage) {
 
 .assignment-list {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .assignment-card {
   display: grid;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
   padding: 22px 24px;
+  align-items: center;
 }
 
-.assignment-card-top {
+.assignment-main {
+  display: grid;
+  gap: 18px;
+}
+
+.assignment-head {
   display: flex;
-  justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
 }
 
-.title-cell {
+.assignment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.assignment-copy {
   min-width: 0;
 }
 
-.card-label {
-  margin: 0 0 8px;
-  color: #7a90aa;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.title-cell strong {
-  display: block;
+.assignment-copy h3 {
+  margin: 10px 0 8px;
   color: var(--app-text);
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 500;
 }
 
-.title-cell p {
-  margin: 6px 0 0;
-  font-size: 14px;
+.assignment-copy p {
+  margin: 0;
   line-height: 1.7;
 }
 
 .status {
-  justify-self: start;
-  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 11px;
   border-radius: 999px;
   background: #eef5ff;
   color: #35639f;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -281,33 +345,33 @@ function handleApiError(error, fallbackMessage) {
 .metric-item {
   display: grid;
   gap: 6px;
-  padding: 16px 18px;
-  border-radius: 18px;
+  padding: 14px 16px;
+  border-radius: var(--app-radius-lg);
   background: var(--app-panel-soft);
   border: 1px solid #e6eef7;
 }
 
 .metric-item strong {
   color: var(--app-text);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 500;
 }
 
-.action-cell {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.assignment-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
 }
 
 .compact-link {
-  min-height: 40px;
+  min-height: 42px;
 }
 
 .empty {
   display: grid;
   justify-items: start;
   gap: 10px;
-  padding: 26px;
+  padding: 24px;
 }
 
 .empty strong {
@@ -330,19 +394,23 @@ function handleApiError(error, fallbackMessage) {
   border-color: #f0d3d3;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1080px) {
   .summary-row,
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .assignment-card {
+    grid-template-columns: 1fr;
+  }
+
+  .assignment-actions {
+    justify-items: start;
+  }
 }
 
-@media (max-width: 640px) {
-  .page-actions,
-  .assignment-card-top,
-  .action-cell,
-  .summary-row,
-  .metric-grid {
+@media (max-width: 720px) {
+  .page-header {
     display: grid;
   }
 
@@ -351,6 +419,8 @@ function handleApiError(error, fallbackMessage) {
     grid-template-columns: 1fr;
   }
 
+  .assignment-actions,
+  .create-link,
   .primary-link,
   .open-link {
     width: 100%;

@@ -4,7 +4,6 @@
       <div class="brand-avatar">知</div>
       <div>
         <h3>知识辅导</h3>
-        <p>Java 智能助教</p>
       </div>
     </div>
 
@@ -167,12 +166,6 @@ function confirmDelete() {
   margin: 0;
   font-size: 18px;
   color: var(--app-text);
-}
-
-.brand-card p {
-  margin: 4px 0 0;
-  color: var(--app-text-muted);
-  font-size: 13px;
 }
 
 .new-chat-btn {

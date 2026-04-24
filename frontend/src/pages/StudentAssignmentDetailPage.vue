@@ -6,7 +6,6 @@
       <aside class="problem-pane">
         <header class="problem-header">
           <router-link class="back-link" to="/assignments">返回作业</router-link>
-          <p class="eyebrow">Java Practice</p>
           <h1>{{ assignment.title }}</h1>
           <p>{{ assignment.description || "完成题目后提交代码查看测试结果。" }}</p>
         </header>
@@ -43,7 +42,6 @@
       <section v-if="activeQuestion" class="editor-pane">
         <header class="editor-toolbar">
           <div>
-            <p class="eyebrow">Code</p>
             <h2>Main.java</h2>
           </div>
           <div class="toolbar-actions">
@@ -129,7 +127,6 @@
       <aside v-if="activeQuestion && showAiPanel" class="ai-pane">
         <header class="ai-header">
           <div>
-            <p class="eyebrow">AI Tutor</p>
             <h2>作业助教</h2>
           </div>
           <button type="button" class="icon-btn" @click="showAiPanel = false">关闭</button>
@@ -550,15 +547,6 @@ function handleApiError(error, fallbackMessage) {
 .muted {
   margin: 0;
   color: var(--app-text-muted);
-}
-
-.eyebrow {
-  margin: 0;
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .question-tabs {

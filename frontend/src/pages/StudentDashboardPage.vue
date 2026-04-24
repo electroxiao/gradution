@@ -1,30 +1,34 @@
 <template>
   <section class="app-page dashboard-page">
-    <header class="app-header">
+    <header class="dashboard-hero">
       <div class="app-header-copy">
-        <p class="app-eyebrow">Student Workspace</p>
         <h1 class="app-title">学习工作台</h1>
         <p class="app-subtitle">先看待完成作业，再按薄弱点和知识图谱继续学习。</p>
       </div>
-      <div class="app-toolbar">
+      <div class="dashboard-hero-actions">
         <router-link class="app-button" :to="continueAssignmentLink">继续学习</router-link>
+        <router-link class="app-button-ghost" to="/chat">打开学习助手</router-link>
       </div>
     </header>
 
     <section class="summary-row">
       <article class="summary-card">
+        <span class="summary-dot blue" />
         <span>作业总数</span>
         <strong>{{ assignments.length }}</strong>
       </article>
       <article class="summary-card">
+        <span class="summary-dot cyan" />
         <span>待完成</span>
         <strong>{{ pendingAssignments.length }}</strong>
       </article>
       <article class="summary-card">
+        <span class="summary-dot green" />
         <span>已通过题目</span>
         <strong>{{ acceptedTotal }}</strong>
       </article>
       <article class="summary-card">
+        <span class="summary-dot amber" />
         <span>待掌握薄弱点</span>
         <strong>{{ weakPoints.length }}</strong>
       </article>
@@ -38,7 +42,6 @@
       <section class="panel assignment-panel">
         <div class="panel-header">
           <div>
-            <p class="app-eyebrow">Assignments</p>
             <h2>待完成作业</h2>
           </div>
           <router-link class="app-button-ghost" to="/assignments">全部作业</router-link>
@@ -46,8 +49,11 @@
 
         <div v-if="pendingAssignments.length" class="assignment-list">
           <article v-for="item in pendingAssignments.slice(0, 4)" :key="item.id" class="assignment-item">
-            <div>
-              <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
+            <div class="item-main">
+              <div class="item-head">
+                <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
+                <span class="item-meta">{{ item.question_count }} 题</span>
+              </div>
               <h3>{{ item.title }}</h3>
               <p>{{ item.description || "暂无说明" }}</p>
             </div>
@@ -68,10 +74,33 @@
       </section>
 
       <aside class="side-stack">
+        <section class="panel learning-card">
+          <div class="learning-card-head">
+            <div>
+              <h2>从图谱继续问</h2>
+            </div>
+          </div>
+          <div class="learning-card-body">
+            <div class="learning-copy">
+              <p>遇到概念不清、代码报错或输出不对时，把现象发给知识图谱助教。</p>
+              <router-link class="app-button" to="/chat">开始提问</router-link>
+            </div>
+            <div class="learning-visual" aria-hidden="true">
+              <div class="visual-ribbon ribbon-one" />
+              <div class="visual-ribbon ribbon-two" />
+              <div class="visual-panel">
+                <span class="visual-pill">AI</span>
+                <span class="visual-line long" />
+                <span class="visual-line mid" />
+                <span class="visual-line short" />
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="panel-header">
             <div>
-              <p class="app-eyebrow">Weak Points</p>
               <h2>薄弱点</h2>
             </div>
             <router-link class="app-button-ghost" to="/weak-points">去训练</router-link>
@@ -86,13 +115,6 @@
             <h3>暂无薄弱点</h3>
             <p>先在 AI 对话中围绕 Java 知识点提问。</p>
           </div>
-        </section>
-
-        <section class="panel learning-card">
-          <p class="app-eyebrow">AI Learning</p>
-          <h2>从图谱继续问</h2>
-          <p>遇到概念不清、代码报错或输出不对时，把现象发给知识图谱助教。</p>
-          <router-link class="app-button" to="/chat">打开 AI 学习</router-link>
         </section>
       </aside>
     </main>
@@ -161,13 +183,28 @@ function handleApiError(error, fallbackMessage, target) {
 
 <style scoped>
 .dashboard-page {
+  display: grid;
   gap: 22px;
+}
+
+.dashboard-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.dashboard-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .summary-card,
@@ -179,7 +216,9 @@ function handleApiError(error, fallbackMessage, target) {
 }
 
 .summary-card {
-  padding: 20px 22px;
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
 }
 
 .summary-card span {
@@ -188,23 +227,55 @@ function handleApiError(error, fallbackMessage, target) {
 
 .summary-card strong {
   display: block;
-  margin-top: 10px;
   color: var(--app-text);
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 500;
+}
+
+.summary-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.summary-dot.blue {
+  background: #2f67f6;
+}
+
+.summary-dot.cyan {
+  background: #1fb5a8;
+}
+
+.summary-dot.green {
+  background: #22c55e;
+}
+
+.summary-dot.amber {
+  background: #f59e0b;
 }
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1.52fr) minmax(340px, 0.88fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .panel {
   padding: 22px;
   display: grid;
-  gap: 18px;
+  gap: 16px;
+}
+
+.assignment-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.assignment-panel .assignment-list,
+.assignment-panel .empty-state {
+  flex: 1;
 }
 
 .panel-header,
@@ -220,29 +291,65 @@ function handleApiError(error, fallbackMessage, target) {
 .panel h2,
 .assignment-item h3,
 .empty-state h3 {
-  margin: 10px 0 0;
+  margin: 0;
   color: var(--app-text);
   font-weight: 500;
 }
 
 .panel h2 {
-  font-size: 24px;
+  font-size: 22px;
 }
 
-.assignment-list,
+.assignment-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  width: min(100%, 640px);
+}
+
 .weak-list,
 .side-stack {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+}
+
+.side-stack {
+  align-self: stretch;
 }
 
 .assignment-item,
 .weak-list article,
 .empty-state {
-  padding: 16px;
-  border-radius: 20px;
+  padding: 16px 18px;
+  border-radius: 18px;
   border: 1px solid #e6eef7;
   background: var(--app-panel-soft);
+}
+
+.assignment-item {
+  width: 100%;
+  align-self: flex-start;
+}
+
+.assignment-panel .empty-state {
+  width: min(100%, 640px);
+}
+
+.item-main {
+  min-width: 0;
+}
+
+.item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.item-meta {
+  color: var(--app-text-soft);
+  font-size: 12px;
 }
 
 .assignment-item p,
@@ -262,6 +369,7 @@ function handleApiError(error, fallbackMessage, target) {
   align-items: flex-end;
   flex-direction: column;
   flex-shrink: 0;
+  min-width: 120px;
 }
 
 .status {
@@ -295,20 +403,144 @@ function handleApiError(error, fallbackMessage, target) {
   line-height: 1.7;
 }
 
+.learning-card {
+  align-content: start;
+  gap: 16px;
+}
+
+.learning-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.learning-card .app-button {
+  justify-self: start;
+}
+
+.learning-card .app-button-ghost {
+  flex-shrink: 0;
+}
+
+.learning-card-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 18px;
+  align-items: center;
+}
+
+.learning-copy {
+  display: grid;
+  gap: 14px;
+}
+
+.learning-copy .app-button {
+  width: fit-content;
+}
+
+.learning-visual {
+  position: relative;
+  min-height: 150px;
+}
+
+.visual-ribbon {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  border-radius: 999px;
+  background: rgba(47, 103, 246, 0.1);
+}
+
+.ribbon-one {
+  top: 20px;
+  height: 18px;
+}
+
+.ribbon-two {
+  top: 72px;
+  height: 18px;
+  background: rgba(47, 103, 246, 0.08);
+}
+
+.visual-panel {
+  position: absolute;
+  inset: 24px 18px 18px 42px;
+  display: grid;
+  gap: 10px;
+  padding: 18px 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(238, 244, 255, 0.92) 0%, rgba(255, 255, 255, 0.92) 100%);
+  box-shadow: 0 18px 42px rgba(47, 103, 246, 0.08);
+}
+
+.visual-pill {
+  width: fit-content;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #2f67f6;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.visual-line {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: #dbe5f7;
+}
+
+.visual-line.long {
+  width: 92%;
+}
+
+.visual-line.mid {
+  width: 72%;
+}
+
+.visual-line.short {
+  width: 54%;
+}
+
 @media (max-width: 980px) {
   .summary-row,
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
+
+  .dashboard-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-hero-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .learning-card-body {
+    grid-template-columns: 1fr;
+  }
+
+  .learning-visual {
+    min-height: 124px;
+  }
 }
 
 @media (max-width: 640px) {
+  .dashboard-hero-actions,
   .panel-header,
   .assignment-item,
   .item-side,
   .empty-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .learning-card-head {
+    flex-direction: column;
   }
 }
 </style>

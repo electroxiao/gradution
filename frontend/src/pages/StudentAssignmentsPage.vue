@@ -1,8 +1,7 @@
 <template>
-  <div class="student-page">
+  <section class="student-page">
     <header class="hero">
       <div>
-        <p class="eyebrow">Assignments</p>
         <h1>我的作业</h1>
         <p>查看教师发布的 Java 编程作业，提交代码并查看测试结果。</p>
       </div>
@@ -25,19 +24,41 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="assignments.length" class="assignment-grid">
+    <section v-if="assignments.length" class="assignment-list">
       <article v-for="item in assignments" :key="item.id" class="assignment-card">
-        <div class="card-top">
-          <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
-          <span>{{ item.question_count }} 题</span>
+        <div class="card-main">
+          <div class="card-head">
+            <div class="card-icon">作</div>
+            <div class="card-copy">
+              <div class="card-topline">
+                <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
+                <span class="meta-text">{{ item.question_count }} 题</span>
+              </div>
+              <h2>{{ item.title }}</h2>
+              <p>{{ item.description || "暂无说明" }}</p>
+            </div>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric-item">
+              <span>总题数</span>
+              <strong>{{ item.question_count }}</strong>
+            </div>
+            <div class="metric-item">
+              <span>已提交</span>
+              <strong>{{ item.submitted_count }}</strong>
+            </div>
+            <div class="metric-item">
+              <span>已通过</span>
+              <strong>{{ item.accepted_count }}</strong>
+            </div>
+          </div>
         </div>
-        <h2>{{ item.title }}</h2>
-        <p>{{ item.description || "暂无说明" }}</p>
-        <div class="stats">
-          <span>已提交 {{ item.submitted_count }}/{{ item.question_count }}</span>
-          <span>通过 {{ item.accepted_count }}/{{ item.question_count }}</span>
+
+        <div class="card-actions">
+          <span class="progress-text">完成 {{ item.accepted_count }}/{{ item.question_count }}</span>
+          <router-link class="open-link" :to="`/assignments/${item.id}`">进入作业</router-link>
         </div>
-        <router-link class="open-link" :to="`/assignments/${item.id}`">进入作业</router-link>
       </article>
     </section>
 
@@ -49,7 +70,7 @@
         <router-link class="back-link" to="/weak-points">查看薄弱点</router-link>
       </div>
     </section>
-  </div>
+  </section>
 </template>
 
 <script setup>
@@ -95,18 +116,12 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .student-page {
-  gap: 22px;
-}
-
-.hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
+  display: grid;
+  gap: 20px;
 }
 
 .hero h1 {
-  margin: 10px 0 8px;
+  margin: 0 0 8px;
   font-size: 32px;
   font-weight: 500;
   color: var(--app-text);
@@ -117,48 +132,32 @@ function handleApiError(error, fallbackMessage) {
   color: var(--app-text-muted);
 }
 
-.eyebrow {
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.assignment-grid {
+.summary-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
+.summary-row article,
 .assignment-card,
 .empty,
-.feedback,
-.summary-row article {
-  padding: 20px;
+.feedback {
   border: 1px solid var(--app-line);
-  border-radius: 24px;
+  border-radius: var(--app-radius-xl);
   background: var(--app-panel);
   box-shadow: var(--app-shadow);
 }
 
-.assignment-card {
-  display: grid;
-  gap: 12px;
-}
-
-.summary-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-
 .summary-row article {
+  padding: 18px 20px;
   display: grid;
   gap: 6px;
 }
 
-.summary-row span {
+.summary-row span,
+.card-copy p,
+.progress-text,
+.empty p {
   color: var(--app-text-muted);
 }
 
@@ -168,39 +167,121 @@ function handleApiError(error, fallbackMessage) {
   font-weight: 500;
 }
 
-.assignment-card h2,
-.empty h2 {
-  margin: 0;
-  color: var(--app-text);
-  font-weight: 500;
+.assignment-list {
+  display: grid;
+  gap: 18px;
 }
 
-.assignment-card p,
-.empty p {
-  margin: 0;
-  color: var(--app-text-muted);
+.assignment-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  padding: 22px;
+  align-items: center;
 }
 
-.card-top,
-.stats {
+.card-main {
+  display: grid;
+  gap: 18px;
+}
+
+.card-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.card-copy {
+  min-width: 0;
+}
+
+.card-topline {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  color: var(--app-text-muted);
-  font-size: 13px;
+  gap: 10px;
+  align-items: center;
 }
 
 .status {
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: #eef5ff;
   color: #35639f;
+  font-size: 12px;
   font-weight: 500;
 }
 
 .status.closed {
   background: #f0f2f5;
   color: #64748b;
+}
+
+.meta-text {
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.card-copy h2,
+.empty h2 {
+  margin: 10px 0 6px;
+  color: var(--app-text);
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.card-copy p,
+.empty p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 180px));
+  gap: 12px;
+}
+
+.metric-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #e6eef7;
+  border-radius: var(--app-radius-lg);
+  background: var(--app-panel-soft);
+}
+
+.metric-item span {
+  color: var(--app-text-muted);
+  font-size: 13px;
+}
+
+.metric-item strong {
+  color: var(--app-text);
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.card-actions {
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+
+.progress-text {
+  font-size: 13px;
 }
 
 .open-link,
@@ -210,14 +291,16 @@ function handleApiError(error, fallbackMessage) {
   align-items: center;
   justify-content: center;
   min-height: 42px;
-  padding: 10px 16px;
-  border-radius: 14px;
-  background: var(--app-primary);
-  color: #fff;
-  border: none;
-  font: inherit;
+  padding: 0 16px;
+  border-radius: var(--app-radius-md);
   text-decoration: none;
   cursor: pointer;
+}
+
+.open-link,
+.primary-link {
+  background: var(--app-primary);
+  color: #fff;
 }
 
 .back-link {
@@ -226,10 +309,21 @@ function handleApiError(error, fallbackMessage) {
   border: 1px solid var(--app-line);
 }
 
+.empty {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 24px;
+}
+
 .empty-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.feedback {
+  padding: 14px 16px;
 }
 
 .feedback.error {
@@ -238,14 +332,34 @@ function handleApiError(error, fallbackMessage) {
   border-color: #f0d3d3;
 }
 
-@media (max-width: 720px) {
-  .hero {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
+@media (max-width: 980px) {
   .summary-row {
     grid-template-columns: 1fr;
+  }
+
+  .assignment-card {
+    grid-template-columns: 1fr;
+  }
+
+  .card-actions {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .empty-actions {
+    display: grid;
+    width: 100%;
+  }
+
+  .open-link,
+  .back-link,
+  .primary-link {
+    width: 100%;
   }
 }
 </style>

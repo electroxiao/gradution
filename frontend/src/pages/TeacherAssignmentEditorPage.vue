@@ -2,7 +2,6 @@
   <section class="editor-page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Assignment Studio</p>
         <h2>{{ isNew ? "新建作业" : "编辑作业" }}</h2>
         <p class="page-copy">AI 默认参与判题，测试用例按题目需要启用。</p>
       </div>
@@ -28,7 +27,6 @@
     <section class="assignment-meta shell-card">
       <div class="meta-banner">
         <div class="meta-banner-copy">
-          <p class="meta-kicker">Assignment Blueprint</p>
           <h3>作业基础信息</h3>
           <p>先确定标题、状态和说明，再继续配置题目、知识点和 AI 判题规则。</p>
         </div>
@@ -125,12 +123,11 @@
       <section class="editor-main">
         <section class="idea-panel shell-card">
           <div>
-            <p class="eyebrow">AI Draft</p>
             <h3>AI 生成题目草稿</h3>
             <p>先生成题面，再按需要生成测试用例和 AI 审查关注点。</p>
           </div>
           <div class="idea-fields">
-            <input v-model="generateKnowledge" placeholder="知识点，例如 JDBC transaction" />
+            <input v-model="generateKnowledge" placeholder="知识点，例如 Java 事务处理" />
             <input v-model="generateRequirement" placeholder="题目要求，例如 设计转账事务并处理异常" />
             <button type="button" class="primary-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestion">
               {{ generating ? "生成中..." : "生成题目" }}
@@ -141,7 +138,6 @@
         <section v-if="activeQuestion" class="question-editor">
           <header class="question-header shell-card">
             <div>
-              <p class="eyebrow">Question {{ activeQuestionIndex + 1 }}</p>
               <h3>{{ activeQuestion.title || "未命名题目" }}</h3>
               <p>先定义题面和 AI 审查策略，再决定是否用测试用例补充功能验证。</p>
             </div>
@@ -818,7 +814,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .page-header h2 {
-  margin: 10px 0 8px;
+  margin: 0 0 8px;
   color: #0f2840;
   font-size: 32px;
   font-weight: 500;
@@ -831,15 +827,6 @@ function handleApiError(error, fallbackMessage) {
 .empty-editor p {
   margin: 0;
   color: var(--editor-muted);
-}
-
-.eyebrow {
-  margin: 0;
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .toolbar-actions {
@@ -887,15 +874,6 @@ function handleApiError(error, fallbackMessage) {
 .meta-banner-copy {
   display: grid;
   gap: 8px;
-}
-
-.meta-kicker {
-  margin: 0;
-  color: var(--editor-accent);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .meta-banner-copy h3 {

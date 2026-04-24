@@ -1,41 +1,30 @@
 <template>
-  <div class="console-shell student-shell" :class="{ fullscreen: hideSidebar, collapsed: collapseSidebar }">
+  <div
+    class="console-shell student-shell"
+    :class="{ fullscreen: hideSidebar, collapsed: collapseSidebar, 'chat-layout': isChatRoute, 'auto-collapsed': autoCollapseSidebar }"
+  >
     <aside v-if="!hideSidebar" class="console-sidebar student-sidebar">
       <div class="sidebar-top">
         <div class="console-brand">
-          <p class="brand-eyebrow">Student Workspace</p>
           <h1>学习空间</h1>
-          <p>作业、薄弱点与 AI 助教</p>
         </div>
 
         <nav class="console-nav student-nav">
           <router-link to="/" active-class="" exact-active-class="router-link-active">
             <span class="nav-icon">台</span>
-            <span class="nav-copy">
-              <strong>学习工作台</strong>
-              <small>今日进度</small>
-            </span>
+            <span class="nav-copy"><strong>学习工作台</strong></span>
           </router-link>
           <router-link to="/assignments">
             <span class="nav-icon">作</span>
-            <span class="nav-copy">
-              <strong>我的作业</strong>
-              <small>提交与结果</small>
-            </span>
+            <span class="nav-copy"><strong>我的作业</strong></span>
           </router-link>
           <router-link to="/chat">
             <span class="nav-icon">AI</span>
-            <span class="nav-copy">
-              <strong>AI 学习</strong>
-              <small>知识问答</small>
-            </span>
+            <span class="nav-copy"><strong>AI 学习</strong></span>
           </router-link>
           <router-link to="/weak-points">
             <span class="nav-icon">弱</span>
-            <span class="nav-copy">
-              <strong>薄弱点</strong>
-              <small>针对性训练</small>
-            </span>
+            <span class="nav-copy"><strong>薄弱点</strong></span>
           </router-link>
         </nav>
       </div>
@@ -46,7 +35,7 @@
     </aside>
 
     <main class="console-main">
-      <div v-if="!hideSidebar" class="console-topbar">
+      <div v-if="!hideSidebar && !isChatRoute" class="console-topbar">
         <div class="topbar-spacer" />
         <div class="topbar-user">
           <span class="bell-dot">•</span>
@@ -55,7 +44,7 @@
         </div>
       </div>
 
-      <div class="console-content">
+      <div class="console-content" :class="{ 'chat-content': isChatRoute }">
         <router-view />
       </div>
     </main>
@@ -63,7 +52,7 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { useAuthStore } from "../stores/auth";
@@ -71,8 +60,25 @@ import { useAuthStore } from "../stores/auth";
 const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const viewportWidth = ref(typeof window === "undefined" ? 1440 : window.innerWidth);
 const hideSidebar = computed(() => Boolean(route.meta.hideStudentSidebar));
-const collapseSidebar = computed(() => Boolean(route.meta.collapseStudentSidebar));
+const isChatRoute = computed(() => route.path === "/chat");
+const autoCollapseSidebar = computed(() => viewportWidth.value <= 1120);
+const collapseSidebar = computed(
+  () => !hideSidebar.value && Boolean(route.meta.collapseStudentSidebar || isChatRoute.value || autoCollapseSidebar.value),
+);
+
+function syncViewportWidth() {
+  viewportWidth.value = window.innerWidth;
+}
+
+onMounted(() => {
+  window.addEventListener("resize", syncViewportWidth, { passive: true });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", syncViewportWidth);
+});
 
 function logout() {
   authStore.logout();
@@ -82,18 +88,27 @@ function logout() {
 
 <style scoped>
 .console-shell {
+  --sidebar-width: 262px;
+  --sidebar-collapsed-width: 82px;
+  --sidebar-current-width: var(--sidebar-width);
   display: grid;
-  grid-template-columns: 262px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-current-width) minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.28s ease;
 }
 
 .console-shell.fullscreen {
   grid-template-columns: 1fr;
 }
 
+.console-shell.collapsed {
+  --sidebar-current-width: var(--sidebar-collapsed-width);
+}
+
 .console-sidebar {
   position: sticky;
   top: 0;
+  width: var(--sidebar-current-width);
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -102,6 +117,12 @@ function logout() {
   background: rgba(251, 252, 254, 0.96);
   border-right: 1px solid var(--app-line);
   backdrop-filter: blur(16px);
+  overflow: hidden;
+  transition:
+    width 0.28s ease,
+    padding 0.28s ease,
+    box-shadow 0.28s ease,
+    background-color 0.28s ease;
 }
 
 .sidebar-top {
@@ -109,26 +130,24 @@ function logout() {
   gap: 28px;
 }
 
-.brand-eyebrow {
-  margin: 0;
-  color: #6b7f99;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .console-brand h1 {
-  margin: 14px 0 10px;
+  margin: 0 0 10px;
   color: var(--app-text);
   font-size: 24px;
   font-weight: 500;
 }
 
-.console-brand p:last-child {
-  margin: 0;
-  color: var(--app-text-muted);
-  line-height: 1.7;
+.console-brand h1,
+.nav-copy,
+.logout-btn {
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity 0.18s ease,
+    transform 0.24s ease,
+    max-width 0.24s ease,
+    margin 0.24s ease,
+    padding 0.24s ease;
 }
 
 .console-nav {
@@ -170,11 +189,6 @@ function logout() {
   background: #2f67f6;
   border-color: #2f67f6;
   color: #ffffff;
-}
-
-.nav-copy {
-  display: grid;
-  gap: 2px;
 }
 
 .nav-copy strong {
@@ -245,8 +259,10 @@ function logout() {
   padding: 18px 28px 28px;
 }
 
-.console-shell.collapsed {
-  grid-template-columns: 82px minmax(0, 1fr);
+.console-content.chat-content {
+  padding: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .console-shell.collapsed .console-sidebar {
@@ -255,11 +271,15 @@ function logout() {
 }
 
 .console-shell.collapsed .console-brand h1,
-.console-shell.collapsed .console-brand p:last-child,
-.console-shell.collapsed .brand-eyebrow,
 .console-shell.collapsed .nav-copy,
 .console-shell.collapsed .logout-btn {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
 }
 
 .console-shell.collapsed .console-nav a {
@@ -268,43 +288,36 @@ function logout() {
   padding-right: 0;
 }
 
-.console-shell.collapsed .console-sidebar:hover {
+.console-shell.collapsed:not(.chat-layout):not(.auto-collapsed) .console-sidebar:hover {
   width: 262px;
   z-index: 20;
   box-shadow: var(--app-shadow-strong);
 }
 
-.console-shell.collapsed .console-sidebar:hover .console-brand h1,
-.console-shell.collapsed .console-sidebar:hover .console-brand p:last-child,
-.console-shell.collapsed .console-sidebar:hover .brand-eyebrow,
-.console-shell.collapsed .console-sidebar:hover .nav-copy,
-.console-shell.collapsed .console-sidebar:hover .logout-btn {
-  display: initial;
+.console-shell.collapsed:not(.chat-layout):not(.auto-collapsed) .console-sidebar:hover .console-brand h1,
+.console-shell.collapsed:not(.chat-layout):not(.auto-collapsed) .console-sidebar:hover .nav-copy,
+.console-shell.collapsed:not(.chat-layout):not(.auto-collapsed) .console-sidebar:hover .logout-btn {
+  opacity: 1;
+  max-width: 180px;
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
-.console-shell.collapsed .console-sidebar:hover .nav-copy {
-  display: grid;
-}
-
-.console-shell.collapsed .console-sidebar:hover .console-nav a {
+.console-shell.collapsed:not(.chat-layout):not(.auto-collapsed) .console-sidebar:hover .console-nav a {
   justify-content: flex-start;
   padding-left: 14px;
   padding-right: 14px;
 }
 
 @media (max-width: 980px) {
-  .console-shell,
-  .console-shell.collapsed {
-    grid-template-columns: 1fr;
+  .console-shell {
+    --sidebar-width: 220px;
+    --sidebar-collapsed-width: 74px;
   }
 
   .console-sidebar {
-    position: static;
-    height: auto;
-  }
-
-  .console-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-top: 18px;
+    padding-bottom: 18px;
   }
 
   .console-topbar,
@@ -315,8 +328,17 @@ function logout() {
 }
 
 @media (max-width: 640px) {
-  .console-nav {
-    grid-template-columns: 1fr;
+  .console-shell {
+    --sidebar-width: 196px;
+    --sidebar-collapsed-width: 68px;
+  }
+
+  .console-topbar {
+    padding: 14px 14px 0;
+  }
+
+  .console-content {
+    padding: 14px 14px 20px;
   }
 }
 </style>

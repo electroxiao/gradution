@@ -2,7 +2,7 @@
   <section v-if="selectedPath" class="path-card">
     <div class="path-header">
       <strong>已选路径</strong>
-      <span>hop {{ selectedPath.hop }}</span>
+      <span>第 {{ selectedPath.hop }} 跳</span>
     </div>
     <div class="path-chain">
       <template v-for="(node, index) in nodes" :key="`${node.label}-${index}`">
@@ -34,15 +34,12 @@ const selectedPath = computed(() =>
 );
 
 function humanizeRelation(rawRelation) {
-  if (!rawRelation) return "related to";
+  if (!rawRelation) return "相关";
   const normalized = rawRelation.trim().toUpperCase();
   if (normalized === "DEPENDS_ON") {
-    return "depend on";
+    return "依赖于";
   }
-  return rawRelation
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, " ");
+  return rawRelation.trim();
 }
 
 function parsePath(pathText, fact) {

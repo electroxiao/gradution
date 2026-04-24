@@ -14,7 +14,7 @@
       <header class="topbar">
         <div class="topbar-copy">
           <h1><AnimatedTitle :text="activeSessionTitle" /></h1>
-          <p>内容由知识图谱与 AI 联合生成</p>
+          <p>知识图谱与 AI 助教联合生成</p>
         </div>
       </header>
 
@@ -26,8 +26,8 @@
           :class="message.role === 'user' ? 'user-row' : message.role === 'system' ? 'system-row' : 'assistant-row'"
         >
           <div class="message-stack" :class="message.role === 'user' ? 'user-stack' : message.role === 'system' ? 'system-stack' : 'assistant-stack'">
-            <div class="message-meta">
-              <strong>{{ message.role === "user" ? "你" : message.role === "system" ? "系统提示" : "知识助教" }}</strong>
+            <div v-if="message.role === 'system' || (message.role === 'assistant' && message.streaming)" class="message-meta" :class="{ 'assistant-meta': message.role === 'assistant' }">
+              <strong v-if="message.role === 'system'">系统提示</strong>
               <span v-if="message.streaming" class="streaming-flag">正在生成</span>
             </div>
 
@@ -66,24 +66,37 @@
         <p v-if="errorMessage" class="error-banner">{{ errorMessage }}</p>
       </section>
 
-      <form class="composer-shell" @submit.prevent="sendMessage">
-        <div class="composer-card">
-          <textarea
-            ref="composerInput"
-            v-model="content"
-            rows="1"
-            placeholder="发消息..."
-            @input="syncComposerHeight"
-            @keydown.enter.exact.prevent="sendMessage"
-          />
-          <div class="composer-actions">
-            <span class="composer-tip">Enter 发送，Shift + Enter 换行</span>
-            <button type="submit" :disabled="sending || !content.trim()">
-              {{ sending ? "生成中..." : "发送" }}
-            </button>
+        <form class="composer-shell" @submit.prevent="sendMessage">
+          <div class="composer-card">
+            <textarea
+              ref="composerInput"
+              v-model="content"
+              rows="1"
+              placeholder="发消息..."
+              @input="syncComposerHeight"
+            />
+            <div class="composer-actions">
+              <span />
+              <button
+                type="submit"
+                class="composer-submit"
+                :disabled="sending || !content.trim()"
+                :aria-label="sending ? '生成中' : '发送消息'"
+              >
+                <span v-if="sending" class="submit-dot" />
+                <svg v-else viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path
+                    d="M10 15V5M10 5L6.5 8.5M10 5L13.5 8.5"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
     </main>
   </div>
 </template>
@@ -325,15 +338,17 @@ async function scrollToBottom() {
 <style scoped>
 .app-shell {
   display: grid;
-  grid-template-columns: 286px minmax(0, 1fr);
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 0;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   min-width: 0;
 }
 
 .app-shell.embedded {
   grid-template-columns: minmax(0, 1fr);
   height: 100%;
+  min-height: 0;
 }
 
 .chat-stage {
@@ -341,20 +356,20 @@ async function scrollToBottom() {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: transparent;
 }
 
 .embedded .chat-stage {
   height: 100%;
+  min-height: 0;
 }
 
 .topbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 16px;
-  padding: 22px 34px 12px;
+  display: grid;
+  grid-template-columns: minmax(28px, 1fr) minmax(0, 760px) minmax(28px, 1fr);
+  padding: 18px 0 10px;
   min-width: 0;
 }
 
@@ -364,7 +379,7 @@ async function scrollToBottom() {
 
 .topbar-copy h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 500;
   color: var(--app-text);
 }
@@ -375,10 +390,15 @@ async function scrollToBottom() {
   font-size: 13px;
 }
 
+.topbar-copy {
+  grid-column: 2;
+}
+
 .message-stream {
   flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: 18px 34px 180px;
+  padding: 8px 0 196px;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #d8e2ee transparent;
@@ -404,8 +424,9 @@ async function scrollToBottom() {
 }
 
 .message-row {
-  display: flex;
-  margin-bottom: 22px;
+  display: grid;
+  grid-template-columns: minmax(28px, 1fr) minmax(0, 760px) minmax(28px, 1fr);
+  margin-bottom: 26px;
 }
 
 .assistant-row {
@@ -424,11 +445,12 @@ async function scrollToBottom() {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  grid-column: 2;
 }
 
 .assistant-stack {
-  width: min(760px, calc(100% - 160px));
   align-items: stretch;
+  width: 100%;
 }
 
 .embedded .assistant-stack,
@@ -442,11 +464,11 @@ async function scrollToBottom() {
 
 .user-stack {
   align-items: flex-end;
-  max-width: min(520px, 72%);
+  width: 100%;
 }
 
 .system-stack {
-  width: min(680px, calc(100% - 180px));
+  width: 100%;
   align-items: stretch;
 }
 
@@ -467,17 +489,19 @@ async function scrollToBottom() {
 }
 
 .assistant-body {
-  padding: 18px 20px;
-  border-radius: 24px;
-  border: 1px solid var(--app-line);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--app-shadow);
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
   color: #1e293b;
+  line-height: 1.9;
 }
 
 .user-body {
   padding: 14px 18px;
-  border-radius: 22px;
+  width: fit-content;
+  max-width: 80%;
+  border-radius: 20px;
   background: var(--app-primary);
   color: #ffffff;
   text-align: left;
@@ -500,7 +524,7 @@ async function scrollToBottom() {
 
 .trace-box {
   width: 100%;
-  padding: 12px 2px 0;
+  padding: 4px 2px 0;
   color: var(--app-text-muted);
 }
 
@@ -522,7 +546,9 @@ async function scrollToBottom() {
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 18px 34px 24px;
+  display: grid;
+  grid-template-columns: minmax(28px, 1fr) minmax(0, 760px) minmax(28px, 1fr);
+  padding: 18px 0 24px;
   pointer-events: none;
   z-index: 4;
   min-width: 0;
@@ -540,9 +566,9 @@ async function scrollToBottom() {
 .composer-shell::before {
   content: "";
   position: absolute;
-  right: 34px;
+  right: 0;
   bottom: 0;
-  left: 34px;
+  left: 0;
   height: 120px;
   background: linear-gradient(180deg, rgba(245, 247, 251, 0) 0%, rgba(245, 247, 251, 0.94) 34%, rgba(245, 247, 251, 0.98) 100%);
   pointer-events: none;
@@ -552,27 +578,28 @@ async function scrollToBottom() {
 .composer-card {
   position: relative;
   z-index: 1;
-  width: min(860px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 13px 16px;
   border: 1px solid var(--app-line);
-  border-radius: 22px;
+  border-radius: 26px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: var(--app-shadow-strong);
   pointer-events: auto;
   box-sizing: border-box;
+  grid-column: 2;
 }
 
 .embedded .composer-card {
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--app-radius-md);
 }
 
 .composer-card:focus-within {
-  border-color: #bfd0ea;
+  border-color: var(--app-line);
   box-shadow: var(--app-shadow-strong);
 }
 
@@ -584,6 +611,7 @@ async function scrollToBottom() {
   outline: none;
   resize: none;
   background: transparent;
+  box-shadow: none;
   color: #1f2937;
   overflow-y: auto;
   line-height: 1.7;
@@ -596,23 +624,42 @@ async function scrollToBottom() {
   gap: 12px;
 }
 
-.composer-tip {
-  color: var(--app-text-soft);
-  font-size: 12px;
-}
-
-.composer-actions button {
-  padding: 10px 18px;
+.composer-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 14px;
+  border-radius: 50%;
   background: var(--app-primary);
   color: #fff;
   cursor: pointer;
+  box-shadow: 0 12px 24px rgba(47, 103, 246, 0.22);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
 }
 
-.composer-actions button:disabled {
+.composer-submit svg {
+  width: 30px;
+  height: 30px;
+}
+
+.composer-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(47, 103, 246, 0.26);
+}
+
+.submit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.composer-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .error-banner {
@@ -622,11 +669,11 @@ async function scrollToBottom() {
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
-    height: auto;
+    height: 100%;
   }
 
   .chat-stage {
-    height: calc(100vh - 24px);
+    height: 100%;
   }
 
   .message-stack {
@@ -638,21 +685,21 @@ async function scrollToBottom() {
   }
 
   .topbar {
-    flex-direction: column;
-    gap: 14px;
+    grid-template-columns: 16px minmax(0, 1fr) 16px;
   }
 
   .message-stream {
-    padding: 20px 18px 180px;
+    padding: 18px 0 180px;
   }
 
   .composer-shell {
-    padding: 14px 18px 18px;
+    grid-template-columns: 16px minmax(0, 1fr) 16px;
+    padding: 14px 0 18px;
   }
 
   .composer-shell::before {
-    right: 18px;
-    left: 18px;
+    right: 0;
+    left: 0;
   }
 
   .composer-card {

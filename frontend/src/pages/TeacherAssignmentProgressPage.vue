@@ -2,7 +2,6 @@
   <section class="progress-page">
     <header class="progress-toolbar shell-card">
       <div>
-        <p class="eyebrow">Assignment Progress</p>
         <h2>{{ progress?.title || "作业完成情况" }}</h2>
         <p>按学生和题目查看最新提交、运行耗时、AI 评审与教师复核结果。</p>
       </div>
@@ -37,7 +36,6 @@
       <section class="matrix-panel shell-card">
         <div class="panel-header">
           <div>
-            <p class="eyebrow">Progress Matrix</p>
             <h3>学生完成矩阵</h3>
           </div>
           <p class="muted">点击任意格子查看代码、测试结果、AI 评审和教师复核。</p>
@@ -77,7 +75,6 @@
         <template v-if="selectedCell">
           <div class="detail-header">
             <div>
-              <p class="eyebrow">Submission Detail</p>
               <h3>{{ selectedStudent?.username }} / {{ selectedQuestion?.title }}</h3>
             </div>
             <span class="status-pill" :class="selectedCell.status">{{ statusText(selectedCell.status) }}</span>
@@ -431,7 +428,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .progress-toolbar h2 {
-  margin: 10px 0 8px;
+  margin: 0 0 8px;
   color: var(--app-text);
   font-size: 32px;
 }
@@ -444,17 +441,8 @@ function handleApiError(error, fallbackMessage) {
 
 .panel-header h3,
 .detail-header h3 {
-  margin: 6px 0 0;
-  color: #10283d;
-}
-
-.eyebrow {
   margin: 0;
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  color: #10283d;
 }
 
 .secondary-link {

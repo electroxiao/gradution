@@ -1,41 +1,27 @@
 <template>
-  <div class="console-shell teacher-shell">
+  <div class="console-shell teacher-shell" :class="{ collapsed: collapseSidebar, 'auto-collapsed': autoCollapseSidebar }">
     <aside class="console-sidebar">
       <div class="sidebar-top">
         <div class="console-brand">
-          <p class="brand-eyebrow">Teacher Console</p>
           <h1>教师工作台</h1>
-          <p>图谱管理与学情观察</p>
         </div>
 
         <nav class="console-nav">
           <router-link to="/teacher/dashboard">
             <span class="nav-icon">数</span>
-            <span class="nav-copy">
-              <strong>数据看板</strong>
-              <small>班级概览</small>
-            </span>
+            <span class="nav-copy"><strong>数据看板</strong></span>
           </router-link>
           <router-link to="/teacher/graph">
             <span class="nav-icon">图</span>
-            <span class="nav-copy">
-              <strong>知识图谱</strong>
-              <small>节点与关系</small>
-            </span>
+            <span class="nav-copy"><strong>知识图谱</strong></span>
           </router-link>
           <router-link to="/teacher/students">
             <span class="nav-icon">学</span>
-            <span class="nav-copy">
-              <strong>学生薄弱点</strong>
-              <small>个体掌握情况</small>
-            </span>
+            <span class="nav-copy"><strong>学生薄弱点</strong></span>
           </router-link>
           <router-link to="/teacher/assignments">
             <span class="nav-icon">作</span>
-            <span class="nav-copy">
-              <strong>作业管理</strong>
-              <small>发布与复核</small>
-            </span>
+            <span class="nav-copy"><strong>作业管理</strong></span>
           </router-link>
         </nav>
       </div>
@@ -62,12 +48,29 @@
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import { useAuthStore } from "../stores/auth";
 
 const authStore = useAuthStore();
+const route = useRoute();
 const router = useRouter();
+const viewportWidth = ref(typeof window === "undefined" ? 1440 : window.innerWidth);
+const autoCollapseSidebar = computed(() => viewportWidth.value <= 1120);
+const collapseSidebar = computed(() => Boolean(route.meta.collapseTeacherSidebar || autoCollapseSidebar.value));
+
+function syncViewportWidth() {
+  viewportWidth.value = window.innerWidth;
+}
+
+onMounted(() => {
+  window.addEventListener("resize", syncViewportWidth, { passive: true });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", syncViewportWidth);
+});
 
 function logout() {
   authStore.logout();
@@ -77,15 +80,24 @@ function logout() {
 
 <style scoped>
 .console-shell {
+  --sidebar-width: 262px;
+  --sidebar-collapsed-width: 82px;
+  --sidebar-current-width: var(--sidebar-width);
   display: grid;
-  grid-template-columns: 262px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-current-width) minmax(0, 1fr);
   min-height: 100vh;
   background: var(--app-bg);
+  transition: grid-template-columns 0.28s ease;
+}
+
+.console-shell.collapsed {
+  --sidebar-current-width: var(--sidebar-collapsed-width);
 }
 
 .console-sidebar {
   position: sticky;
   top: 0;
+  width: var(--sidebar-current-width);
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -94,6 +106,12 @@ function logout() {
   background: rgba(251, 252, 254, 0.96);
   border-right: 1px solid var(--app-line);
   backdrop-filter: blur(16px);
+  overflow: hidden;
+  transition:
+    width 0.28s ease,
+    padding 0.28s ease,
+    box-shadow 0.28s ease,
+    background-color 0.28s ease;
 }
 
 .sidebar-top {
@@ -106,26 +124,24 @@ function logout() {
   padding: 8px 4px;
 }
 
-.brand-eyebrow {
-  margin: 0;
-  color: #6b7f99;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .console-brand h1 {
-  margin: 14px 0 10px;
+  margin: 0 0 10px;
   color: var(--app-text);
   font-size: 24px;
   font-weight: 500;
 }
 
-.console-brand p:last-child {
-  margin: 0;
-  color: var(--app-text-muted);
-  line-height: 1.7;
+.console-brand h1,
+.nav-copy,
+.logout-btn {
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    opacity 0.18s ease,
+    transform 0.24s ease,
+    max-width 0.24s ease,
+    margin 0.24s ease,
+    padding 0.24s ease;
 }
 
 .console-nav {
@@ -173,19 +189,9 @@ function logout() {
   color: #ffffff;
 }
 
-.nav-copy {
-  display: grid;
-  gap: 2px;
-}
-
 .nav-copy strong {
   font-size: 16px;
   font-weight: 500;
-}
-
-.nav-copy small {
-  color: var(--app-text-soft);
-  font-size: 12px;
 }
 
 .logout-btn {
@@ -246,19 +252,59 @@ function logout() {
   padding: 18px 28px 28px;
 }
 
+.console-shell.collapsed .console-sidebar {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.console-shell.collapsed .console-brand h1,
+.console-shell.collapsed .nav-copy,
+.console-shell.collapsed .logout-btn {
+  opacity: 0;
+  max-width: 0;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+}
+
+.console-shell.collapsed .console-nav a {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover {
+  width: 262px;
+  z-index: 20;
+  box-shadow: var(--app-shadow-strong);
+}
+
+.console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .console-brand h1,
+.console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .nav-copy,
+.console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .logout-btn {
+  opacity: 1;
+  max-width: 180px;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .console-nav a {
+  justify-content: flex-start;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
 @media (max-width: 980px) {
   .console-shell {
-    grid-template-columns: 1fr;
+    --sidebar-width: 220px;
+    --sidebar-collapsed-width: 74px;
   }
 
   .console-sidebar {
-    position: static;
-    height: auto;
-    gap: 18px;
-  }
-
-  .console-nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-top: 18px;
+    padding-bottom: 18px;
   }
 
   .console-content,
@@ -269,8 +315,9 @@ function logout() {
 }
 
 @media (max-width: 640px) {
-  .console-nav {
-    grid-template-columns: 1fr;
+  .console-shell {
+    --sidebar-width: 196px;
+    --sidebar-collapsed-width: 68px;
   }
 
   .console-topbar {

@@ -2,7 +2,6 @@
   <div class="page-shell auth-page">
     <section class="auth-hero">
       <div class="hero-card">
-        <p class="hero-eyebrow">Java Tutor Console</p>
         <h1>Java 智能编程导师</h1>
         <p class="hero-copy">统一连接教师工作台、学生学习空间与知识图谱助教的课程控制台。</p>
         <div class="hero-stats">
@@ -16,14 +15,13 @@
           </article>
           <article>
             <span>辅助能力</span>
-            <strong>AI + 图谱</strong>
+            <strong>AI 助教 + 图谱</strong>
           </article>
         </div>
       </div>
 
       <div class="auth-card">
         <div class="auth-head">
-          <p class="hero-eyebrow">{{ isRegister ? "Register" : "Sign In" }}</p>
           <h2>{{ isRegister ? "创建账号" : "登录系统" }}</h2>
           <p>{{ isRegister ? "注册后即可进入对应身份的工作台。" : "使用你的账号进入教师或学生控制台。" }}</p>
         </div>
@@ -119,18 +117,9 @@ async function submit() {
   gap: 28px;
 }
 
-.hero-eyebrow {
-  margin: 0;
-  color: #7084a0;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .hero-card h1,
 .auth-head h2 {
-  margin: 14px 0 12px;
+  margin: 0 0 12px;
   color: var(--app-text);
   font-weight: 500;
 }

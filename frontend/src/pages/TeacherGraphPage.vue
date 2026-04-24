@@ -2,7 +2,6 @@
   <section class="graph-page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Knowledge Graph</p>
         <h2>知识图谱管理</h2>
         <p class="page-copy">在正式图谱编辑和候选批次审核之间切换，用单主图工作台集中完成管理与审核。</p>
       </div>
@@ -61,7 +60,6 @@
       <section ref="graphViewport" class="graph-panel formal-panel">
         <div class="graph-panel-head">
           <div>
-            <p class="graph-mode-label">Formal Graph</p>
             <h3>正式知识图谱</h3>
           </div>
           <span class="graph-mode-copy">编辑正式图谱中的节点与关系</span>
@@ -262,7 +260,6 @@
         <section ref="graphViewport" class="graph-panel review-graph-panel">
           <div class="graph-panel-head">
             <div>
-              <p class="graph-mode-label">Pending Review</p>
               <h3>{{ selectedBatchDetail?.batch.anchor_name || "候选批次审核" }}</h3>
             </div>
             <span class="graph-mode-copy">审核当前批次的候选结点、建议关系与锚点上下文</span>
@@ -1116,19 +1113,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .page-header h2 {
-  margin: 10px 0 8px;
+  margin: 0 0 8px;
   font-size: 32px;
   font-weight: 500;
   color: var(--app-text);
-}
-
-.eyebrow {
-  margin: 0;
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .page-copy {
@@ -1356,15 +1344,6 @@ button:disabled {
   margin: 4px 0 0;
   color: #10283d;
   font-size: 24px;
-}
-
-.graph-mode-label {
-  margin: 0;
-  color: #5b86b3;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .graph-mode-copy {

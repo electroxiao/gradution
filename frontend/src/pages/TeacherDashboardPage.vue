@@ -2,7 +2,6 @@
   <section class="app-page dashboard-page">
     <header class="app-header">
       <div class="app-header-copy">
-        <p class="app-eyebrow">Overview</p>
         <h2 class="app-title">数据看板</h2>
         <p class="app-subtitle">汇总全体学生当前被标记最多的薄弱点节点，帮助教师快速定位共性问题。</p>
       </div>
@@ -31,7 +30,6 @@
     <section class="rank-panel">
       <div class="panel-head">
         <div>
-          <p class="app-eyebrow">Top Nodes</p>
           <h3>薄弱点热点排行</h3>
         </div>
       </div>
@@ -137,7 +135,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .panel-head h3 {
-  margin: 10px 0 0;
+  margin: 0;
   color: var(--app-text);
   font-size: 24px;
   font-weight: 500;

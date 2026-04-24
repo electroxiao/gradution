@@ -2,7 +2,6 @@
   <section class="students-page">
     <header class="page-header">
       <div>
-        <p class="eyebrow">Students</p>
         <h2>学生薄弱点</h2>
         <p class="page-copy">按学生查看当前未掌握节点，以及作业驱动的知识点掌握分数。</p>
       </div>
@@ -158,19 +157,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .page-header h2 {
-  margin: 10px 0 8px;
+  margin: 0 0 8px;
   font-size: 32px;
   font-weight: 500;
   color: var(--app-text);
-}
-
-.eyebrow {
-  margin: 0;
-  color: #6e86a6;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .page-copy {
