@@ -41,6 +41,7 @@ class TeacherStudentMasteryEvidenceResponse(BaseModel):
     ai_score: int | None = None
     ai_confidence: float | None = None
     ai_summary: str | None = None
+    ai_diagnoses: list[dict] = Field(default_factory=list)
 
 
 class TeacherStudentMasteryResponse(BaseModel):

@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
+from neo4j import GraphDatabase
 
+from backend.core.config import settings
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
@@ -80,13 +82,38 @@ def get_weak_point_for_node_name(db: Session, user: User, node_name: str) -> Use
 
 
 def list_unmastered_weak_point_rows(db: Session, user: User) -> list[tuple[UserWeakPoint, KnowledgeNode]]:
-    return (
+    rows = (
         db.query(UserWeakPoint, KnowledgeNode)
         .join(KnowledgeNode, UserWeakPoint.knowledge_node_id == KnowledgeNode.id)
         .filter(UserWeakPoint.user_id == user.id, UserWeakPoint.status == "unmastered")
         .order_by(UserWeakPoint.last_seen_at.desc())
         .all()
     )
+    return _filter_rows_existing_in_graph(rows)
+
+
+def _filter_rows_existing_in_graph(rows: list[tuple[UserWeakPoint, KnowledgeNode]]) -> list[tuple[UserWeakPoint, KnowledgeNode]]:
+    names = [node.node_name for _, node in rows if node and node.node_name]
+    if not names:
+        return rows
+    try:
+        driver = GraphDatabase.driver(settings.neo4j_uri, auth=settings.neo4j_auth)
+        try:
+            with driver.session(database=settings.neo4j_db_name) as session:
+                records = session.run(
+                    """
+                    UNWIND $names AS name
+                    MATCH (n:Knowledge {name: name})
+                    RETURN DISTINCT n.name AS name
+                    """,
+                    names=names,
+                )
+                existing_names = {record["name"] for record in records if record["name"]}
+        finally:
+            driver.close()
+    except Exception:
+        return rows
+    return [(weak_point, node) for weak_point, node in rows if node.node_name in existing_names]
 
 
 def list_unmastered_weak_node_names(db: Session, user: User) -> list[str]:

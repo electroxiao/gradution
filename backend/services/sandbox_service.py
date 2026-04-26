@@ -108,6 +108,7 @@ def _run_docker(args: list[str], workdir: Path, input_text: str | None = None) -
 
 def _compile_failure_result(result: dict) -> dict:
     status = "timeout" if result["status"] == "timeout" else "sandbox_error" if result["status"] == "sandbox_error" else "runtime_error"
+    stderr = result.get("stderr", "")
     return {
         "case_index": 0,
         "is_sample": True,
@@ -116,8 +117,67 @@ def _compile_failure_result(result: dict) -> dict:
         "input": "",
         "expected_output": "",
         "actual_output": result.get("stdout", ""),
-        "stderr": result.get("stderr", ""),
+        "stderr": stderr,
         "elapsed_ms": 0,
+        "error_signal": _classify_compile_error(stderr, status),
+    }
+
+
+def _classify_compile_error(stderr: str, status: str = "runtime_error") -> dict:
+    if status == "timeout":
+        return {
+            "stage": "compile",
+            "category": "compile_timeout",
+            "candidate_concepts": ["编译流程", "代码结构"],
+        }
+    if status == "sandbox_error":
+        return {
+            "stage": "compile",
+            "category": "sandbox_error",
+            "candidate_concepts": ["运行环境"],
+        }
+
+    text = (stderr or "").lower()
+    if "';' expected" in text or "illegal start of expression" in text or "reached end of file while parsing" in text:
+        return {
+            "stage": "compile",
+            "category": "syntax_error",
+            "candidate_concepts": ["Java基础语法", "语句结束符", "代码块结构"],
+        }
+    if "does not override or implement" in text:
+        return {
+            "stage": "compile",
+            "category": "override_signature_error",
+            "candidate_concepts": ["方法重写", "继承", "接口实现"],
+        }
+    if "cannot find symbol" in text:
+        return {
+            "stage": "compile",
+            "category": "symbol_resolution",
+            "candidate_concepts": ["变量作用域", "方法调用", "类与对象"],
+        }
+    if "incompatible types" in text:
+        return {
+            "stage": "compile",
+            "category": "type_error",
+            "candidate_concepts": ["数据类型", "类型转换", "泛型基础"],
+        }
+    if "non-static variable" in text and "static context" in text:
+        return {
+            "stage": "compile",
+            "category": "static_instance_error",
+            "candidate_concepts": ["静态成员", "实例成员", "main方法"],
+        }
+    if "constructor" in text and "cannot be applied" in text:
+        return {
+            "stage": "compile",
+            "category": "constructor_argument_error",
+            "candidate_concepts": ["构造方法", "方法参数", "对象创建"],
+        }
+    return {
+        "stage": "compile",
+        "category": "unknown_compile_error",
+        "candidate_concepts": ["Java基础语法"],
     }
 
 

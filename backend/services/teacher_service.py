@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
-from backend.models.assignment import Assignment, AssignmentQuestion, AssignmentQuestionKnowledgeNode, AssignmentSubmission
+from backend.models.assignment import Assignment, AssignmentQuestion, AssignmentSubmission
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
@@ -26,6 +26,7 @@ from backend.schemas.teacher import (
 )
 from backend.services.chat_service import get_neo4j_driver
 from backend.services.chat_service import get_openai_client
+from backend.services.knowledge_progress_service import list_unmastered_weak_point_rows
 from backend.services.pending_batch_service import (
     approve_pending_batch,
     get_pending_batch_detail,
@@ -39,28 +40,19 @@ SEARCH_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_+#.-]+|[\u4e00-\u9fff]+")
 
 
 def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
-    rows = (
-        db.query(
-            User.id,
-            User.username,
-            func.count(UserWeakPoint.id).label("weak_point_count"),
-        )
-        .outerjoin(
-            UserWeakPoint,
-            (UserWeakPoint.user_id == User.id) & (UserWeakPoint.status == "unmastered"),
-        )
+    students = (
+        db.query(User)
         .filter(User.role == "student")
-        .group_by(User.id, User.username)
-        .order_by(User.username.asc())
+        .order_by(User.username.asc(), User.id.asc())
         .all()
     )
     return [
         TeacherStudentResponse(
-            id=row.id,
-            username=row.username,
-            weak_point_count=int(row.weak_point_count or 0),
+            id=student.id,
+            username=student.username,
+            weak_point_count=len(list_unmastered_weak_point_rows(db, student)),
         )
-        for row in rows
+        for student in students
     ]
 
 
@@ -329,7 +321,7 @@ def list_student_mastery(db: Session, student_id: int) -> list[TeacherStudentMas
             positive_evidence_count=int(mastery.positive_evidence_count or 0),
             negative_evidence_count=int(mastery.negative_evidence_count or 0),
             last_evaluated_at=mastery.last_evaluated_at,
-            evidence=_list_student_mastery_evidence(db, student_id, node.id),
+            evidence=_list_student_mastery_evidence(db, student_id, node.id, node.node_name),
         )
         for mastery, node in rows
     ]
@@ -339,28 +331,54 @@ def _list_student_mastery_evidence(
     db: Session,
     student_id: int,
     knowledge_node_id: int,
+    knowledge_node_name: str,
     limit: int = 8,
 ) -> list[TeacherStudentMasteryEvidenceResponse]:
     rows = (
         db.query(AssignmentSubmission, Assignment, AssignmentQuestion)
         .join(Assignment, AssignmentSubmission.assignment_id == Assignment.id)
         .join(AssignmentQuestion, AssignmentSubmission.question_id == AssignmentQuestion.id)
-        .join(
-            AssignmentQuestionKnowledgeNode,
-            AssignmentQuestionKnowledgeNode.question_id == AssignmentQuestion.id,
-        )
-        .filter(
-            AssignmentSubmission.student_id == student_id,
-            AssignmentQuestionKnowledgeNode.knowledge_node_id == knowledge_node_id,
-        )
+        .filter(AssignmentSubmission.student_id == student_id)
         .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
-        .limit(limit)
+        .limit(max(limit * 5, 40))
         .all()
     )
-    return [
-        _mastery_evidence_response(submission, assignment, question)
-        for submission, assignment, question in rows
-    ]
+    evidence = []
+    for submission, assignment, question in rows:
+        if _submission_matches_mastery_node(submission, question, knowledge_node_id, knowledge_node_name):
+            evidence.append(_mastery_evidence_response(submission, assignment, question))
+        if len(evidence) >= limit:
+            break
+    return evidence
+
+
+def _submission_matches_mastery_node(
+    submission: AssignmentSubmission,
+    question: AssignmentQuestion,
+    knowledge_node_id: int,
+    knowledge_node_name: str,
+) -> bool:
+    if any(relation.knowledge_node_id == knowledge_node_id for relation in question.knowledge_nodes):
+        return True
+    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
+    diagnoses = ai_review.get("diagnoses")
+    if not isinstance(diagnoses, list):
+        return False
+    return any(
+        _diagnosis_matches_mastery_node(item, knowledge_node_id, knowledge_node_name)
+        for item in diagnoses
+    )
+
+
+def _diagnosis_matches_mastery_node(item: dict, knowledge_node_id: int, knowledge_node_name: str) -> bool:
+    if not isinstance(item, dict):
+        return False
+    resolution = item.get("graph_resolution") if isinstance(item.get("graph_resolution"), dict) else {}
+    if int(resolution.get("node_id") or 0) == knowledge_node_id:
+        return True
+    if str(resolution.get("node_name") or "").strip() == knowledge_node_name:
+        return True
+    return str(item.get("knowledge_node") or "").strip() == knowledge_node_name
 
 
 def _mastery_evidence_response(
@@ -393,6 +411,7 @@ def _mastery_evidence_response(
         ai_score=ai_review.get("score") if ai_review else None,
         ai_confidence=ai_review.get("confidence") if ai_review else None,
         ai_summary=ai_review.get("summary") if ai_review else None,
+        ai_diagnoses=ai_review.get("diagnoses") if isinstance(ai_review.get("diagnoses"), list) else [],
     )
 
 

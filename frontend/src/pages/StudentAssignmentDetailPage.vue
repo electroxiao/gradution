@@ -120,6 +120,21 @@
                 <li v-for="(item, index) in lastResult.ai_review.strengths" :key="`strength-${index}`">{{ item }}</li>
               </ul>
             </div>
+            <div v-if="lastResult.ai_review.diagnoses?.length" class="diagnosis-list">
+              <strong>可能薄弱点</strong>
+              <article v-for="(item, index) in lastResult.ai_review.diagnoses" :key="`diagnosis-${index}`" class="diagnosis-item">
+                <div class="diagnosis-head">
+                  <span>{{ item.knowledge_node || "unknown" }}</span>
+                  <small>{{ formatConfidence(item.confidence) }}</small>
+                </div>
+                <div class="diagnosis-resolution" :class="item.graph_resolution?.status || 'unresolved'">
+                  {{ graphResolutionText(item.graph_resolution) }}
+                </div>
+                <p v-if="item.student_feedback">{{ item.student_feedback }}</p>
+                <p v-else-if="item.reason">{{ item.reason }}</p>
+                <small v-if="item.evidence">证据：{{ item.evidence }}</small>
+              </article>
+            </div>
           </section>
         </section>
       </section>
@@ -493,6 +508,17 @@ function formatConfidence(value) {
   return `${Math.round(number * 100)}%`;
 }
 
+function graphResolutionText(resolution) {
+  const status = resolution?.status;
+  if (status === "matched_existing") {
+    return `已关联：${resolution.node_name || "知识图谱节点"}`;
+  }
+  if (status === "needs_teacher_review") return "待教师确认";
+  if (status === "skipped_low_confidence") return "低置信诊断，暂不计入";
+  if (status === "unresolved") return "暂未关联到图谱";
+  return "暂未解析";
+}
+
 function resultTitle(item) {
   if (item?.case_index === 0) {
     return `编译阶段：${statusText(item.status)}`;
@@ -798,6 +824,70 @@ pre {
   margin: 0;
   padding-left: 18px;
   color: #475467;
+}
+
+.diagnosis-list {
+  display: grid;
+  gap: 10px;
+}
+
+.diagnosis-list > strong,
+.diagnosis-head span {
+  color: #10283d;
+}
+
+.diagnosis-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #d8e2ee;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.diagnosis-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.diagnosis-head span {
+  font-weight: 600;
+}
+
+.diagnosis-head small {
+  flex: 0 0 auto;
+  color: #35639f;
+}
+
+.diagnosis-resolution {
+  justify-self: start;
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f4f7fb;
+  color: #526071;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.diagnosis-resolution.matched_existing {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.diagnosis-resolution.needs_teacher_review {
+  background: #fff7e6;
+  color: #9a5b00;
+}
+
+.diagnosis-item p,
+.diagnosis-item small {
+  margin: 0;
+  color: #526071;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .result-item.accepted,

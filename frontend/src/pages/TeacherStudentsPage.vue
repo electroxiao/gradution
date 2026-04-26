@@ -94,6 +94,15 @@
                     <span>AI 评分 {{ evidence.ai_score ?? "--" }}</span>
                     <span>置信度 {{ formatConfidence(evidence.ai_confidence) }}</span>
                   </div>
+                  <div v-if="evidence.ai_diagnoses?.length" class="evidence-diagnoses">
+                    <span
+                      v-for="(diagnosis, index) in evidence.ai_diagnoses"
+                      :key="`${evidence.submission_id}-diagnosis-${index}`"
+                    >
+                      {{ diagnosis.knowledge_node || "unknown" }} · {{ formatConfidence(diagnosis.confidence) }} ·
+                      {{ graphResolutionText(diagnosis.graph_resolution) }}
+                    </span>
+                  </div>
                 </article>
               </div>
               <div v-else class="evidence-empty">暂无可展示的作业提交证据。</div>
@@ -229,6 +238,15 @@ function formatConfidence(value) {
   const number = Number(value);
   if (Number.isNaN(number)) return "--";
   return `${Math.round(number * 100)}%`;
+}
+
+function graphResolutionText(resolution) {
+  const status = resolution?.status;
+  if (status === "matched_existing") return `已关联 ${resolution.node_name || ""}`.trim();
+  if (status === "needs_teacher_review") return "待教师确认";
+  if (status === "skipped_low_confidence") return "低置信未计入";
+  if (status === "unresolved") return "未关联";
+  return "未解析";
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -428,7 +446,8 @@ function handleApiError(error, fallbackMessage) {
 
 .evidence-strip,
 .evidence-meta,
-.evidence-ai {
+.evidence-ai,
+.evidence-diagnoses {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -437,7 +456,8 @@ function handleApiError(error, fallbackMessage) {
 .evidence-chip,
 .evidence-badge,
 .evidence-meta span,
-.evidence-ai span {
+.evidence-ai span,
+.evidence-diagnoses span {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
@@ -512,6 +532,11 @@ function handleApiError(error, fallbackMessage) {
 .evidence-ai span {
   background: #f4f7fb;
   color: #526071;
+}
+
+.evidence-diagnoses span {
+  background: #eef5ff;
+  color: #35639f;
 }
 
 .evidence-summary,

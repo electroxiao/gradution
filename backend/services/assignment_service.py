@@ -1,5 +1,7 @@
 import json
+import re
 from datetime import datetime
+from difflib import SequenceMatcher
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
@@ -45,6 +47,7 @@ from backend.schemas.assignment import (
 from backend.services import rag_engine
 from backend.services.chat_service import get_neo4j_driver, get_openai_client
 from backend.services.knowledge_progress_service import get_or_create_knowledge_node, mark_node_mastered, mark_node_weak
+from backend.services.pending_batch_service import create_pending_batch_from_candidates
 from backend.services.sandbox_service import run_java_submission
 
 
@@ -55,6 +58,8 @@ VALID_REVIEW_STATUSES = {"accepted", "ai_rejected", "needs_manual_review"}
 DEFAULT_AI_GRADING_PASS_THRESHOLD = 85
 DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD = 0.85
 FAST_PASS_THRESHOLD_SECONDS = 60
+DIAGNOSIS_CONFIDENCE_THRESHOLD = 0.8
+GRAPH_MATCH_CONFIDENCE_THRESHOLD = 0.75
 
 
 def list_teacher_assignments(db: Session, teacher: User) -> list[AssignmentSummaryResponse]:
@@ -408,6 +413,7 @@ def submit_assignment_question(
     submitted_at = datetime.now()
     duration_seconds = _duration_seconds(started_at, submitted_at)
     status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
+    ai_review = _resolve_ai_review_diagnoses(db, student, assignment, question, results, ai_review)
     trust_label, trust_score, excluded_from_mastery_update = _resolve_submission_trust(status_value, duration_seconds)
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
@@ -1201,6 +1207,403 @@ def _resolve_submission_trust(status_value: str, duration_seconds: int | None) -
     return "normal", 1.0, False
 
 
+def _resolve_ai_review_diagnoses(
+    db: Session,
+    student: User,
+    assignment: Assignment,
+    question: AssignmentQuestion,
+    results: list[dict],
+    ai_review: dict | None,
+) -> dict | None:
+    if not isinstance(ai_review, dict):
+        return ai_review
+    diagnoses = ai_review.get("diagnoses")
+    if not isinstance(diagnoses, list) or not diagnoses:
+        return ai_review
+
+    resolved_diagnoses = []
+    pending_nodes = []
+    anchor_name = _diagnosis_anchor_name(question, diagnoses)
+    question_excerpt = _diagnosis_question_excerpt(assignment, question)
+    context = _diagnosis_resolution_context(question, results)
+
+    for diagnosis in diagnoses:
+        if not isinstance(diagnosis, dict):
+            continue
+        resolved = dict(diagnosis)
+        resolution = resolve_diagnosis_to_graph(db, question, resolved, context)
+        resolved["graph_resolution"] = resolution
+        resolved_diagnoses.append(resolved)
+        if resolution.get("status") == "needs_teacher_review":
+            node_name = str(resolved.get("knowledge_node") or "").strip()
+            if node_name and node_name.lower() != "unknown":
+                pending_nodes.append(
+                    {
+                        "name": node_name,
+                        "desc": _diagnosis_pending_desc(resolved),
+                        "reason": _diagnosis_pending_reason(resolved),
+                        "node_type": "concept",
+                        "is_selected_default": True,
+                    }
+                )
+
+    ai_review["diagnoses"] = resolved_diagnoses
+    if pending_nodes:
+        _create_assignment_diagnosis_pending_batch(
+            db,
+            student,
+            anchor_name,
+            question_excerpt,
+            pending_nodes,
+        )
+    return ai_review
+
+
+def resolve_diagnosis_to_graph(
+    db: Session,
+    question: AssignmentQuestion,
+    diagnosis: dict,
+    context: dict,
+) -> dict:
+    diagnosis_confidence = _safe_float(diagnosis.get("confidence"), 0.0)
+    raw_name = str(diagnosis.get("knowledge_node") or "").strip()
+    if diagnosis_confidence < DIAGNOSIS_CONFIDENCE_THRESHOLD:
+        return {
+            "status": "skipped_low_confidence",
+            "node_id": None,
+            "node_name": "",
+            "match_confidence": 0.0,
+            "match_type": "diagnosis_confidence",
+        }
+    if not raw_name or raw_name.lower() == "unknown":
+        return {
+            "status": "unresolved",
+            "node_id": None,
+            "node_name": "",
+            "match_confidence": 0.0,
+            "match_type": "unknown",
+        }
+
+    exact = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == raw_name).first()
+    if exact and _graph_node_name_exists(raw_name):
+        return _matched_graph_resolution(exact, 1.0, "sql_exact")
+
+    graph_candidates, graph_available = _diagnosis_graph_candidates(question, diagnosis, context)
+    best_candidate = _best_diagnosis_graph_candidate(raw_name, graph_candidates, context)
+    if best_candidate and best_candidate["score"] >= GRAPH_MATCH_CONFIDENCE_THRESHOLD:
+        try:
+            node = _ensure_existing_graph_node_ref(db, best_candidate["node_name"])
+            return _matched_graph_resolution(node, best_candidate["score"], best_candidate["match_type"])
+        except Exception:
+            return {
+                "status": "unresolved",
+                "node_id": None,
+                "node_name": "",
+                "match_confidence": best_candidate["score"],
+                "match_type": "graph_candidate_not_confirmed",
+            }
+
+    if not graph_available:
+        return {
+            "status": "unresolved",
+            "node_id": None,
+            "node_name": "",
+            "match_confidence": 0.0,
+            "match_type": "neo4j_unavailable",
+        }
+    return {
+        "status": "needs_teacher_review",
+        "node_id": None,
+        "node_name": raw_name,
+        "match_confidence": best_candidate["score"] if best_candidate else 0.0,
+        "match_type": best_candidate["match_type"] if best_candidate else "no_candidate",
+    }
+
+
+def _matched_graph_resolution(node: KnowledgeNode, confidence: float, match_type: str) -> dict:
+    return {
+        "status": "matched_existing",
+        "node_id": node.id,
+        "node_name": node.node_name,
+        "match_confidence": max(0.0, min(confidence, 1.0)),
+        "match_type": match_type,
+    }
+
+
+def _diagnosis_resolution_context(question: AssignmentQuestion, results: list[dict]) -> dict:
+    bound_names = [
+        relation.knowledge_node.node_name
+        for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
+        if relation.knowledge_node
+    ]
+    signal_concepts = []
+    signal_categories = []
+    for result in results or []:
+        if not isinstance(result, dict):
+            continue
+        signal = result.get("error_signal")
+        if not isinstance(signal, dict):
+            continue
+        if signal.get("category"):
+            signal_categories.append(str(signal["category"]))
+        concepts = signal.get("candidate_concepts")
+        if isinstance(concepts, list):
+            signal_concepts.extend(str(item).strip() for item in concepts if str(item).strip())
+    return {
+        "bound_names": list(dict.fromkeys(bound_names)),
+        "signal_concepts": list(dict.fromkeys(signal_concepts)),
+        "signal_categories": list(dict.fromkeys(signal_categories)),
+    }
+
+
+def _diagnosis_graph_candidates(
+    question: AssignmentQuestion,
+    diagnosis: dict,
+    context: dict,
+) -> tuple[list[dict], bool]:
+    terms = _diagnosis_search_terms(question, diagnosis, context)
+    bound_names = context.get("bound_names") or []
+    try:
+        driver = get_neo4j_driver()
+        with driver.session(database=settings.neo4j_db_name) as session:
+            rows = session.run(
+                """
+                MATCH (n:Knowledge)
+                WHERE any(term IN $terms WHERE
+                    toLower(n.name) CONTAINS term
+                    OR toLower(coalesce(n.desc, "")) CONTAINS term
+                )
+                RETURN DISTINCT n.name AS node_name,
+                                coalesce(n.desc, "") AS node_desc,
+                                "match" AS match_type
+                LIMIT 30
+                """,
+                terms=terms,
+            )
+            candidates = [
+                {
+                    "node_name": row["node_name"],
+                    "node_desc": row["node_desc"] or "",
+                    "match_type": row["match_type"],
+                }
+                for row in rows
+                if row.get("node_name")
+            ]
+            if bound_names:
+                neighbor_rows = session.run(
+                    """
+                    UNWIND $names AS node_name
+                    MATCH (:Knowledge {name: node_name})-[r]-(neighbor:Knowledge)
+                    RETURN DISTINCT neighbor.name AS node_name,
+                                    coalesce(neighbor.desc, "") AS node_desc,
+                                    "neighbor" AS match_type
+                    LIMIT 30
+                    """,
+                    names=bound_names,
+                )
+                seen_names = {item["node_name"] for item in candidates}
+                for row in neighbor_rows:
+                    node_name = row["node_name"]
+                    if node_name and node_name not in seen_names:
+                        seen_names.add(node_name)
+                        candidates.append(
+                            {
+                                "node_name": node_name,
+                                "node_desc": row["node_desc"] or "",
+                                "match_type": row["match_type"],
+                            }
+                        )
+        return candidates, True
+    except Exception:
+        return [], False
+
+
+def _diagnosis_search_terms(question: AssignmentQuestion, diagnosis: dict, context: dict) -> list[str]:
+    values = [
+        diagnosis.get("knowledge_node"),
+        diagnosis.get("category"),
+        diagnosis.get("reason"),
+        diagnosis.get("evidence"),
+        *(context.get("signal_concepts") or []),
+        *(context.get("bound_names") or []),
+    ]
+    terms: list[str] = []
+    for value in values:
+        text = str(value or "").strip().lower()
+        if not text:
+            continue
+        for part in re.split(r"[\s,，、:：;；()（）\\[\\]{}<>]+", text):
+            part = part.strip()
+            if len(part) >= 2:
+                terms.append(part)
+        if len(text) >= 2:
+            terms.append(text)
+    if not terms and question.prompt:
+        terms.extend(part for part in re.split(r"\s+", question.prompt.lower()) if len(part) >= 2)
+    return list(dict.fromkeys(terms))[:16]
+
+
+def _best_diagnosis_graph_candidate(raw_name: str, candidates: list[dict], context: dict) -> dict | None:
+    best = None
+    for candidate in candidates:
+        node_name = str(candidate.get("node_name") or "").strip()
+        if not node_name:
+            continue
+        score, match_type = _score_diagnosis_candidate(raw_name, candidate, context)
+        item = {"node_name": node_name, "score": score, "match_type": match_type}
+        if best is None or item["score"] > best["score"]:
+            best = item
+    return best
+
+
+def _score_diagnosis_candidate(raw_name: str, candidate: dict, context: dict) -> tuple[float, str]:
+    candidate_name = str(candidate.get("node_name") or "").strip()
+    candidate_desc = str(candidate.get("node_desc") or "").strip()
+    raw_norm = _normalize_concept_text(raw_name)
+    name_norm = _normalize_concept_text(candidate_name)
+    desc_norm = _normalize_concept_text(candidate_desc)
+    if raw_norm and raw_norm == name_norm:
+        return 1.0, "neo4j_exact"
+    if raw_norm and (raw_norm in name_norm or name_norm in raw_norm):
+        return 0.88, "name_contains"
+
+    score = SequenceMatcher(None, raw_norm, name_norm).ratio() if raw_norm and name_norm else 0.0
+    if raw_norm and desc_norm and raw_norm in desc_norm:
+        score = max(score, 0.72)
+    if candidate_name in (context.get("bound_names") or []):
+        score += 0.08
+    if candidate_name in (context.get("signal_concepts") or []):
+        score += 0.1
+    if candidate.get("match_type") == "neighbor":
+        score += 0.04
+    return min(score, 1.0), candidate.get("match_type") or "fuzzy"
+
+
+def _normalize_concept_text(value: str) -> str:
+    return re.sub(r"[\s,，、:：;；()（）\\[\\]{}<>\"'`]+", "", (value or "").strip().lower())
+
+
+def _ensure_existing_graph_node_ref(db: Session, node_name: str) -> KnowledgeNode:
+    if not _graph_node_name_exists(node_name):
+        raise ValueError(f"Knowledge graph node does not exist: {node_name}")
+    node = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == node_name).first()
+    if node:
+        return node
+    node = KnowledgeNode(node_name=node_name)
+    db.add(node)
+    db.flush()
+    return node
+
+
+def _diagnosis_anchor_name(question: AssignmentQuestion, diagnoses: list[dict]) -> str:
+    for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id)):
+        if relation.knowledge_node and relation.knowledge_node.node_name:
+            return relation.knowledge_node.node_name
+    for diagnosis in diagnoses:
+        if isinstance(diagnosis, dict):
+            node_name = str(diagnosis.get("knowledge_node") or "").strip()
+            if node_name and node_name.lower() != "unknown":
+                return node_name
+    return question.title or "作业诊断候选知识点"
+
+
+def _diagnosis_question_excerpt(assignment: Assignment, question: AssignmentQuestion) -> str:
+    text = f"{assignment.title} / {question.title or '未命名题目'}：{question.prompt or ''}"
+    compact = " ".join(text.split())
+    return compact[:180] + ("..." if len(compact) > 180 else "")
+
+
+def _diagnosis_pending_desc(diagnosis: dict) -> str:
+    node_name = str(diagnosis.get("knowledge_node") or "候选知识点").strip()
+    feedback = str(diagnosis.get("student_feedback") or "").strip()
+    reason = str(diagnosis.get("reason") or "").strip()
+    detail = feedback or reason or "来源于作业提交 AI 诊断。"
+    return f"{node_name}：{detail}"
+
+
+def _diagnosis_pending_reason(diagnosis: dict) -> str:
+    parts = [
+        str(diagnosis.get("reason") or "").strip(),
+        str(diagnosis.get("evidence") or "").strip(),
+        str(diagnosis.get("student_feedback") or "").strip(),
+    ]
+    return "；".join(part for part in parts if part) or "作业提交 AI 诊断认为该概念可能是学生薄弱点。"
+
+
+def _create_assignment_diagnosis_pending_batch(
+    db: Session,
+    student: User,
+    anchor_name: str,
+    question_excerpt: str,
+    pending_nodes: list[dict],
+) -> None:
+    anchor_exists = _graph_node_name_exists(anchor_name)
+    seen = set()
+    nodes = []
+    edges = []
+    if not anchor_exists and anchor_name:
+        nodes.append(
+            {
+                "name": anchor_name,
+                "desc": f"{anchor_name}：来源于作业提交 AI 诊断的候选锚点。",
+                "reason": "作业提交 AI 诊断提出该概念，但当前图谱中未找到可自动关联的已有节点。",
+                "node_type": "concept",
+                "is_anchor": True,
+                "is_selected_default": True,
+            }
+        )
+        seen.add(anchor_name)
+    for node in pending_nodes:
+        name = str(node.get("name") or "").strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        nodes.append(node)
+        edges.append(
+            {
+                "source": name,
+                "target": anchor_name,
+                "relation": "DEPENDS_ON",
+                "direction": "out",
+                "is_selected_default": True,
+            }
+        )
+    if not nodes:
+        return
+    try:
+        create_pending_batch_from_candidates(
+            db,
+            source_type="assignment_diagnosis",
+            source_user_id=student.id,
+            source_chat_session_id=None,
+            source_weak_point_id=None,
+            anchor_name=anchor_name,
+            anchor_status="existing" if anchor_exists else "pending",
+            question_excerpt=question_excerpt,
+            nodes=nodes,
+            edges=edges,
+        )
+    except Exception:
+        # Pending graph suggestions are advisory; submission grading must not fail
+        # when Neo4j or the review queue is unavailable.
+        return
+
+
+def _graph_node_name_exists(node_name: str) -> bool:
+    if not node_name:
+        return False
+    try:
+        driver = get_neo4j_driver()
+        with driver.session(database=settings.neo4j_db_name) as session:
+            row = session.run(
+                "MATCH (n:Knowledge {name: $name}) RETURN n.name AS name LIMIT 1",
+                name=node_name,
+            ).single()
+            return bool(row)
+    except Exception:
+        return False
+
+
 def _apply_submission_mastery_evidence(
     db: Session,
     student: User,
@@ -1210,16 +1613,26 @@ def _apply_submission_mastery_evidence(
     if submission.excluded_from_mastery_update:
         return
     relations = sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
-    if not relations:
+    if submission.status != "accepted":
+        target_nodes = _submission_diagnosis_nodes(db, submission)
+    else:
+        target_nodes = [
+            relation.knowledge_node
+            or db.query(KnowledgeNode).filter(KnowledgeNode.id == relation.knowledge_node_id).first()
+            for relation in relations
+        ]
+    target_nodes = [node for node in target_nodes if node]
+    if not target_nodes:
         return
 
     delta = 5 if submission.status == "accepted" else -3
     positive = 1 if submission.status == "accepted" else 0
     negative = 0 if submission.status == "accepted" else 1
-    for relation in relations:
-        node = relation.knowledge_node or db.query(KnowledgeNode).filter(KnowledgeNode.id == relation.knowledge_node_id).first()
-        if not node:
+    seen_node_ids: set[int] = set()
+    for node in target_nodes:
+        if node.id in seen_node_ids:
             continue
+        seen_node_ids.add(node.id)
         mastery = _get_or_create_user_concept_mastery(db, student.id, node.id)
         mastery.mastery_score = max(0, min(100, int(mastery.mastery_score or 50) + delta))
         mastery.positive_evidence_count = int(mastery.positive_evidence_count or 0) + positive
@@ -1227,6 +1640,45 @@ def _apply_submission_mastery_evidence(
         mastery.status = _mastery_status_for_score(mastery.mastery_score)
         mastery.last_source_submission_id = submission.id
         _sync_legacy_knowledge_status(db, student, node.node_name, mastery.status)
+
+    # 提交未通过时直接标记薄弱点，无需等待掌握度分数逐次降至阈值
+    if submission.status != "accepted":
+        for node in target_nodes:
+            mark_node_weak(db, student, node.node_name)
+
+
+def _submission_diagnosis_nodes(db: Session, submission: AssignmentSubmission) -> list[KnowledgeNode]:
+    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
+    diagnoses = ai_review.get("diagnoses")
+    if not isinstance(diagnoses, list):
+        return []
+
+    nodes: list[KnowledgeNode] = []
+    seen_names: set[str] = set()
+    for diagnosis in diagnoses:
+        if not isinstance(diagnosis, dict):
+            continue
+        confidence = _safe_float(diagnosis.get("confidence"), 0.0)
+        resolution = diagnosis.get("graph_resolution") if isinstance(diagnosis.get("graph_resolution"), dict) else {}
+        match_confidence = _safe_float(resolution.get("match_confidence"), 0.0)
+        node_id = _safe_int(resolution.get("node_id"), 0)
+        node_name = str(resolution.get("node_name") or "").strip()
+        if (
+            confidence < DIAGNOSIS_CONFIDENCE_THRESHOLD
+            or resolution.get("status") != "matched_existing"
+            or match_confidence < GRAPH_MATCH_CONFIDENCE_THRESHOLD
+            or node_id <= 0
+            or not node_name
+            or node_name in seen_names
+        ):
+            continue
+        seen_names.add(node_name)
+        node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
+        if node and not _graph_node_name_exists(node.node_name):
+            continue
+        if node:
+            nodes.append(node)
+    return nodes
 
 
 def _get_or_create_user_concept_mastery(db: Session, student_id: int, knowledge_node_id: int) -> UserConceptMastery:
@@ -1275,7 +1727,16 @@ def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code
     if grading_mode == "observed_ai":
         observe_status, observe_results = run_java_submission(code, list(question.test_cases), observe_only=True)
         if observe_status != "accepted":
-            return observe_status, observe_results, None, "observed_ai"
+            ai_review = _run_ai_code_review(
+                assignment,
+                question,
+                code,
+                observe_results,
+                "deep",
+                True,
+                True,
+            )
+            return observe_status, observe_results, ai_review, "observed_ai"
         ai_review = _run_ai_code_review(
             assignment,
             question,
@@ -1290,7 +1751,16 @@ def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code
     if _question_enable_testcases(question):
         testcase_status, testcase_results = run_java_submission(code, list(question.test_cases))
         if testcase_status != "accepted":
-            return testcase_status, testcase_results, None, "ai_with_testcases"
+            ai_review = _run_ai_code_review(
+                assignment,
+                question,
+                code,
+                testcase_results,
+                _effective_ai_review_level(question),
+                True,
+                False,
+            )
+            return testcase_status, testcase_results, ai_review, "ai_with_testcases"
         ai_review = _run_ai_code_review(
             assignment,
             question,
@@ -1304,7 +1774,16 @@ def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code
 
     compile_status, compile_results = run_java_submission(code, [])
     if compile_status != "accepted":
-        return compile_status, compile_results, None, "ai_only"
+        ai_review = _run_ai_code_review(
+            assignment,
+            question,
+            code,
+            compile_results,
+            _effective_ai_review_level(question),
+            False,
+            False,
+        )
+        return compile_status, compile_results, ai_review, "ai_only"
     ai_review = _run_ai_code_review(
         assignment,
         question,
@@ -1349,6 +1828,7 @@ def _run_ai_code_review(
         "summary": "AI 判题暂时不可用，建议教师人工复核。",
         "issues": ["AI 判题调用失败或返回格式异常。"],
         "strengths": [],
+        "diagnoses": [],
         "manual_review_required": True,
     }
     try:
@@ -1379,6 +1859,11 @@ def _build_ai_review_prompt(
     teacher_focus = _normalize_ai_focus(question.ai_grading_focus_json)
     inferred_focus = _infer_focus_from_prompt(question.prompt)
     merged_focus = _merge_focus(inferred_focus, teacher_focus)
+    bound_knowledge_nodes = [
+        relation.knowledge_node.node_name
+        for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
+        if relation.knowledge_node
+    ]
     strategy_text = (
         "轻审查：不要主动苛责命名、架构或微优化，只检查题意满足、明显逻辑错误、危险实现与较大风险。"
         if review_level == "light"
@@ -1398,6 +1883,11 @@ def _build_ai_review_prompt(
 7. score 为 0 到 100 的整数；confidence 为 0 到 1 的小数。
 8. issues 和 strengths 必须是字符串数组。
 9. manual_review_required 为布尔值。
+10. 必须额外输出 diagnoses 数组，用于诊断学生可能薄弱的知识点。
+11. diagnoses 必须优先依据编译错误、运行错误、测试失败证据，不要简单把错误归因到题目绑定知识点。
+12. 如果是编译错误，优先诊断语法、类型、作用域、方法调用、API 使用、继承/接口等基础问题。
+13. 如果证据不足，diagnoses 的 knowledge_node 返回 "unknown"，并设置 manual_review_required=true。
+14. diagnoses 每项必须包含 stage、category、knowledge_node、confidence、evidence、reason、student_feedback。
 
 作业标题：{assignment.title}
 题目标题：{question.title or "未命名题目"}
@@ -1416,6 +1906,9 @@ def _build_ai_review_prompt(
 综合关注点（系统推断 + 教师指定）：
 {json.dumps(merged_focus, ensure_ascii=False)}
 
+题目绑定知识点（只能作为参考，不能替代错误证据）：
+{json.dumps(bound_knowledge_nodes, ensure_ascii=False)}
+
 测试/编译结果摘要：
 {json.dumps(execution_results or [], ensure_ascii=False)}
 
@@ -1432,6 +1925,17 @@ def _build_ai_review_prompt(
   "summary": "简要总结",
   "issues": ["问题1"],
   "strengths": ["优点1"],
+  "diagnoses": [
+    {{
+      "stage": "compile",
+      "category": "api_misuse",
+      "knowledge_node": "Runnable接口",
+      "confidence": 0.86,
+      "evidence": "cannot find symbol: method start()",
+      "reason": "学生把 Runnable 当作 Thread 使用。",
+      "student_feedback": "Runnable 表示任务，不能直接 start，需要交给 Thread 执行。"
+    }}
+  ],
   "manual_review_required": false
 }}
 """
@@ -1443,8 +1947,9 @@ def _normalize_ai_review_payload(data: dict) -> dict:
         decision = "needs_manual_review"
     issues = data.get("issues")
     strengths = data.get("strengths")
-    score = int(data.get("score", 0) or 0)
-    confidence = float(data.get("confidence", 0) or 0)
+    diagnoses = data.get("diagnoses")
+    score = _safe_int(data.get("score"), 0)
+    confidence = _safe_float(data.get("confidence"), 0.0)
     summary = str(data.get("summary") or "AI 未返回有效总结。").strip()
     manual_review_required = bool(data.get("manual_review_required", decision != "accepted"))
     score = max(0, min(score, 100))
@@ -1456,11 +1961,65 @@ def _normalize_ai_review_payload(data: dict) -> dict:
         "summary": summary,
         "issues": [str(item).strip() for item in (issues if isinstance(issues, list) else []) if str(item).strip()],
         "strengths": [str(item).strip() for item in (strengths if isinstance(strengths, list) else []) if str(item).strip()],
+        "diagnoses": _normalize_ai_diagnoses(diagnoses),
         "manual_review_required": manual_review_required,
     }
     if not normalized["issues"] and decision != "accepted":
         normalized["issues"] = ["AI 无法高置信度确认该实现满足要求。"]
     return normalized
+
+
+def _normalize_ai_diagnoses(diagnoses) -> list[dict]:
+    if not isinstance(diagnoses, list):
+        return []
+
+    normalized = []
+    for item in diagnoses:
+        if not isinstance(item, dict):
+            continue
+        knowledge_node = str(item.get("knowledge_node") or "unknown").strip() or "unknown"
+        diagnosis = {
+            "stage": str(item.get("stage") or "").strip(),
+            "category": str(item.get("category") or "").strip(),
+            "knowledge_node": knowledge_node,
+            "confidence": max(0.0, min(_safe_float(item.get("confidence"), 0.0), 1.0)),
+            "evidence": str(item.get("evidence") or "").strip(),
+            "reason": str(item.get("reason") or "").strip(),
+            "student_feedback": str(item.get("student_feedback") or "").strip(),
+            "graph_resolution": _normalize_graph_resolution(item.get("graph_resolution")),
+        }
+        if diagnosis["stage"] and diagnosis["category"] and diagnosis["knowledge_node"]:
+            normalized.append(diagnosis)
+    return normalized
+
+
+def _normalize_graph_resolution(value) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    status_value = str(value.get("status") or "").strip()
+    if status_value not in {"matched_existing", "needs_teacher_review", "unresolved", "skipped_low_confidence"}:
+        status_value = "unresolved"
+    return {
+        "status": status_value,
+        "node_id": _safe_int(value.get("node_id"), 0) or None,
+        "node_name": str(value.get("node_name") or "").strip(),
+        "match_confidence": max(0.0, min(_safe_float(value.get("match_confidence"), 0.0), 1.0)),
+        "match_type": str(value.get("match_type") or "").strip(),
+    }
+
+
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        return int(value if value is not None else default)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        return float(value if value is not None else default)
+    except (TypeError, ValueError):
+        return default
 
 
 def _infer_focus_from_prompt(prompt: str) -> list[str]:
