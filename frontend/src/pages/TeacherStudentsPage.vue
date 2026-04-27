@@ -42,7 +42,34 @@
               <span>最近出现 {{ formatDate(item.last_seen_at) }}</span>
             </article>
           </div>
+          <div v-else-if="isWeakPointsLoading" class="empty">正在加载薄弱点...</div>
           <div v-else class="empty">该学生当前没有未掌握薄弱点。</div>
+        </section>
+
+        <section v-if="portraitSummary || isPortraitLoading" class="detail-section portrait-overview">
+          <div class="section-head">
+            <h4>画像概览</h4>
+          </div>
+          <div v-if="portraitSummary" class="portrait-grid">
+            <div class="portrait-stat">
+              <span>薄弱点</span>
+              <strong>{{ portraitSummary.weak_count }}</strong>
+            </div>
+            <div class="portrait-stat gap">
+              <span>根本性薄弱 (Gap)</span>
+              <strong>{{ portraitSummary.gap_count }}</strong>
+            </div>
+            <div class="portrait-stat slip">
+              <span>偶发失误 (Slip)</span>
+              <strong>{{ portraitSummary.slip_count }}</strong>
+            </div>
+            <div class="portrait-stat">
+              <span>趋势</span>
+              <strong>↑{{ portraitSummary.improving_count }} →{{ portraitSummary.stable_count }} ↓{{ portraitSummary.declining_count }}</strong>
+            </div>
+          </div>
+          <p v-if="portraitSummary?.recommendation" class="portrait-reco">{{ portraitSummary.recommendation }}</p>
+          <div v-else-if="isPortraitLoading" class="empty">正在加载画像概览...</div>
         </section>
 
         <section class="detail-section">
@@ -51,14 +78,34 @@
             <span>{{ studentMastery.length }} 项</span>
           </div>
           <div v-if="studentMastery.length" class="mastery-list">
-            <article v-for="item in studentMastery" :key="item.knowledge_node_id" class="mastery-card" :class="item.status">
+            <article
+              v-for="item in enrichedMastery"
+              :key="item.knowledge_node_id"
+              class="mastery-card"
+              :class="[item.status, item.portrait?.error_type === 'gap' ? 'has-gap' : '']"
+            >
               <div class="mastery-top">
-                <strong>{{ item.node_name }}</strong>
+                <strong>
+                  {{ item.node_name }}
+                  <span v-if="item.portrait?.trend === 'improving'" class="trend-indicator up" title="上升趋势">↑</span>
+                  <span v-else-if="item.portrait?.trend === 'declining'" class="trend-indicator down" title="下降趋势">↓</span>
+                  <span v-if="item.portrait?.error_type === 'gap'" class="gap-badge" title="根本性薄弱">GAP</span>
+                  <span v-else-if="item.portrait?.error_type === 'slip'" class="slip-badge" title="偶发失误">SLIP</span>
+                </strong>
                 <span class="status-pill" :class="item.status">{{ masteryStatusText(item.status) }}</span>
               </div>
               <div class="score-row">
                 <span>掌握分</span>
                 <strong>{{ item.mastery_score }}</strong>
+              </div>
+              <div v-if="item.portrait?.recent_scores?.length" class="mini-trend">
+                <span
+                  v-for="(point, idx) in item.portrait.recent_scores"
+                  :key="idx"
+                  class="trend-dot"
+                  :class="point.status === 'accepted' ? 'pass' : 'fail'"
+                  :title="`${point.status} · ${point.score}分`"
+                ></span>
               </div>
               <div class="meta-row">
                 <span>正向证据 {{ item.positive_evidence_count }}</span>
@@ -109,6 +156,7 @@
               <small>最近更新 {{ formatDate(item.last_evaluated_at) }}</small>
             </article>
           </div>
+          <div v-else-if="isMasteryLoading" class="empty">正在加载作业掌握情况...</div>
           <div v-else class="empty">该学生还没有作业驱动的掌握记录。</div>
         </section>
       </section>
@@ -120,7 +168,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { listTeacherStudentMasteryApi, listTeacherStudentWeakPointsApi, listTeacherStudentsApi } from "../api/teacher";
+import { getStudentPortraitSummaryApi, listTeacherStudentMasteryApi, listTeacherStudentWeakPointsApi, listTeacherStudentsApi } from "../api/teacher";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
@@ -128,11 +176,28 @@ const students = ref([]);
 const activeStudentId = ref(null);
 const studentWeakPoints = ref([]);
 const studentMastery = ref([]);
+const portraitSummary = ref(null);
 const errorMessage = ref("");
+const isWeakPointsLoading = ref(false);
+const isMasteryLoading = ref(false);
+const isPortraitLoading = ref(false);
+let activeRequestId = 0;
 
 const activeStudent = computed(() =>
   students.value.find((student) => student.id === activeStudentId.value) || null,
 );
+
+const enrichedMastery = computed(() => {
+  if (!portraitSummary.value?.concepts) return studentMastery.value;
+  const portraitMap = new Map();
+  for (const c of portraitSummary.value.concepts) {
+    portraitMap.set(c.knowledge_node_id, c);
+  }
+  return studentMastery.value.map((item) => ({
+    ...item,
+    portrait: portraitMap.get(item.knowledge_node_id) || null,
+  }));
+});
 
 onMounted(async () => {
   await loadStudents();
@@ -143,7 +208,7 @@ async function loadStudents() {
     const { data } = await listTeacherStudentsApi();
     students.value = data;
     if (students.value.length) {
-      await selectStudent(students.value[0].id);
+      selectStudent(students.value[0].id);
     }
   } catch (error) {
     handleApiError(error, "加载学生列表失败。");
@@ -151,17 +216,79 @@ async function loadStudents() {
 }
 
 async function selectStudent(studentId) {
+  const requestId = ++activeRequestId;
   activeStudentId.value = studentId;
+  studentWeakPoints.value = [];
+  studentMastery.value = [];
+  portraitSummary.value = null;
+  isWeakPointsLoading.value = true;
+  isMasteryLoading.value = true;
+  isPortraitLoading.value = true;
+  errorMessage.value = "";
+
   try {
-    const [weakPointsResponse, masteryResponse] = await Promise.all([
-      listTeacherStudentWeakPointsApi(studentId),
-      listTeacherStudentMasteryApi(studentId),
-    ]);
+    const weakPointsResponse = await listTeacherStudentWeakPointsApi(studentId);
+    if (requestId !== activeRequestId) return;
     studentWeakPoints.value = weakPointsResponse.data;
-    studentMastery.value = masteryResponse.data;
   } catch (error) {
-    handleApiError(error, "加载学生知识画像失败。");
+    if (requestId === activeRequestId) {
+      handleApiError(error, "加载学生知识画像失败。");
+      isMasteryLoading.value = false;
+      isPortraitLoading.value = false;
+    }
+    return;
+  } finally {
+    if (requestId === activeRequestId) {
+      isWeakPointsLoading.value = false;
+    }
   }
+
+  const masteryPromise = listTeacherStudentMasteryApi(studentId)
+    .then(({ data }) => {
+      if (requestId === activeRequestId) {
+        studentMastery.value = data;
+      }
+    })
+    .catch((error) => {
+      if (requestId === activeRequestId) {
+        handleApiError(error, "加载作业掌握情况失败。");
+      }
+    })
+    .finally(() => {
+      if (requestId === activeRequestId) {
+        isMasteryLoading.value = false;
+      }
+    });
+
+  const portraitPromise = getStudentPortraitSummaryApi(studentId)
+    .then(({ data }) => {
+      if (requestId === activeRequestId) {
+        portraitSummary.value = normalizePortraitSummary(data);
+      }
+    })
+    .catch(() => {
+      if (requestId === activeRequestId) {
+        portraitSummary.value = null;
+      }
+    })
+    .finally(() => {
+      if (requestId === activeRequestId) {
+        isPortraitLoading.value = false;
+      }
+    });
+
+  await Promise.allSettled([masteryPromise, portraitPromise]);
+}
+
+function normalizePortraitSummary(data) {
+  if (!data) return null;
+  return {
+    ...data,
+    improving_count: data.improving_count ?? data.trend_summary?.improving ?? 0,
+    stable_count: data.stable_count ?? data.trend_summary?.stable ?? 0,
+    declining_count: data.declining_count ?? data.trend_summary?.declining ?? 0,
+    concepts: Array.isArray(data.concepts) ? data.concepts : [],
+  };
 }
 
 function masteryStatusText(status) {
@@ -245,6 +372,7 @@ function graphResolutionText(resolution) {
   if (status === "matched_existing") return `已关联 ${resolution.node_name || ""}`.trim();
   if (status === "needs_teacher_review") return "待教师确认";
   if (status === "skipped_low_confidence") return "低置信未计入";
+  if (status === "low_confidence_unmatched") return "低置信待确认";
   if (status === "unresolved") return "未关联";
   return "未解析";
 }
@@ -553,9 +681,131 @@ function handleApiError(error, fallbackMessage) {
   border: 1px solid #f0d3d3;
 }
 
+.portrait-overview {
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #f8faff 100%);
+  border: 1px solid #dce4f5;
+}
+
+.portrait-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portrait-stat {
+  padding: 12px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #eef2f8;
+  text-align: center;
+}
+
+.portrait-stat span {
+  display: block;
+  color: #6f8297;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.portrait-stat strong {
+  color: #10283d;
+  font-size: 20px;
+}
+
+.portrait-stat.gap {
+  background: #fff5f5;
+  border-color: #f0d0d0;
+}
+
+.portrait-stat.gap strong {
+  color: #b42318;
+}
+
+.portrait-stat.slip {
+  background: #fff8ea;
+  border-color: #f0dcb0;
+}
+
+.portrait-stat.slip strong {
+  color: #9a6700;
+}
+
+.portrait-reco {
+  margin: 12px 0 0;
+  color: #31445f;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.trend-indicator {
+  display: inline-block;
+  margin-left: 4px;
+  font-weight: 700;
+}
+
+.trend-indicator.up {
+  color: #16a34a;
+}
+
+.trend-indicator.down {
+  color: #b42318;
+}
+
+.gap-badge,
+.slip-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.gap-badge {
+  background: #fde7e7;
+  color: #b42318;
+}
+
+.slip-badge {
+  background: #fff0d8;
+  color: #9a6700;
+}
+
+.mini-trend {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.trend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.trend-dot.pass {
+  background: #16a34a;
+}
+
+.trend-dot.fail {
+  background: #ef4444;
+}
+
+.mastery-card.has-gap {
+  border-left: 3px solid #ef4444;
+}
+
 @media (max-width: 960px) {
   .students-layout {
     grid-template-columns: 1fr;
+  }
+
+  .portrait-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

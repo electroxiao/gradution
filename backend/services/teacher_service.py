@@ -1,8 +1,8 @@
 import re
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func
+from sqlalchemy.orm import Session, selectinload
 
 from backend.core.config import settings
 from backend.models.assignment import Assignment, AssignmentQuestion, AssignmentSubmission
@@ -26,7 +26,6 @@ from backend.schemas.teacher import (
 )
 from backend.services.chat_service import get_neo4j_driver
 from backend.services.chat_service import get_openai_client
-from backend.services.knowledge_progress_service import list_unmastered_weak_point_rows
 from backend.services.pending_batch_service import (
     approve_pending_batch,
     get_pending_batch_detail,
@@ -40,19 +39,31 @@ SEARCH_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_+#.-]+|[\u4e00-\u9fff]+")
 
 
 def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
-    students = (
-        db.query(User)
+    rows = (
+        db.query(
+            User.id,
+            User.username,
+            func.count(UserWeakPoint.id).label("weak_point_count"),
+        )
+        .outerjoin(
+            UserWeakPoint,
+            and_(
+                UserWeakPoint.user_id == User.id,
+                UserWeakPoint.status == "unmastered",
+            ),
+        )
         .filter(User.role == "student")
+        .group_by(User.id, User.username)
         .order_by(User.username.asc(), User.id.asc())
         .all()
     )
     return [
         TeacherStudentResponse(
-            id=student.id,
-            username=student.username,
-            weak_point_count=len(list_unmastered_weak_point_rows(db, student)),
+            id=row.id,
+            username=row.username,
+            weak_point_count=int(row.weak_point_count or 0),
         )
-        for student in students
+        for row in rows
     ]
 
 
@@ -312,6 +323,7 @@ def list_student_mastery(db: Session, student_id: int) -> list[TeacherStudentMas
         )
         .all()
     )
+    recent_submission_rows = _list_student_recent_submission_rows(db, student_id)
     return [
         TeacherStudentMasteryResponse(
             knowledge_node_id=node.id,
@@ -321,21 +333,20 @@ def list_student_mastery(db: Session, student_id: int) -> list[TeacherStudentMas
             positive_evidence_count=int(mastery.positive_evidence_count or 0),
             negative_evidence_count=int(mastery.negative_evidence_count or 0),
             last_evaluated_at=mastery.last_evaluated_at,
-            evidence=_list_student_mastery_evidence(db, student_id, node.id, node.node_name),
+            evidence=_list_student_mastery_evidence_from_rows(recent_submission_rows, node.id, node.node_name),
         )
         for mastery, node in rows
     ]
 
 
-def _list_student_mastery_evidence(
+def _list_student_recent_submission_rows(
     db: Session,
     student_id: int,
-    knowledge_node_id: int,
-    knowledge_node_name: str,
     limit: int = 8,
-) -> list[TeacherStudentMasteryEvidenceResponse]:
-    rows = (
+) -> list[tuple[AssignmentSubmission, Assignment, AssignmentQuestion]]:
+    return (
         db.query(AssignmentSubmission, Assignment, AssignmentQuestion)
+        .options(selectinload(AssignmentQuestion.knowledge_nodes))
         .join(Assignment, AssignmentSubmission.assignment_id == Assignment.id)
         .join(AssignmentQuestion, AssignmentSubmission.question_id == AssignmentQuestion.id)
         .filter(AssignmentSubmission.student_id == student_id)
@@ -343,6 +354,14 @@ def _list_student_mastery_evidence(
         .limit(max(limit * 5, 40))
         .all()
     )
+
+
+def _list_student_mastery_evidence_from_rows(
+    rows: list[tuple[AssignmentSubmission, Assignment, AssignmentQuestion]],
+    knowledge_node_id: int,
+    knowledge_node_name: str,
+    limit: int = 8,
+) -> list[TeacherStudentMasteryEvidenceResponse]:
     evidence = []
     for submission, assignment, question in rows:
         if _submission_matches_mastery_node(submission, question, knowledge_node_id, knowledge_node_name):

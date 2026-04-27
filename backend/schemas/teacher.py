@@ -237,3 +237,39 @@ class DashboardMetricResponse(BaseModel):
     total_unmastered_weak_points: int
     affected_students: int
     top_nodes: list[dict]
+
+
+class PortraitTrendResponse(BaseModel):
+    submission_id: int
+    status: str
+    score: float
+    submitted_at: datetime
+
+
+class PortraitConceptResponse(BaseModel):
+    knowledge_node_id: int
+    node_name: str
+    mastery_score: int
+    status: str
+    positive_evidence_count: int
+    negative_evidence_count: int
+    last_evaluated_at: datetime | None = None
+    trend: str = "stable"
+    error_type: str = "none"
+    recent_scores: list[PortraitTrendResponse] = Field(default_factory=list)
+
+
+class PortraitSummaryResponse(BaseModel):
+    student_id: int
+    student_name: str
+    total_concepts: int
+    weak_count: int
+    gap_count: int
+    slip_count: int
+    improving_count: int
+    stable_count: int
+    declining_count: int
+    strongest_concept: str | None = None
+    weakest_concept: str | None = None
+    recommendation: str
+    concepts: list[PortraitConceptResponse] = Field(default_factory=list)

@@ -183,6 +183,26 @@ def get_student_mastery(
     return list_student_mastery(db, student_id)
 
 
+@router.get("/students/{student_id}/portrait")
+def get_student_portrait(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    from backend.services.portrait_service import generate_student_portrait
+    return generate_student_portrait(db, student_id)
+
+
+@router.get("/students/{student_id}/portrait/summary")
+def get_student_portrait_summary(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    from backend.services.portrait_service import generate_student_portrait_summary
+    return generate_student_portrait_summary(db, student_id)
+
+
 @router.get("/dashboard/weak-points")
 def get_teacher_dashboard(
     db: Session = Depends(get_db),

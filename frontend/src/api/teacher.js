@@ -29,4 +29,9 @@ export const listTeacherStudentWeakPointsApi = (studentId) =>
 export const listTeacherStudentMasteryApi = (studentId) =>
   http.get(`/api/teacher/students/${studentId}/mastery`);
 
+export const getStudentPortraitApi = (studentId) =>
+  http.get(`/api/teacher/students/${studentId}/portrait`);
+export const getStudentPortraitSummaryApi = (studentId) =>
+  http.get(`/api/teacher/students/${studentId}/portrait/summary`);
+
 export const getTeacherDashboardApi = () => http.get("/api/teacher/dashboard/weak-points");

@@ -515,6 +515,7 @@ function graphResolutionText(resolution) {
   }
   if (status === "needs_teacher_review") return "待教师确认";
   if (status === "skipped_low_confidence") return "低置信诊断，暂不计入";
+  if (status === "low_confidence_unmatched") return "低置信未匹配，待教师确认";
   if (status === "unresolved") return "暂未关联到图谱";
   return "暂未解析";
 }

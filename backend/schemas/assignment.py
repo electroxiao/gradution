@@ -261,6 +261,10 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     submitted_at: datetime
 
 
+class AssignmentSubmissionHistoryResponse(BaseModel):
+    submissions: list[AssignmentSubmissionDetailResponse] = Field(default_factory=list)
+
+
 class AssignmentReviewRequest(BaseModel):
     status: str = Field(pattern="^(accepted|ai_rejected|needs_manual_review)$")
     note: str = Field(default="", max_length=2000)

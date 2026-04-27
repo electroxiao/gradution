@@ -26,6 +26,7 @@ from backend.services.assignment_service import (
     get_teacher_assignment_detail,
     get_teacher_assignment_progress,
     get_teacher_submission_detail,
+    list_teacher_question_submissions,
     list_student_assignments,
     list_student_submissions,
     list_teacher_assignments,
@@ -98,6 +99,17 @@ def get_teacher_assignment_submission(
     current_user: User = Depends(get_current_teacher),
 ):
     return get_teacher_submission_detail(db, current_user, assignment_id, submission_id)
+
+
+@teacher_router.get("/{assignment_id}/students/{student_id}/questions/{question_id}/submissions")
+def get_teacher_assignment_question_submissions(
+    assignment_id: int,
+    student_id: int,
+    question_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return list_teacher_question_submissions(db, current_user, assignment_id, student_id, question_id)
 
 
 @teacher_router.post("/{assignment_id}/submissions/{submission_id}/review")

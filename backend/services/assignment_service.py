@@ -39,6 +39,7 @@ from backend.schemas.assignment import (
     AssignmentRunResultResponse,
     AssignmentStudentRef,
     AssignmentSubmissionDetailResponse,
+    AssignmentSubmissionHistoryResponse,
     AssignmentSubmissionResponse,
     AssignmentSummaryResponse,
     AssignmentTestCaseInput,
@@ -414,7 +415,8 @@ def submit_assignment_question(
     duration_seconds = _duration_seconds(started_at, submitted_at)
     status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
     ai_review = _resolve_ai_review_diagnoses(db, student, assignment, question, results, ai_review)
-    trust_label, trust_score, excluded_from_mastery_update = _resolve_submission_trust(status_value, duration_seconds)
+    previous_code = _get_previous_submission_code(db, student.id, question_id)
+    trust_label, trust_score, excluded_from_mastery_update = _resolve_submission_trust(status_value, duration_seconds, code, previous_code)
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
         question_id=question.id,
@@ -559,6 +561,43 @@ def get_teacher_submission_detail(
     if not submission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="提交记录不存在。")
 
+    return _teacher_submission_detail_response(submission)
+
+
+def list_teacher_question_submissions(
+    db: Session,
+    teacher: User,
+    assignment_id: int,
+    student_id: int,
+    question_id: int,
+) -> AssignmentSubmissionHistoryResponse:
+    assignment = _get_teacher_assignment(db, teacher, assignment_id)
+    assigned_student_ids = {assignee.student_id for assignee in assignment.assignees}
+    question_ids = {question.id for question in assignment.questions}
+    if student_id not in assigned_student_ids or question_id not in question_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="学生或题目不属于该作业。")
+
+    submissions = (
+        db.query(AssignmentSubmission)
+        .options(
+            selectinload(AssignmentSubmission.question),
+            selectinload(AssignmentSubmission.student),
+            selectinload(AssignmentSubmission.reviewer),
+        )
+        .filter(
+            AssignmentSubmission.assignment_id == assignment.id,
+            AssignmentSubmission.student_id == student_id,
+            AssignmentSubmission.question_id == question_id,
+        )
+        .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
+        .all()
+    )
+    return AssignmentSubmissionHistoryResponse(
+        submissions=[_teacher_submission_detail_response(submission) for submission in submissions]
+    )
+
+
+def _teacher_submission_detail_response(submission: AssignmentSubmission) -> AssignmentSubmissionDetailResponse:
     return AssignmentSubmissionDetailResponse(
         id=submission.id,
         assignment_id=submission.assignment_id,
@@ -1201,9 +1240,40 @@ def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmi
     )
 
 
-def _resolve_submission_trust(status_value: str, duration_seconds: int | None) -> tuple[str, float, bool]:
-    if duration_seconds is not None and duration_seconds <= FAST_PASS_THRESHOLD_SECONDS and status_value == "accepted":
-        return "suspicious_fast_pass", 0.0, True
+def _get_previous_submission_code(db: Session, student_id: int, question_id: int) -> str:
+    previous = (
+        db.query(AssignmentSubmission)
+        .filter(
+            AssignmentSubmission.student_id == student_id,
+            AssignmentSubmission.question_id == question_id,
+        )
+        .order_by(AssignmentSubmission.id.desc())
+        .first()
+    )
+    return (previous.code or "") if previous else ""
+
+
+def _resolve_submission_trust(status_value: str, duration_seconds: int | None, code: str = "", previous_code: str = "") -> tuple[str, float, bool]:
+    if status_value != "accepted":
+        return "normal", 1.0, False
+    flags: list[str] = []
+    trust = 1.0
+
+    if duration_seconds is not None and duration_seconds <= FAST_PASS_THRESHOLD_SECONDS:
+        flags.append("fast_submit")
+        trust -= 0.4
+
+    if previous_code and code == previous_code:
+        flags.append("identical_code")
+        trust -= 0.6
+
+    if code and len(code.strip().splitlines()) < 3:
+        flags.append("minimal_code")
+        trust -= 0.3
+
+    if flags:
+        label = "suspicious_" + "_".join(flags)
+        return label, max(0.0, trust), trust < 0.5
     return "normal", 1.0, False
 
 
@@ -1234,7 +1304,7 @@ def _resolve_ai_review_diagnoses(
         resolution = resolve_diagnosis_to_graph(db, question, resolved, context)
         resolved["graph_resolution"] = resolution
         resolved_diagnoses.append(resolved)
-        if resolution.get("status") == "needs_teacher_review":
+        if resolution.get("status") in ("needs_teacher_review", "low_confidence_unmatched"):
             node_name = str(resolved.get("knowledge_node") or "").strip()
             if node_name and node_name.lower() != "unknown":
                 pending_nodes.append(
@@ -1259,6 +1329,30 @@ def _resolve_ai_review_diagnoses(
     return ai_review
 
 
+def _tokenize_concept_name(name: str) -> set[str]:
+    """将知识点名称分词，用于倒排索引匹配。"""
+    tokens: set[str] = set()
+    name = name.strip().lower()
+    tokens.add(name)
+    for part in re.split(r"[\s,，、:：;；()（）\[\]{}<>\"'`/\\]+", name):
+        part = part.strip()
+        if len(part) >= 2:
+            tokens.add(part)
+    for i in range(len(name) - 1):
+        if name[i:i + 2].isalpha():
+            tokens.add(name[i:i + 2])
+    return tokens
+
+
+def _token_overlap_score(raw_name: str, candidate_name: str) -> float:
+    raw_tokens = _tokenize_concept_name(raw_name)
+    cand_tokens = _tokenize_concept_name(candidate_name)
+    if not raw_tokens or not cand_tokens:
+        return 0.0
+    intersection = raw_tokens & cand_tokens
+    return len(intersection) / min(len(raw_tokens), len(cand_tokens))
+
+
 def resolve_diagnosis_to_graph(
     db: Session,
     question: AssignmentQuestion,
@@ -1267,14 +1361,7 @@ def resolve_diagnosis_to_graph(
 ) -> dict:
     diagnosis_confidence = _safe_float(diagnosis.get("confidence"), 0.0)
     raw_name = str(diagnosis.get("knowledge_node") or "").strip()
-    if diagnosis_confidence < DIAGNOSIS_CONFIDENCE_THRESHOLD:
-        return {
-            "status": "skipped_low_confidence",
-            "node_id": None,
-            "node_name": "",
-            "match_confidence": 0.0,
-            "match_type": "diagnosis_confidence",
-        }
+    low_confidence = diagnosis_confidence < DIAGNOSIS_CONFIDENCE_THRESHOLD
     if not raw_name or raw_name.lower() == "unknown":
         return {
             "status": "unresolved",
@@ -1290,18 +1377,32 @@ def resolve_diagnosis_to_graph(
 
     graph_candidates, graph_available = _diagnosis_graph_candidates(question, diagnosis, context)
     best_candidate = _best_diagnosis_graph_candidate(raw_name, graph_candidates, context)
-    if best_candidate and best_candidate["score"] >= GRAPH_MATCH_CONFIDENCE_THRESHOLD:
+    token_best = _resolve_by_token_overlap(raw_name, graph_candidates)
+
+    merged_candidate = _pick_best_candidate(best_candidate, token_best)
+
+    if merged_candidate and merged_candidate["score"] >= GRAPH_MATCH_CONFIDENCE_THRESHOLD:
         try:
-            node = _ensure_existing_graph_node_ref(db, best_candidate["node_name"])
-            return _matched_graph_resolution(node, best_candidate["score"], best_candidate["match_type"])
+            node = _ensure_existing_graph_node_ref(db, merged_candidate["node_name"])
+            return _matched_graph_resolution(node, merged_candidate["score"], merged_candidate["match_type"])
         except Exception:
             return {
                 "status": "unresolved",
                 "node_id": None,
                 "node_name": "",
-                "match_confidence": best_candidate["score"],
+                "match_confidence": merged_candidate["score"],
                 "match_type": "graph_candidate_not_confirmed",
             }
+
+    if low_confidence:
+        partial = merged_candidate or best_candidate or token_best
+        return {
+            "status": "low_confidence_unmatched",
+            "node_id": None,
+            "node_name": raw_name,
+            "match_confidence": partial["score"] if partial else 0.0,
+            "match_type": (partial["match_type"] if partial else "diagnosis_confidence") + "_low_confidence",
+        }
 
     if not graph_available:
         return {
@@ -1315,9 +1416,29 @@ def resolve_diagnosis_to_graph(
         "status": "needs_teacher_review",
         "node_id": None,
         "node_name": raw_name,
-        "match_confidence": best_candidate["score"] if best_candidate else 0.0,
-        "match_type": best_candidate["match_type"] if best_candidate else "no_candidate",
+        "match_confidence": merged_candidate["score"] if merged_candidate else best_candidate["score"] if best_candidate else 0.0,
+        "match_type": merged_candidate["match_type"] if merged_candidate else best_candidate["match_type"] if best_candidate else "no_candidate",
     }
+
+
+def _resolve_by_token_overlap(raw_name: str, candidates: list[dict]) -> dict | None:
+    best: dict | None = None
+    for candidate in candidates:
+        node_name = str(candidate.get("node_name") or "").strip()
+        if not node_name:
+            continue
+        overlap = _token_overlap_score(raw_name, node_name)
+        if overlap > 0.5:
+            score = min(0.70 + overlap * 0.25, 0.95)
+            if best is None or score > best["score"]:
+                best = {"node_name": node_name, "score": score, "match_type": "token_overlap"}
+    return best
+
+
+def _pick_best_candidate(sequence_best: dict | None, token_best: dict | None) -> dict | None:
+    if sequence_best and token_best:
+        return sequence_best if sequence_best["score"] >= token_best["score"] else token_best
+    return sequence_best or token_best
 
 
 def _matched_graph_resolution(node: KnowledgeNode, confidence: float, match_type: str) -> dict:
@@ -1432,15 +1553,18 @@ def _diagnosis_search_terms(question: AssignmentQuestion, diagnosis: dict, conte
         text = str(value or "").strip().lower()
         if not text:
             continue
-        for part in re.split(r"[\s,，、:：;；()（）\\[\\]{}<>]+", text):
+        for part in re.split(r"[\s,，、:：;；()（）\[\]{}<>\"'`/\\]+", text):
             part = part.strip()
             if len(part) >= 2:
                 terms.append(part)
         if len(text) >= 2:
             terms.append(text)
+        for i in range(len(text) - 1):
+            if text[i].isalpha() and text[i + 1].isalpha():
+                terms.append(text[i:i + 2])
     if not terms and question.prompt:
         terms.extend(part for part in re.split(r"\s+", question.prompt.lower()) if len(part) >= 2)
-    return list(dict.fromkeys(terms))[:16]
+    return list(dict.fromkeys(terms))[:20]
 
 
 def _best_diagnosis_graph_candidate(raw_name: str, candidates: list[dict], context: dict) -> dict | None:
@@ -1625,7 +1749,9 @@ def _apply_submission_mastery_evidence(
     if not target_nodes:
         return
 
-    delta = 5 if submission.status == "accepted" else -3
+    ai_confidence = _extract_ai_review_confidence(submission)
+    base_delta = 5 if submission.status == "accepted" else -3
+    delta = _weighted_mastery_delta(base_delta, ai_confidence)
     positive = 1 if submission.status == "accepted" else 0
     negative = 0 if submission.status == "accepted" else 1
     seen_node_ids: set[int] = set()
@@ -1633,18 +1759,58 @@ def _apply_submission_mastery_evidence(
         if node.id in seen_node_ids:
             continue
         seen_node_ids.add(node.id)
+        _apply_time_decay_to_mastery(db, student.id, node.id)
         mastery = _get_or_create_user_concept_mastery(db, student.id, node.id)
         mastery.mastery_score = max(0, min(100, int(mastery.mastery_score or 50) + delta))
         mastery.positive_evidence_count = int(mastery.positive_evidence_count or 0) + positive
         mastery.negative_evidence_count = int(mastery.negative_evidence_count or 0) + negative
         mastery.status = _mastery_status_for_score(mastery.mastery_score)
         mastery.last_source_submission_id = submission.id
+        mastery.last_evaluated_at = datetime.utcnow()
         _sync_legacy_knowledge_status(db, student, node.node_name, mastery.status)
 
-    # 提交未通过时直接标记薄弱点，无需等待掌握度分数逐次降至阈值
     if submission.status != "accepted":
         for node in target_nodes:
             mark_node_weak(db, student, node.node_name)
+
+
+def _extract_ai_review_confidence(submission: AssignmentSubmission) -> float:
+    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
+    confidence = _safe_float(ai_review.get("confidence"), 0.0)
+    if confidence <= 0:
+        return 0.5
+    return confidence
+
+
+def _weighted_mastery_delta(base_delta: int, ai_confidence: float) -> int:
+    factor = 0.5 + 0.5 * max(0.0, min(ai_confidence, 1.0))
+    weighted = base_delta * factor
+    sign = 1 if base_delta >= 0 else -1
+    magnitude = abs(weighted)
+    clamped = min(max(magnitude, 3), 10)
+    return sign * round(clamped)
+
+
+def _apply_time_decay_to_mastery(db: Session, student_id: int, knowledge_node_id: int) -> None:
+    mastery = (
+        db.query(UserConceptMastery)
+        .filter(
+            UserConceptMastery.student_id == student_id,
+            UserConceptMastery.knowledge_node_id == knowledge_node_id,
+        )
+        .first()
+    )
+    if not mastery or not mastery.last_evaluated_at:
+        return
+    days_since = (datetime.utcnow() - mastery.last_evaluated_at).total_seconds() / 86400.0
+    if days_since < 7:
+        return
+    weeks = days_since / 7.0
+    decay_rate = min(0.10 * weeks, 0.40)
+    current = int(mastery.mastery_score or 50)
+    decayed = int(current - (current - 50) * decay_rate)
+    mastery.mastery_score = max(0, min(100, decayed))
+    mastery.status = _mastery_status_for_score(mastery.mastery_score)
 
 
 def _submission_diagnosis_nodes(db: Session, submission: AssignmentSubmission) -> list[KnowledgeNode]:
@@ -1845,6 +2011,39 @@ def _run_ai_code_review(
         return fallback
 
 
+def _enrich_prompt_with_graph_context(question: AssignmentQuestion) -> list[str]:
+    """查询题目绑定知识点及其1-hop邻居，构建可供LLM参考的知识点名称候选列表。"""
+    bound_names = [
+        relation.knowledge_node.node_name
+        for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
+        if relation.knowledge_node and relation.knowledge_node.node_name
+    ]
+    if not bound_names:
+        return []
+    seen = set(bound_names)
+    names = list(bound_names)
+    try:
+        driver = get_neo4j_driver()
+        with driver.session(database=settings.neo4j_db_name) as session:
+            rows = session.run(
+                """
+                UNWIND $names AS node_name
+                MATCH (n:Knowledge {name: node_name})-[r]-(neighbor:Knowledge)
+                RETURN DISTINCT neighbor.name AS name
+                LIMIT 40
+                """,
+                names=bound_names,
+            )
+            for row in rows:
+                name = row["name"]
+                if name and name not in seen:
+                    seen.add(name)
+                    names.append(name)
+    except Exception:
+        pass
+    return names
+
+
 def _build_ai_review_prompt(
     assignment: Assignment,
     question: AssignmentQuestion,
@@ -1864,12 +2063,21 @@ def _build_ai_review_prompt(
         for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
         if relation.knowledge_node
     ]
+    graph_candidate_names = _enrich_prompt_with_graph_context(question)
     strategy_text = (
         "轻审查：不要主动苛责命名、架构或微优化，只检查题意满足、明显逻辑错误、危险实现与较大风险。"
         if review_level == "light"
         else "深审查：重点检查事务、线程安全、资源释放、边界处理、设计偏差、异常处理与明显性能风险。"
     )
     grading_mode_text = "观察运行 + AI 判题" if observe_only else "标准输出 + AI 复核" if enable_testcases else "仅 AI 判题"
+
+    graph_context_block = ""
+    if graph_candidate_names:
+        graph_context_block = f"""
+知识图谱可用知识点（请优先从以下列表中选择 diagnosis.knowledge_node，确保术语一致便于后续关联）：
+{json.dumps(graph_candidate_names, ensure_ascii=False)}
+"""
+
     return f"""
 你是一名严格但克制的 Java 编程作业评审助手。请根据教师给出的评分标准，对学生代码进行保守评审。
 
@@ -1884,9 +2092,9 @@ def _build_ai_review_prompt(
 8. issues 和 strengths 必须是字符串数组。
 9. manual_review_required 为布尔值。
 10. 必须额外输出 diagnoses 数组，用于诊断学生可能薄弱的知识点。
-11. diagnoses 必须优先依据编译错误、运行错误、测试失败证据，不要简单把错误归因到题目绑定知识点。
+11. diagnoses 必须优先依据编译错误、运行错误、测试失败证据。如果错误特征明确对应某个图谱知识点，请使用该知识点的确切名称。
 12. 如果是编译错误，优先诊断语法、类型、作用域、方法调用、API 使用、继承/接口等基础问题。
-13. 如果证据不足，diagnoses 的 knowledge_node 返回 "unknown"，并设置 manual_review_required=true。
+13. 如果证据不足以匹配任何图谱知识点，diagnoses 的 knowledge_node 返回 "unknown"，并设置 manual_review_required=true。
 14. diagnoses 每项必须包含 stage、category、knowledge_node、confidence、evidence、reason、student_feedback。
 
 作业标题：{assignment.title}
@@ -1906,9 +2114,9 @@ def _build_ai_review_prompt(
 综合关注点（系统推断 + 教师指定）：
 {json.dumps(merged_focus, ensure_ascii=False)}
 
-题目绑定知识点（只能作为参考，不能替代错误证据）：
+题目绑定知识点：
 {json.dumps(bound_knowledge_nodes, ensure_ascii=False)}
-
+{graph_context_block}
 测试/编译结果摘要：
 {json.dumps(execution_results or [], ensure_ascii=False)}
 

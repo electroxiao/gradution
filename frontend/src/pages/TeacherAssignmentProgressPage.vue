@@ -19,16 +19,12 @@
         <strong>{{ progress.students.length }}</strong>
       </article>
       <article class="summary-card shell-card">
-        <span>题目数量</span>
-        <strong>{{ progress.questions.length }}</strong>
+        <span>已提交</span>
+        <strong>{{ submittedStudents }}</strong>
       </article>
       <article class="summary-card shell-card">
-        <span>已提交格子</span>
-        <strong>{{ submittedCells }}</strong>
-      </article>
-      <article class="summary-card shell-card">
-        <span>通过格子</span>
-        <strong>{{ acceptedCells }}</strong>
+        <span>未提交</span>
+        <strong>{{ unsubmittedStudents }}</strong>
       </article>
     </section>
 
@@ -37,8 +33,13 @@
         <div class="panel-header">
           <div>
             <h3>学生完成矩阵</h3>
+            <p class="muted">点击格子查看该学生该题的全部提交记录。</p>
           </div>
-          <p class="muted">点击任意格子查看代码、测试结果、AI 评审和教师复核。</p>
+          <div class="view-tabs">
+            <button type="button" :class="{ active: matrixFilter === 'all' }" @click="matrixFilter = 'all'">全部</button>
+            <button type="button" :class="{ active: matrixFilter === 'unsubmitted' }" @click="matrixFilter = 'unsubmitted'">未提交</button>
+            <button type="button" :class="{ active: matrixFilter === 'submitted' }" @click="matrixFilter = 'submitted'">已提交</button>
+          </div>
         </div>
 
         <div class="matrix-scroll">
@@ -48,14 +49,14 @@
               {{ question.title || `题目 ${question.sort_order + 1}` }}
             </div>
 
-            <template v-for="student in progress.students" :key="student.id">
+            <template v-for="student in filteredStudents" :key="student.id">
               <div class="student-cell sticky-left">{{ student.username }}</div>
               <button
                 v-for="question in progress.questions"
                 :key="`${student.id}-${question.id}`"
                 type="button"
                 class="progress-cell"
-                :class="cellFor(student.id, question.id).status"
+                :class="[cellFor(student.id, question.id).status, { muted: !isCellInFilter(cellFor(student.id, question.id)) }]"
                 @click="selectCell(student, question, cellFor(student.id, question.id))"
               >
                 <strong>{{ statusText(cellFor(student.id, question.id).status) }}</strong>
@@ -69,18 +70,44 @@
             </template>
           </div>
         </div>
+        <div v-if="!filteredStudents.length" class="empty-state">当前筛选下没有学生。</div>
       </section>
+    </main>
 
-      <aside class="detail-panel shell-card">
-        <template v-if="selectedCell">
+    <div v-if="selectedCell" class="modal-backdrop" @click.self="closeDetail">
+      <section class="detail-dialog shell-card">
+        <div class="detail-dialog-bar">
           <div class="detail-header">
             <div>
               <h3>{{ selectedStudent?.username }} / {{ selectedQuestion?.title }}</h3>
             </div>
             <span class="status-pill" :class="selectedCell.status">{{ statusText(selectedCell.status) }}</span>
           </div>
+          <button type="button" class="close-button" @click="closeDetail">关闭</button>
+        </div>
 
           <div v-if="selectedCell.latest_submission_id && selectedSubmission" class="detail-body">
+            <section class="detail-section">
+              <div class="review-head">
+                <h4>提交时间线</h4>
+                <span class="decision-pill secondary">{{ selectedSubmissions.length }} 次提交</span>
+              </div>
+              <div class="submission-timeline">
+                <button
+                  v-for="(submission, index) in selectedSubmissions"
+                  :key="submission.id"
+                  type="button"
+                  class="timeline-item"
+                  :class="{ active: submission.id === selectedSubmission.id }"
+                  @click="selectSubmission(submission)"
+                >
+                  <strong>#{{ selectedSubmissions.length - index }} {{ statusText(submission.status) }}</strong>
+                  <span>{{ evidenceText(submission) }}</span>
+                  <small>{{ formatDateTime(submission.submitted_at) }}</small>
+                </button>
+              </div>
+            </section>
+
             <dl class="meta-grid">
               <div>
                 <dt>提交时间</dt>
@@ -88,7 +115,7 @@
               </div>
               <div>
                 <dt>提交次数</dt>
-                <dd>{{ selectedCell.submission_count }}</dd>
+                <dd>{{ selectedSubmissions.length || selectedCell.submission_count }}</dd>
               </div>
               <div>
                 <dt>运行耗时</dt>
@@ -104,6 +131,10 @@
               <h4>作业画像信息</h4>
               <dl class="meta-grid">
                 <div>
+                  <dt>证据类型</dt>
+                  <dd>{{ evidenceText(selectedSubmission) }}</dd>
+                </div>
+                <div>
                   <dt>可信度标签</dt>
                   <dd>{{ trustLabelText(selectedSubmission.trust_label) }}</dd>
                 </div>
@@ -113,10 +144,18 @@
                 </div>
               </dl>
               <div v-if="selectedQuestion?.knowledge_nodes?.length" class="tag-list">
+                <span>绑定知识点：</span>
                 <span v-for="node in selectedQuestion.knowledge_nodes" :key="node.id" class="tag-pill">{{ node.node_name }}</span>
               </div>
+              <div v-if="aiDiagnoses.length" class="diagnosis-summary">
+                <span>AI 诊断：</span>
+                <span v-for="(d, idx) in aiDiagnoses" :key="idx" class="tag-pill diagnosis-tag" :class="d.resolved ? 'resolved' : 'unresolved'">
+                  {{ d.knowledge_node || "unknown" }}
+                  <small>({{ formatConfidence(d.confidence) }})</small>
+                </span>
+              </div>
               <p v-if="selectedSubmission.excluded_from_mastery_update" class="muted">
-                该次提交因“异常速通”未计入知识图谱画像更新。
+                该次提交因"{{ trustLabelText(selectedSubmission.trust_label) }}"未计入知识图谱画像更新。
               </p>
             </section>
 
@@ -215,11 +254,8 @@
 
           <p v-else-if="selectedCell.latest_submission_id" class="muted">提交详情加载中...</p>
           <p v-else class="muted">该学生还没有提交这道题。</p>
-        </template>
-
-        <p v-else class="muted">点击矩阵中的单元格查看提交代码和运行结果。</p>
-      </aside>
-    </main>
+      </section>
+    </div>
   </section>
 </template>
 
@@ -229,7 +265,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import {
   getTeacherAssignmentProgressApi,
-  getTeacherAssignmentSubmissionApi,
+  listTeacherAssignmentQuestionSubmissionsApi,
   reviewTeacherAssignmentSubmissionApi,
 } from "../api/assignments";
 import { clearAuthSession } from "../utils/authStorage";
@@ -242,9 +278,11 @@ const selectedCell = ref(null);
 const selectedStudent = ref(null);
 const selectedQuestion = ref(null);
 const selectedSubmission = ref(null);
+const selectedSubmissions = ref([]);
 const errorMessage = ref("");
 const reviewNote = ref("");
 const reviewing = ref(false);
+const matrixFilter = ref("all");
 
 const cellMap = computed(() => {
   const map = new Map();
@@ -256,12 +294,38 @@ const cellMap = computed(() => {
 const matrixStyle = computed(() => ({
   gridTemplateColumns: `180px repeat(${progress.value?.questions.length || 0}, minmax(190px, 1fr))`,
 }));
-const submittedCells = computed(() =>
-  (progress.value?.cells || []).filter((cell) => cell.status !== "not_submitted").length,
-);
-const acceptedCells = computed(() =>
-  (progress.value?.cells || []).filter((cell) => cell.status === "accepted").length,
-);
+const fullySubmittedStudentIds = computed(() => {
+  const ids = new Set();
+  if (!progress.value?.questions.length) return ids;
+  for (const student of progress.value.students || []) {
+    const allSubmitted = progress.value.questions.every(
+      (question) => cellFor(student.id, question.id).status !== "not_submitted",
+    );
+    if (allSubmitted) ids.add(student.id);
+  }
+  return ids;
+});
+const submittedStudents = computed(() => fullySubmittedStudentIds.value.size);
+const unsubmittedStudents = computed(() => Math.max((progress.value?.students.length || 0) - submittedStudents.value, 0));
+const filteredStudents = computed(() => {
+  if (!progress.value) return [];
+  if (matrixFilter.value === "submitted") {
+    return progress.value.students.filter((student) => fullySubmittedStudentIds.value.has(student.id));
+  }
+  if (matrixFilter.value === "unsubmitted") {
+    return progress.value.students.filter((student) => !fullySubmittedStudentIds.value.has(student.id));
+  }
+  return progress.value.students;
+});
+
+const aiDiagnoses = computed(() => {
+  const review = selectedSubmission.value?.ai_review_json;
+  if (!review?.diagnoses?.length) return [];
+  return review.diagnoses.map((d) => ({
+    ...d,
+    resolved: d.graph_resolution?.status === "matched_existing",
+  }));
+});
 
 onMounted(loadProgress);
 
@@ -288,16 +352,32 @@ async function selectCell(student, question, cell) {
   selectedStudent.value = student;
   selectedQuestion.value = question;
   selectedSubmission.value = null;
+  selectedSubmissions.value = [];
   reviewNote.value = "";
   if (!cell.latest_submission_id) return;
 
   try {
-    const { data } = await getTeacherAssignmentSubmissionApi(assignmentId, cell.latest_submission_id);
-    selectedSubmission.value = data;
-    reviewNote.value = data.teacher_review_note || "";
+    const { data } = await listTeacherAssignmentQuestionSubmissionsApi(assignmentId, student.id, question.id);
+    selectedSubmissions.value = data.submissions || [];
+    selectedSubmission.value = selectedSubmissions.value[0] || null;
+    reviewNote.value = selectedSubmission.value?.teacher_review_note || "";
   } catch (error) {
     handleApiError(error, "加载提交详情失败。");
   }
+}
+
+function closeDetail() {
+  selectedCell.value = null;
+  selectedStudent.value = null;
+  selectedQuestion.value = null;
+  selectedSubmission.value = null;
+  selectedSubmissions.value = [];
+  reviewNote.value = "";
+}
+
+function selectSubmission(submission) {
+  selectedSubmission.value = submission;
+  reviewNote.value = submission.teacher_review_note || "";
 }
 
 async function submitReview(targetStatus) {
@@ -310,6 +390,7 @@ async function submitReview(targetStatus) {
       note: reviewNote.value,
     });
     selectedSubmission.value = data;
+    selectedSubmissions.value = selectedSubmissions.value.map((item) => (item.id === data.id ? data : item));
     reviewNote.value = data.teacher_review_note || "";
     await loadProgress();
     if (selectedStudent.value && selectedQuestion.value) {
@@ -320,6 +401,18 @@ async function submitReview(targetStatus) {
   } finally {
     reviewing.value = false;
   }
+}
+
+function isCellInFilter(cell) {
+  if (matrixFilter.value === "submitted") return cell.status !== "not_submitted";
+  if (matrixFilter.value === "unsubmitted") return cell.status === "not_submitted";
+  return true;
+}
+
+function evidenceText(submission) {
+  if (!submission) return "--";
+  if (submission.excluded_from_mastery_update) return "未计入";
+  return submission.status === "accepted" ? "正向证据" : "负向证据";
 }
 
 function statusText(status) {
@@ -467,7 +560,7 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -488,10 +581,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .progress-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 16px;
-  align-items: start;
+  display: block;
 }
 
 .matrix-panel {
@@ -499,6 +589,32 @@ function handleApiError(error, fallbackMessage) {
   gap: 16px;
   padding: 18px;
   overflow: hidden;
+}
+
+.view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.view-tabs button {
+  min-height: 36px;
+  border-radius: 999px;
+}
+
+.view-tabs button.active {
+  background: #18344f;
+  border-color: #18344f;
+  color: #fff;
+}
+
+.empty-state {
+  padding: 14px;
+  border: 1px solid #e3edf7;
+  border-radius: 16px;
+  background: #f8fbff;
+  color: #6f8297;
+  font-size: 13px;
 }
 
 .matrix-scroll {
@@ -561,12 +677,18 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: inset 0 0 0 1px rgba(31, 95, 153, 0.16);
 }
 
+.progress-cell.muted {
+  opacity: 0.38;
+}
+
 .progress-cell strong {
   color: #10283d;
 }
 
 .progress-cell span,
-.progress-cell small {
+.progress-cell small,
+.timeline-item span,
+.timeline-item small {
   color: #6f8297;
 }
 
@@ -589,14 +711,68 @@ function handleApiError(error, fallbackMessage) {
   background: #fff4d8;
 }
 
-.detail-panel {
-  position: sticky;
-  top: 18px;
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
   display: grid;
-  gap: 14px;
-  max-height: calc(100vh - 120px);
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 40, 61, 0.42);
+}
+
+.detail-dialog {
+  width: min(1080px, 100%);
+  max-height: min(860px, calc(100vh - 48px));
   overflow: auto;
-  padding: 18px;
+  padding: 20px;
+}
+
+.detail-dialog-bar {
+  position: sticky;
+  top: -20px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin: -20px -20px 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e4edf6;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.close-button {
+  min-height: 36px;
+  border-radius: 12px;
+}
+
+.submission-timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.timeline-item {
+  display: grid;
+  justify-content: stretch;
+  justify-items: start;
+  gap: 3px;
+  min-height: 64px;
+  border-radius: 14px;
+  text-align: left;
+}
+
+.timeline-item:hover {
+  box-shadow: inset 0 0 0 1px rgba(31, 95, 153, 0.16);
+}
+
+.timeline-item.active {
+  background: #eef6ff;
+  border-color: #a9cbe8;
+}
+
+.timeline-item strong {
+  color: #10283d;
 }
 
 .status-pill,
@@ -789,13 +965,8 @@ pre {
 }
 
 @media (max-width: 1180px) {
-  .progress-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-panel {
-    position: static;
-    max-height: none;
+  .summary-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -820,5 +991,51 @@ pre {
   .review-actions button {
     width: 100%;
   }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .detail-dialog {
+    max-height: calc(100vh - 24px);
+  }
+
+  .detail-dialog-bar {
+    display: grid;
+  }
+}
+
+.diagnosis-summary {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.diagnosis-summary > span:first-child {
+  color: #6f8297;
+  font-size: 12px;
+}
+
+.diagnosis-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.diagnosis-tag.resolved {
+  background: #dff7e7;
+  color: #027a48;
+}
+
+.diagnosis-tag.unresolved {
+  background: #fff8ea;
+  color: #9a6700;
+}
+
+.diagnosis-tag small {
+  font-size: 10px;
+  opacity: 0.75;
 }
 </style>
