@@ -39,7 +39,7 @@
 
       <div class="resize-handle" @pointerdown="startProblemResize" />
 
-      <section v-if="activeQuestion" class="editor-pane">
+      <section v-if="activeQuestion" ref="editorPane" class="editor-pane" :class="{ 'has-result': lastResult }">
         <header class="editor-toolbar">
           <div>
             <h2>Main.java</h2>
@@ -49,6 +49,9 @@
             <span class="draft-pill">已自动保存</span>
             <button type="button" class="secondary-btn" @click="showAiPanel = !showAiPanel">
               {{ showAiPanel ? "收起 AI" : "AI 助教" }}
+            </button>
+            <button type="button" class="secondary-btn" :disabled="loadingPreviousResult" @click="showPreviousSubmissionResult">
+              {{ loadingPreviousResult ? "加载中..." : "查看上次提交" }}
             </button>
             <button type="button" class="primary-btn" :disabled="submitting || !activeCode.trim()" @click="submitCode">
               {{ submitting ? "运行中..." : "提交运行" }}
@@ -60,12 +63,18 @@
           <CodeEditor v-model="activeCode" />
         </div>
 
-        <section class="result-console">
+        <div v-if="lastResult" class="result-resize-handle" @pointerdown="startResultResize" />
+
+        <section v-if="lastResult" class="result-console" :class="{ 'ai-rejected-result': isAiRejectedAfterPassingTests }">
           <header>
             <h3>测试结果</h3>
-            <span v-if="lastResult" :class="['result-status', lastResult.status]">{{ statusText(lastResult.status) }}</span>
+            <span :class="['result-status', lastResult.status]">{{ statusText(lastResult.status) }}</span>
           </header>
-          <div v-if="lastResult" class="result-list">
+          <div v-if="isAiRejectedAfterPassingTests" class="ai-reject-alert">
+            <strong>测试用例已通过，但 AI 判定未通过</strong>
+            <p>请优先查看 AI 评审中的风险点和可能薄弱点。</p>
+          </div>
+          <div class="result-list">
             <div v-for="item in lastResult.results" :key="item.case_index" class="result-item" :class="item.status">
               <strong>{{ resultTitle(item) }}</strong>
               <p v-if="item.summary">{{ item.summary }}</p>
@@ -82,7 +91,6 @@
               <pre v-if="item.stderr">{{ item.stderr }}</pre>
             </div>
           </div>
-          <p v-else class="muted">提交运行后，测试结果会显示在这里。</p>
 
           <section v-if="lastResult?.ai_review" class="ai-review-block">
             <header>
@@ -199,6 +207,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import {
   getStudentAssignmentApi,
+  listStudentAssignmentSubmissionsApi,
   streamAssignmentAiHelpApi,
   submitAssignmentQuestionApi,
 } from "../api/assignments";
@@ -210,6 +219,7 @@ import { clearAuthSession } from "../utils/authStorage";
 const STARTER_CODE = `public class Main {
     public static void main(String[] args) {
         // 在这里编写你的代码
+        
     }
 }
 `;
@@ -234,10 +244,13 @@ const aiHelpError = ref("");
 const errorMessage = ref("");
 const submitting = ref(false);
 const asking = ref(false);
+const loadingPreviousResult = ref(false);
 const showAiPanel = ref(false);
 const aiInput = ref(null);
+const editorPane = ref(null);
 const problemPaneWidth = ref(320);
 const aiPaneWidth = ref(360);
+const resultPaneHeight = ref(0);
 
 const sampleCases = computed(() => activeQuestion.value?.test_cases?.filter((item) => item.is_sample) || []);
 const aiConcepts = computed(() => {
@@ -260,6 +273,7 @@ const labGridStyle = computed(() => {
   return {
     "--problem-pane-width": `${problemPaneWidth.value}px`,
     "--ai-pane-width": `${aiPaneWidth.value}px`,
+    "--result-pane-height": resultPaneHeight.value ? `${resultPaneHeight.value}px` : "50%",
   };
 });
 const activeCode = computed({
@@ -272,6 +286,15 @@ const activeCode = computed({
     codeByQuestion.value[activeQuestion.value.id] = value;
     saveCodeDraft(activeQuestion.value.id, value);
   },
+});
+const isAiRejectedAfterPassingTests = computed(() => {
+  const result = lastResult.value;
+  if (!result) return false;
+  const aiDecision = result.ai_review?.decision;
+  const testsPassed = Array.isArray(result.results)
+    && result.results.length > 0
+    && result.results.every((item) => item.status === "accepted");
+  return testsPassed && (result.status === "ai_rejected" || aiDecision === "ai_rejected" || aiDecision === "wrong_answer");
 });
 
 onMounted(async () => {
@@ -322,11 +345,36 @@ async function submitCode() {
       code: activeCode.value,
       started_at: startedAtByQuestion.value[activeQuestion.value.id],
     });
+    ensureDefaultResultPaneHeight();
     lastResultByQuestion.value[activeQuestion.value.id] = data;
+    if (data.submission?.submitted_at) {
+      startedAtByQuestion.value[activeQuestion.value.id] = data.submission.submitted_at;
+      saveStartedAt(activeQuestion.value.id, data.submission.submitted_at);
+    }
   } catch (error) {
     handleApiError(error, "提交运行失败。");
   } finally {
     submitting.value = false;
+  }
+}
+
+async function showPreviousSubmissionResult() {
+  if (!activeQuestion.value || loadingPreviousResult.value) return;
+  loadingPreviousResult.value = true;
+  errorMessage.value = "";
+  try {
+    const { data } = await listStudentAssignmentSubmissionsApi(assignment.value.id);
+    const previousSubmission = (data || []).find((item) => item.question_id === activeQuestion.value.id);
+    if (!previousSubmission) {
+      errorMessage.value = "当前题目还没有提交记录。";
+      return;
+    }
+    ensureDefaultResultPaneHeight();
+    lastResultByQuestion.value[activeQuestion.value.id] = submissionToRunResult(previousSubmission);
+  } catch (error) {
+    handleApiError(error, "加载上次提交结果失败。");
+  } finally {
+    loadingPreviousResult.value = false;
   }
 }
 
@@ -438,6 +486,17 @@ function saveStartedAt(questionId, startedAt) {
   }
 }
 
+function submissionToRunResult(submission) {
+  return {
+    submission,
+    status: submission.status,
+    results: Array.isArray(submission.results_json) ? submission.results_json : [],
+    ai_review: submission.ai_review_json,
+    decision_source: submission.decision_source,
+    manual_review_required: submission.manual_review_required,
+  };
+}
+
 function startProblemResize(event) {
   const startX = event.clientX;
   const startWidth = problemPaneWidth.value;
@@ -474,6 +533,43 @@ function startAiResize(event) {
 
   window.addEventListener("pointermove", handleMove);
   window.addEventListener("pointerup", handleUp);
+}
+
+function startResultResize(event) {
+  const startY = event.clientY;
+  const startHeight = resultPaneHeight.value || getDefaultResultPaneHeight();
+  event.currentTarget.setPointerCapture?.(event.pointerId);
+
+  function handleMove(moveEvent) {
+    const nextHeight = startHeight - (moveEvent.clientY - startY);
+    const maxHeight = getMaxResultPaneHeight();
+    resultPaneHeight.value = Math.min(Math.max(nextHeight, 160), maxHeight);
+  }
+
+  function handleUp() {
+    window.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("pointerup", handleUp);
+  }
+
+  window.addEventListener("pointermove", handleMove);
+  window.addEventListener("pointerup", handleUp);
+}
+
+function ensureDefaultResultPaneHeight() {
+  if (resultPaneHeight.value) return;
+  resultPaneHeight.value = getDefaultResultPaneHeight();
+}
+
+function getDefaultResultPaneHeight() {
+  const paneHeight = editorPane.value?.clientHeight || window.innerHeight;
+  const toolbarHeight = editorPane.value?.querySelector(".editor-toolbar")?.clientHeight || 74;
+  return Math.max(220, Math.floor((paneHeight - toolbarHeight - 8) / 2));
+}
+
+function getMaxResultPaneHeight() {
+  const paneHeight = editorPane.value?.clientHeight || window.innerHeight;
+  const toolbarHeight = editorPane.value?.querySelector(".editor-toolbar")?.clientHeight || 74;
+  return Math.max(220, paneHeight - toolbarHeight - 180);
 }
 
 function statusText(status) {
@@ -547,14 +643,18 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .detail-page {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background: transparent;
 }
 
 .assignment-lab {
   display: grid;
   grid-template-columns: var(--problem-pane-width, 320px) 8px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 .detail-page.ai-open .assignment-lab {
@@ -702,10 +802,14 @@ pre {
 
 .editor-pane {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(180px, 30vh);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.88);
+}
+
+.editor-pane.has-result {
+  grid-template-rows: auto minmax(0, 1fr) 8px minmax(160px, var(--result-pane-height, 50%));
 }
 
 .editor-toolbar,
@@ -749,6 +853,7 @@ pre {
 .editor-shell {
   min-height: 0;
   padding: 10px;
+  overflow: hidden;
 }
 
 .editor-shell :deep(.code-editor) {
@@ -757,13 +862,25 @@ pre {
 }
 
 .editor-shell :deep(.cm-editor) {
+  height: 100%;
   min-height: 0;
+}
+
+.result-resize-handle {
+  height: 8px;
+  cursor: row-resize;
+  background: #edf2f7;
+  border-top: 1px solid var(--app-line);
+  border-bottom: 1px solid var(--app-line);
+}
+
+.result-resize-handle:hover {
+  background: #dbe8f5;
 }
 
 .result-console {
   overflow: auto;
   padding: 18px 20px;
-  border-top: 1px solid var(--app-line);
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -786,6 +903,45 @@ pre {
   background: #eef5ff;
   color: #35639f;
   font-size: 13px;
+}
+
+.ai-reject-alert {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid #f04438;
+  border-radius: 12px;
+  background: #fff1f0;
+  color: #912018;
+  box-shadow: 0 8px 20px rgba(180, 35, 24, 0.12);
+}
+
+.ai-reject-alert strong {
+  color: #7a271a;
+  font-size: 15px;
+}
+
+.ai-reject-alert p {
+  margin: 0;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.result-console.ai-rejected-result {
+  border-top: 3px solid #f04438;
+  background: #fffafa;
+}
+
+.result-console.ai-rejected-result .ai-review-block {
+  border: 1px solid #f97066;
+  background: #fff1f0;
+}
+
+.result-console.ai-rejected-result .review-badge,
+.result-console.ai-rejected-result .result-status.ai_rejected {
+  background: #d92d20;
+  color: #fff;
 }
 
 .review-summary {
@@ -908,6 +1064,20 @@ pre {
   color: #b42318;
 }
 
+.result-item.ai_rejected {
+  border: 1px solid #f97066;
+}
+
+.result-status.ai_rejected,
+.result-status.wrong_answer,
+.result-status.runtime_error,
+.result-status.timeout,
+.result-status.sandbox_error,
+.result-status.needs_manual_review {
+  background: #fff1f0;
+  color: #b42318;
+}
+
 .feedback {
   margin: 12px;
   padding: 12px 14px;
@@ -983,14 +1153,15 @@ textarea {
   .assignment-lab,
   .detail-page.ai-open .assignment-lab {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(220px, 32vh) 1fr auto;
   }
 
   .problem-pane,
   .resize-handle,
   .editor-pane,
   .ai-pane {
-    height: auto;
-    min-height: auto;
+    height: 100%;
+    min-height: 0;
     border-right: none;
     border-bottom: 1px solid #dfe7ef;
   }
@@ -1000,11 +1171,15 @@ textarea {
   }
 
   .ai-pane {
-    max-height: none;
+    max-height: 100%;
   }
 
   .editor-pane {
-    grid-template-rows: auto minmax(440px, 58vh) auto;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .editor-pane.has-result {
+    grid-template-rows: auto minmax(0, 1fr) 8px minmax(160px, var(--result-pane-height, 50%));
   }
 }
 

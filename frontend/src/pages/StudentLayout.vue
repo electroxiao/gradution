@@ -1,7 +1,13 @@
 <template>
   <div
     class="console-shell student-shell"
-    :class="{ fullscreen: hideSidebar, collapsed: collapseSidebar, 'chat-layout': isChatRoute, 'auto-collapsed': autoCollapseSidebar }"
+    :class="{
+      fullscreen: hideSidebar,
+      collapsed: collapseSidebar,
+      'chat-layout': isChatRoute,
+      'assignment-lab-layout': isAssignmentDetailRoute,
+      'auto-collapsed': autoCollapseSidebar,
+    }"
   >
     <aside v-if="!hideSidebar" class="console-sidebar student-sidebar">
       <div class="sidebar-top">
@@ -44,7 +50,7 @@
         </div>
       </div>
 
-      <div class="console-content" :class="{ 'chat-content': isChatRoute }">
+      <div class="console-content" :class="{ 'chat-content': isChatRoute, 'assignment-lab-content': isAssignmentDetailRoute }">
         <router-view />
       </div>
     </main>
@@ -63,6 +69,7 @@ const router = useRouter();
 const viewportWidth = ref(typeof window === "undefined" ? 1440 : window.innerWidth);
 const hideSidebar = computed(() => Boolean(route.meta.hideStudentSidebar));
 const isChatRoute = computed(() => route.path === "/chat");
+const isAssignmentDetailRoute = computed(() => /^\/assignments\/[^/]+$/.test(route.path));
 const autoCollapseSidebar = computed(() => viewportWidth.value <= 1120);
 const collapseSidebar = computed(
   () => !hideSidebar.value && Boolean(route.meta.collapseStudentSidebar || isChatRoute.value || autoCollapseSidebar.value),
@@ -262,6 +269,26 @@ function logout() {
 .console-content.chat-content {
   padding: 0;
   height: 100vh;
+  overflow: hidden;
+}
+
+.console-shell.assignment-lab-layout {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.console-shell.assignment-lab-layout .console-main {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.console-shell.assignment-lab-layout .console-topbar {
+  display: none;
+}
+
+.console-content.assignment-lab-content {
+  height: 100vh;
+  padding: 0;
   overflow: hidden;
 }
 

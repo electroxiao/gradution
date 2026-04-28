@@ -410,12 +410,13 @@ def submit_assignment_question(
     if _normalize_grading_mode(question.grading_mode) in {"testcase", "hybrid"} and not question.test_cases:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该题目尚未配置测试用例。")
 
-    started_at = _to_naive_local(started_at)
     submitted_at = datetime.now()
+    previous_submission = _get_previous_submission(db, student.id, assignment.id, question.id)
+    started_at = _resolve_submission_started_at(started_at, previous_submission)
     duration_seconds = _duration_seconds(started_at, submitted_at)
     status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
     ai_review = _resolve_ai_review_diagnoses(db, student, assignment, question, results, ai_review)
-    previous_code = _get_previous_submission_code(db, student.id, question_id)
+    previous_code = (previous_submission.code or "") if previous_submission else ""
     trust_label, trust_score, excluded_from_mastery_update = _resolve_submission_trust(status_value, duration_seconds, code, previous_code)
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
@@ -1240,17 +1241,31 @@ def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmi
     )
 
 
-def _get_previous_submission_code(db: Session, student_id: int, question_id: int) -> str:
-    previous = (
+def _get_previous_submission(
+    db: Session,
+    student_id: int,
+    assignment_id: int,
+    question_id: int,
+) -> AssignmentSubmission | None:
+    return (
         db.query(AssignmentSubmission)
         .filter(
             AssignmentSubmission.student_id == student_id,
+            AssignmentSubmission.assignment_id == assignment_id,
             AssignmentSubmission.question_id == question_id,
         )
-        .order_by(AssignmentSubmission.id.desc())
+        .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
         .first()
     )
-    return (previous.code or "") if previous else ""
+
+
+def _resolve_submission_started_at(
+    client_started_at: datetime | None,
+    previous_submission: AssignmentSubmission | None,
+) -> datetime | None:
+    if previous_submission:
+        return _to_naive_local(previous_submission.submitted_at)
+    return _to_naive_local(client_started_at)
 
 
 def _resolve_submission_trust(status_value: str, duration_seconds: int | None, code: str = "", previous_code: str = "") -> tuple[str, float, bool]:

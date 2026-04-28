@@ -9,7 +9,6 @@ import { bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighti
 import { java } from "@codemirror/lang-java";
 import { EditorState } from "@codemirror/state";
 import {
-  drawSelection,
   dropCursor,
   EditorView,
   highlightActiveLine,
@@ -40,7 +39,6 @@ onMounted(() => {
         lineNumbers(),
         highlightActiveLineGutter(),
         history(),
-        drawSelection(),
         dropCursor(),
         indentOnInput(),
         bracketMatching(),
@@ -48,6 +46,15 @@ onMounted(() => {
         java(),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         highlightActiveLine(),
+        EditorView.theme({
+          "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection, .cm-line::selection, .cm-line *::selection": {
+            backgroundColor: "#2563eb !important",
+            color: "#ffffff !important",
+          },
+          ".cm-activeLine": {
+            backgroundColor: "#f8fbff",
+          },
+        }),
         keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
@@ -107,10 +114,19 @@ onBeforeUnmount(() => {
 
 .code-editor :deep(.cm-activeLine),
 .code-editor :deep(.cm-activeLineGutter) {
-  background: #f5f9ff;
+  background: #f8fbff;
 }
 
 .code-editor :deep(.cm-focused) {
   outline: none;
+}
+
+.code-editor :deep(.cm-selectionBackground),
+.code-editor :deep(.cm-focused .cm-selectionBackground),
+.code-editor :deep(.cm-content ::selection),
+.code-editor :deep(.cm-line::selection),
+.code-editor :deep(.cm-line *::selection) {
+  background: #2563eb !important;
+  color: #fff !important;
 }
 </style>

@@ -122,7 +122,7 @@
           <div v-if="selectedNode" class="detail-body">
             <label>
               节点名
-              <input v-model="nodeForm.name" disabled />
+              <input v-model="nodeForm.name" />
             </label>
             <label>
               描述
@@ -703,13 +703,35 @@ function resolveReviewNodeName(nodeId) {
   return node?.name || nodeId;
 }
 
-async function refreshGraph() {
-  await Promise.all([loadGraph(), loadPendingBatches()]);
-  await nextTick();
-  if (activeMode.value === "graph") {
-    graphCanvas.value?.restartLayout?.();
+async function reloadGraphAfterMutation() {
+  const query = keyword.value.trim();
+  const fullGraphRequest = getTeacherGraphApi({ keyword: "", limit: 2000 });
+  const visibleGraphRequest = query ? getTeacherGraphApi({ keyword: query, limit: 2000 }) : fullGraphRequest;
+
+  const [fullGraphResponse, visibleGraphResponse] = await Promise.all([
+    fullGraphRequest,
+    visibleGraphRequest,
+    loadPendingBatches(),
+  ]);
+
+  fullGraph.value = fullGraphResponse.data;
+  graph.value = query ? visibleGraphResponse.data : fullGraphResponse.data;
+}
+
+async function refreshGraph(options = {}) {
+  const { restartLayout = true, preserveSearch = false } = options;
+  if (preserveSearch) {
+    await reloadGraphAfterMutation();
   } else {
-    reviewCanvas.value?.restartLayout?.();
+    await Promise.all([loadGraph(), loadPendingBatches()]);
+  }
+  await nextTick();
+  if (restartLayout) {
+    if (activeMode.value === "graph") {
+      graphCanvas.value?.restartLayout?.();
+    } else {
+      reviewCanvas.value?.restartLayout?.();
+    }
   }
 }
 
@@ -806,7 +828,7 @@ async function submitNode() {
     } else if (selectedNode.value) {
       await updateTeacherNodeApi(selectedNode.value.name, { ...nodeForm });
     }
-    await refreshGraph();
+    await refreshGraph({ preserveSearch: true, restartLayout: false });
     const nextNode = graph.value.nodes.find((node) => node.name === targetName);
     if (nextNode) {
       handleSelectNode(nextNode.id);
@@ -842,7 +864,7 @@ async function submitEdge() {
     } else if (selectedEdge.value) {
       await updateTeacherEdgeApi(selectedEdge.value.edge_key, { ...edgeForm, relation: "DEPENDS_ON" });
     }
-    await refreshGraph();
+    await refreshGraph({ preserveSearch: true, restartLayout: false });
     if (Array.isArray(result?.created_nodes) && result.created_nodes.length) {
       autoCreatedNodeNames.value = result.created_nodes.map((item) => item.name);
       const labels = result.created_nodes.map((item) =>
@@ -898,7 +920,7 @@ async function deleteNode() {
   try {
     await deleteTeacherNodeApi(selectedNode.value.name);
     clearSelection();
-    await refreshGraph();
+    await refreshGraph({ preserveSearch: true, restartLayout: false });
   } catch (error) {
     handleApiError(error, "删除节点失败。");
   }
@@ -910,7 +932,7 @@ async function deleteEdge() {
   try {
     await deleteTeacherEdgeApi(selectedEdge.value.edge_key);
     clearSelection();
-    await refreshGraph();
+    await refreshGraph({ preserveSearch: true, restartLayout: false });
   } catch (error) {
     handleApiError(error, "删除关系失败。");
   }
@@ -1534,7 +1556,7 @@ button:disabled {
 }
 
 .detail-body textarea {
-  resize: vertical;
+  resize: none;
 }
 
 .detail-actions {

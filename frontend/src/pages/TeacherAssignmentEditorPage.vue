@@ -124,7 +124,7 @@
             <span class="section-index">AI</span>
             <div>
               <h3>AI 生成题目草稿</h3>
-              <p>输入题目要求和知识点后，系统会追加一题草稿；生成后仍可手动调整题面、判题规则和测试用例。</p>
+              <p>输入题目要求和知识点后，系统会追加一题草稿；生成后仍可手动调整题目、判题规则和测试用例。</p>
             </div>
           </div>
           <div class="draft-fields">
@@ -164,7 +164,7 @@
             <div class="section-head">
               <div>
                 <h4>题目内容</h4>
-                <p>题面、初始代码和知识图谱绑定会直接影响学生作答与画像更新。</p>
+                <p>题目、初始代码和知识图谱绑定会直接影响学生作答与画像更新。</p>
               </div>
             </div>
             <div class="content-grid">
