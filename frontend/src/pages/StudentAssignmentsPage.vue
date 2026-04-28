@@ -8,20 +8,26 @@
     </header>
 
     <section class="summary-row">
-      <article class="summary-card">
-        <span class="summary-dot blue" />
-        <span>作业总数</span>
-        <strong>{{ assignments.length }}</strong>
+      <article class="summary-card blue">
+        <div class="summary-icon">作</div>
+        <div class="summary-copy">
+          <span>作业总数</span>
+          <strong>{{ assignments.length }}</strong>
+        </div>
       </article>
-      <article class="summary-card">
-        <span class="summary-dot cyan" />
-        <span>待完成</span>
-        <strong>{{ pendingCount }}</strong>
+      <article class="summary-card cyan">
+        <div class="summary-icon">待</div>
+        <div class="summary-copy">
+          <span>待完成</span>
+          <strong>{{ pendingCount }}</strong>
+        </div>
       </article>
-      <article class="summary-card">
-        <span class="summary-dot green" />
-        <span>已通过题目</span>
-        <strong>{{ acceptedTotal }}</strong>
+      <article class="summary-card green">
+        <div class="summary-icon">通</div>
+        <div class="summary-copy">
+          <span>已通过题目</span>
+          <strong>{{ acceptedTotal }}</strong>
+        </div>
       </article>
     </section>
 
@@ -43,7 +49,7 @@
           <span>操作</span>
         </div>
 
-        <article v-for="item in assignments" :key="item.id" class="assignment-row">
+        <article v-for="item in pagedAssignments" :key="item.id" class="assignment-row">
           <div class="card-copy col-name">
             <h2>{{ item.title }}</h2>
             <p class="date-line">发布时间：{{ formatDateTime(item.created_at) }}</p>
@@ -59,6 +65,22 @@
             <router-link class="open-link" :to="`/assignments/${item.id}`">进入作业</router-link>
           </div>
         </article>
+      </div>
+      <div class="pagination-bar">
+        <span>共 {{ assignments.length }} 条，每页 {{ pageSize }} 条</span>
+        <div class="pagination-controls">
+          <button type="button" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">上一页</button>
+          <button
+            v-for="page in pageNumbers"
+            :key="page"
+            type="button"
+            :class="{ active: currentPage === page }"
+            @click="setPage(page)"
+          >
+            {{ page }}
+          </button>
+          <button type="button" :disabled="currentPage === totalPages" @click="setPage(currentPage + 1)">下一页</button>
+        </div>
       </div>
     </section>
 
@@ -83,10 +105,18 @@ import { clearAuthSession } from "../utils/authStorage";
 const router = useRouter();
 const assignments = ref([]);
 const errorMessage = ref("");
+const currentPage = ref(1);
+const pageSize = 10;
 const pendingCount = computed(() => {
   return assignments.value.filter((item) => (item.accepted_count || 0) < (item.question_count || 0)).length;
 });
 const acceptedTotal = computed(() => assignments.value.reduce((sum, item) => sum + (item.accepted_count || 0), 0));
+const totalPages = computed(() => Math.max(1, Math.ceil(assignments.value.length / pageSize)));
+const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1));
+const pagedAssignments = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return assignments.value.slice(start, start + pageSize);
+});
 
 onMounted(loadAssignments);
 
@@ -114,6 +144,10 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function setPage(page) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -152,7 +186,7 @@ function handleApiError(error, fallbackMessage) {
 .summary-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .summary-card,
@@ -166,12 +200,14 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .summary-card {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 66px;
   padding: 12px 14px;
 }
 
-.summary-card span,
+.summary-copy span,
 .card-copy p,
 .progress-text,
 .empty p,
@@ -179,29 +215,42 @@ function handleApiError(error, fallbackMessage) {
   color: var(--app-text-muted);
 }
 
-.summary-card strong {
-  display: block;
+.summary-copy strong {
   color: var(--app-text);
   font-size: var(--compact-stat-sm);
   font-weight: 400;
 }
 
-.summary-dot {
-  width: 12px;
-  height: 12px;
+.summary-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.summary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-.summary-dot.blue {
-  background: #2f67f6;
+.blue .summary-icon {
+  background: #edf3ff;
+  color: #2f67f6;
 }
 
-.summary-dot.cyan {
-  background: #1fb5a8;
+.cyan .summary-icon {
+  background: #e9fbfb;
+  color: #0e9384;
 }
 
-.summary-dot.green {
-  background: #22c55e;
+.green .summary-icon {
+  background: #eefaf3;
+  color: #12a15c;
 }
 
 .assignment-panel {
@@ -375,6 +424,44 @@ function handleApiError(error, fallbackMessage) {
   font-size: var(--compact-body);
 }
 
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 4px 0;
+  color: var(--app-text-muted);
+  font-size: var(--compact-body);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-controls button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  background: #fff;
+  color: #31445f;
+  cursor: pointer;
+}
+
+.pagination-controls button.active {
+  border-color: var(--app-primary);
+  background: var(--app-primary);
+  color: #fff;
+}
+
+.pagination-controls button:disabled {
+  background: #f7f9fc;
+  color: var(--app-text-soft);
+}
+
 .feedback.error {
   color: #b42318;
   background: #fff5f5;
@@ -401,6 +488,15 @@ function handleApiError(error, fallbackMessage) {
   .back-link,
   .primary-link {
     width: 100%;
+  }
+
+  .pagination-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination-controls {
+    flex-wrap: wrap;
   }
 }
 </style>

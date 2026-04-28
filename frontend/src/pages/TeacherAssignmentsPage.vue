@@ -67,7 +67,7 @@
           <span>通过</span>
           <span>操作</span>
         </div>
-        <article v-for="item in filteredAssignments" :key="item.id" class="assignment-row">
+        <article v-for="item in pagedAssignments" :key="item.id" class="assignment-row">
           <div class="assignment-copy col-name">
             <h3>{{ item.title }}</h3>
             <p class="date-line">发布时间：{{ formatDateTime(item.created_at) }}</p>
@@ -87,6 +87,22 @@
           </div>
         </article>
       </div>
+      <div v-if="filteredAssignments.length" class="pagination-bar">
+        <span>共 {{ filteredAssignments.length }} 条，每页 {{ pageSize }} 条</span>
+        <div class="pagination-controls">
+          <button type="button" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">上一页</button>
+          <button
+            v-for="page in pageNumbers"
+            :key="page"
+            type="button"
+            :class="{ active: currentPage === page }"
+            @click="setPage(page)"
+          >
+            {{ page }}
+          </button>
+          <button type="button" :disabled="currentPage === totalPages" @click="setPage(currentPage + 1)">下一页</button>
+        </div>
+      </div>
       <div v-else class="empty-filter">当前筛选下没有作业。</div>
     </section>
 
@@ -99,7 +115,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import { listTeacherAssignmentsApi } from "../api/assignments";
@@ -109,6 +125,8 @@ const router = useRouter();
 const assignments = ref([]);
 const errorMessage = ref("");
 const activeFilter = ref("all");
+const currentPage = ref(1);
+const pageSize = 10;
 
 const filters = [
   { value: "all", label: "全部" },
@@ -128,8 +146,22 @@ const filteredAssignments = computed(() => {
   if (activeFilter.value === "all") return assignments.value;
   return assignments.value.filter((item) => item.status === activeFilter.value);
 });
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAssignments.value.length / pageSize)));
+const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1));
+const pagedAssignments = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return filteredAssignments.value.slice(start, start + pageSize);
+});
 
 onMounted(loadAssignments);
+
+watch(activeFilter, () => {
+  currentPage.value = 1;
+});
+
+watch(totalPages, (value) => {
+  if (currentPage.value > value) currentPage.value = value;
+});
 
 async function loadAssignments() {
   try {
@@ -155,6 +187,10 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function setPage(page) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -466,6 +502,44 @@ function handleApiError(error, fallbackMessage) {
   font-size: 14px;
 }
 
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 4px 0;
+  color: var(--app-text-muted);
+  font-size: var(--compact-body);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-controls button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  background: #fff;
+  color: #31445f;
+  cursor: pointer;
+}
+
+.pagination-controls button.active {
+  border-color: var(--app-primary);
+  background: var(--app-primary);
+  color: #fff;
+}
+
+.pagination-controls button:disabled {
+  background: #f7f9fc;
+  color: var(--app-text-soft);
+}
+
 .empty {
   display: grid;
   justify-items: start;
@@ -528,6 +602,15 @@ function handleApiError(error, fallbackMessage) {
 
   .assignment-panel {
     padding: 14px;
+  }
+
+  .pagination-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination-controls {
+    flex-wrap: wrap;
   }
 }
 </style>
