@@ -13,6 +13,7 @@ from backend.schemas.teacher import (
     DashboardMetricResponse,
     GraphEdgeCreateRequest,
     GraphEdgeUpdateRequest,
+    GraphNodeBatchChapterRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
     PendingBatchApproveRequest,
@@ -175,17 +176,24 @@ def _ensure_knowledge_nodes(
         node_name = item["node_name"]
         row = existing.get(node_name)
         if not row:
-            row = KnowledgeNode(node_name=node_name, node_type=item.get("node_type") or None)
+            row = KnowledgeNode(
+                node_name=node_name,
+                node_type=item.get("node_type") or None,
+                chapter=item.get("chapter") or None,
+            )
             db.add(row)
             db.flush()
             existing[node_name] = row
         elif item.get("node_type") and row.node_type != item["node_type"]:
             row.node_type = item["node_type"]
+        if item.get("chapter") is not None and row.chapter != item["chapter"]:
+            row.chapter = item["chapter"] or None
         responses.append(
             TeacherKnowledgeNodeRefResponse(
                 id=row.id,
                 node_name=row.node_name,
                 node_type=row.node_type,
+                chapter=row.chapter,
                 match_type=item.get("match_type") or "match",
                 relevance_score=int(item.get("relevance_score") or 0),
             )
@@ -205,7 +213,7 @@ def list_knowledge_node_refs(
     if not terms:
         rows = db.query(KnowledgeNode).order_by(KnowledgeNode.node_name.asc()).limit(limit).all()
         return [
-            TeacherKnowledgeNodeRefResponse(id=row.id, node_name=row.node_name, node_type=row.node_type)
+            TeacherKnowledgeNodeRefResponse(id=row.id, node_name=row.node_name, node_type=row.node_type, chapter=row.chapter)
             for row in rows
         ]
 
@@ -215,10 +223,12 @@ def list_knowledge_node_refs(
     WHERE any(term IN $terms WHERE
         toLower(n.name) CONTAINS term
         OR toLower(coalesce(properties(n)["desc"], "")) CONTAINS term
+        OR toLower(coalesce(properties(n)["chapter"], "")) CONTAINS term
     )
     RETURN n.name AS node_name,
            coalesce(properties(n)["desc"], "") AS node_desc,
-           coalesce(properties(n)["node_type"], "") AS node_type
+           coalesce(properties(n)["node_type"], "") AS node_type,
+           coalesce(properties(n)["chapter"], "") AS chapter
     LIMIT $candidate_limit
     """
     items = []
@@ -240,6 +250,7 @@ def list_knowledge_node_refs(
                 {
                     "node_name": node_name,
                     "node_type": record["node_type"],
+                    "chapter": record["chapter"],
                     "match_type": "match",
                     "relevance_score": _compute_relevance_score(
                         node_name,
@@ -256,7 +267,8 @@ def list_knowledge_node_refs(
             MATCH (:Knowledge {name: node_name})-[r]-(neighbor:Knowledge)
             RETURN DISTINCT neighbor.name AS node_name,
                             coalesce(properties(neighbor)["desc"], "") AS node_desc,
-                            coalesce(properties(neighbor)["node_type"], "") AS node_type
+                            coalesce(properties(neighbor)["node_type"], "") AS node_type,
+                            coalesce(properties(neighbor)["chapter"], "") AS chapter
             LIMIT $candidate_limit
             """
             match_names = [item["node_name"] for item in items if item["match_type"] == "match"]
@@ -269,6 +281,7 @@ def list_knowledge_node_refs(
                     {
                         "node_name": node_name,
                         "node_type": record["node_type"],
+                        "chapter": record["chapter"],
                         "match_type": "neighbor",
                         "relevance_score": _compute_relevance_score(
                             node_name,
@@ -490,10 +503,12 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
        OR any(term IN $terms WHERE
            toLower(n.name) CONTAINS term
            OR toLower(coalesce(properties(n)["desc"], "")) CONTAINS term
+           OR toLower(coalesce(properties(n)["chapter"], "")) CONTAINS term
        )
     RETURN n.name AS name,
            coalesce(properties(n)["desc"], "") AS desc,
-           coalesce(properties(n)["node_type"], "") AS node_type
+           coalesce(properties(n)["node_type"], "") AS node_type,
+           coalesce(properties(n)["chapter"], "") AS chapter
     LIMIT $candidate_limit
     """
     with driver.session(database=settings.neo4j_db_name) as session:
@@ -505,6 +520,7 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
                     "name": node_name,
                     "desc": record["desc"],
                     "node_type": record["node_type"],
+                    "chapter": record["chapter"],
                     "search_match": bool(terms),
                     "relevance_score": _compute_relevance_score(
                         node_name,
@@ -601,6 +617,7 @@ def create_graph_node(payload: GraphNodeCreateRequest) -> dict:
     name = payload.name.strip()
     desc = payload.desc.strip()
     node_type = (payload.node_type or "").strip()
+    chapter = (payload.chapter or "").strip()
     with driver.session(database=settings.neo4j_db_name) as session:
         existing = session.run(
             "MATCH (n:Knowledge {name: $name}) RETURN n.name AS name LIMIT 1",
@@ -611,11 +628,12 @@ def create_graph_node(payload: GraphNodeCreateRequest) -> dict:
 
         session.run(
             """
-            CREATE (n:Knowledge {name: $name, desc: $desc, node_type: $node_type})
+            CREATE (n:Knowledge {name: $name, desc: $desc, node_type: $node_type, chapter: $chapter})
             """,
             name=name,
             desc=desc,
             node_type=node_type,
+            chapter=chapter,
         )
     return {"ok": True}
 
@@ -625,12 +643,17 @@ def create_graph_node_with_db_sync(db: Session | None, payload: GraphNodeCreateR
     if db is not None:
         _ensure_knowledge_nodes(
             db,
-            [{"node_name": payload.name.strip(), "node_type": (payload.node_type or "").strip(), "relevance_score": 0}],
+            [{
+                "node_name": payload.name.strip(),
+                "node_type": (payload.node_type or "").strip(),
+                "chapter": (payload.chapter or "").strip(),
+                "relevance_score": 0,
+            }],
         )
     return result
 
 
-def update_graph_node(node_name: str, payload: GraphNodeUpdateRequest) -> dict:
+def update_graph_node(db: Session | None, node_name: str, payload: GraphNodeUpdateRequest) -> dict:
     driver = get_neo4j_driver()
     with driver.session(database=settings.neo4j_db_name) as session:
         node = session.run(
@@ -653,14 +676,91 @@ def update_graph_node(node_name: str, payload: GraphNodeUpdateRequest) -> dict:
             MATCH (n:Knowledge {name: $current_name})
             SET n.name = $next_name,
                 n.desc = $desc,
-                n.node_type = $node_type
+                n.node_type = $node_type,
+                n.chapter = $chapter
             """,
             current_name=node_name,
             next_name=payload.name.strip(),
             desc=payload.desc.strip(),
             node_type=(payload.node_type or "").strip(),
+            chapter=(payload.chapter or "").strip(),
         )
+    if db is not None:
+        _sync_updated_knowledge_node(db, node_name, payload)
     return {"ok": True}
+
+
+def update_graph_nodes_chapter(db: Session | None, payload: GraphNodeBatchChapterRequest) -> dict:
+    names = [name.strip() for name in payload.names if name.strip()]
+    names = list(dict.fromkeys(names))
+    chapter = payload.chapter.strip()
+    if not names:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Node names are required")
+
+    driver = get_neo4j_driver()
+    with driver.session(database=settings.neo4j_db_name) as session:
+        result = session.run(
+            """
+            UNWIND $names AS node_name
+            MATCH (n:Knowledge {name: node_name})
+            SET n.chapter = $chapter
+            RETURN collect(n.name) AS updated_names
+            """,
+            names=names,
+            chapter=chapter,
+        ).single()
+    updated_names = list(result["updated_names"] or []) if result else []
+    missing_names = [name for name in names if name not in set(updated_names)]
+
+    if db is not None and updated_names:
+        _ensure_knowledge_nodes(
+            db,
+            [
+                {
+                    "node_name": name,
+                    "node_type": "",
+                    "chapter": chapter,
+                    "relevance_score": 0,
+                }
+                for name in updated_names
+            ],
+        )
+
+    return {
+        "ok": True,
+        "updated_count": len(updated_names),
+        "updated_names": updated_names,
+        "missing_names": missing_names,
+    }
+
+
+def _sync_updated_knowledge_node(db: Session, previous_name: str, payload: GraphNodeUpdateRequest) -> None:
+    next_name = payload.name.strip()
+    row = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == previous_name).first()
+    target_row = None
+    if next_name != previous_name:
+        target_row = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == next_name).first()
+    if target_row and (not row or target_row.id != row.id):
+        target_row.node_type = (payload.node_type or "").strip() or None
+        target_row.chapter = (payload.chapter or "").strip() or None
+        db.commit()
+        return
+    if row:
+        row.node_name = next_name
+        row.node_type = (payload.node_type or "").strip() or None
+        row.chapter = (payload.chapter or "").strip() or None
+        db.commit()
+        return
+
+    _ensure_knowledge_nodes(
+        db,
+        [{
+            "node_name": next_name,
+            "node_type": (payload.node_type or "").strip(),
+            "chapter": (payload.chapter or "").strip(),
+            "relevance_score": 0,
+        }],
+    )
 
 
 def delete_graph_node(node_name: str) -> dict:

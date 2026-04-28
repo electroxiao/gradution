@@ -6,6 +6,7 @@ from backend.models.user import User
 from backend.schemas.teacher import (
     GraphEdgeCreateRequest,
     GraphEdgeUpdateRequest,
+    GraphNodeBatchChapterRequest,
     GraphNodeDescriptionGenerateRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
@@ -30,6 +31,7 @@ from backend.services.teacher_service import (
     list_students_with_weak_points,
     update_graph_edge,
     update_graph_node,
+    update_graph_nodes_chapter,
 )
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
@@ -98,16 +100,26 @@ def post_graph_node_description(
     return generate_graph_node_description(payload.name)
 
 
-@router.patch("/graph/nodes/{node_name}")
+@router.post("/graph/nodes/batch-chapter")
+def post_graph_nodes_batch_chapter(
+    payload: GraphNodeBatchChapterRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return update_graph_nodes_chapter(db, payload)
+
+
+@router.patch("/graph/nodes/{node_name:path}")
 def patch_graph_node(
     node_name: str,
     payload: GraphNodeUpdateRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return update_graph_node(node_name, payload)
+    return update_graph_node(db, node_name, payload)
 
 
-@router.delete("/graph/nodes/{node_name}")
+@router.delete("/graph/nodes/{node_name:path}")
 def remove_graph_node(
     node_name: str,
     current_user: User = Depends(get_current_teacher),

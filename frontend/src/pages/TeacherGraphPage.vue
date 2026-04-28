@@ -128,6 +128,10 @@
               描述
               <textarea v-model="nodeForm.desc" rows="5" placeholder="节点描述"></textarea>
             </label>
+            <label>
+              章节标签
+              <input v-model="nodeForm.chapter" placeholder="例如：第 3 章" />
+            </label>
             <div class="detail-actions">
               <button @click="submitNode">保存修改</button>
               <button class="danger" @click="deleteNode">删除</button>
@@ -391,6 +395,10 @@
             描述
             <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述" @keydown.ctrl.enter.prevent="submitNode"></textarea>
           </label>
+          <label>
+            章节标签
+            <input v-model="nodeForm.chapter" placeholder="例如：第 3 章" @keydown.enter.prevent="submitNode" />
+          </label>
           <div class="edge-quick-actions">
             <button class="ghost" type="button" :disabled="isGeneratingNodeDesc" @click="generateNodeDescription">
               {{ isGeneratingNodeDesc ? "生成中..." : "AI 生成描述" }}
@@ -528,7 +536,7 @@ const nodeDialogMessage = ref("");
 const edgeDialogMessage = ref("");
 const autoCreatedNodeNames = ref([]);
 
-const nodeForm = reactive({ name: "", desc: "" });
+const nodeForm = reactive({ name: "", desc: "", chapter: "" });
 const edgeForm = reactive({ source: "", relation: "DEPENDS_ON", target: "" });
 const reviewNodeDrafts = reactive({});
 const reviewEdgeDrafts = reactive({});
@@ -761,6 +769,7 @@ function handleSelectNode(nodeId) {
   if (!node) return;
   nodeForm.name = node.name;
   nodeForm.desc = node.desc || "";
+  nodeForm.chapter = node.chapter || "";
 }
 
 function handleSelectEdge(edgeId) {
@@ -787,6 +796,7 @@ function startCreateNode() {
   isCreatingNode.value = true;
   nodeForm.name = "";
   nodeForm.desc = "";
+  nodeForm.chapter = "";
   nodeDialogMessage.value = "";
 }
 

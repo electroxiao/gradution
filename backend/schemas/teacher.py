@@ -13,6 +13,7 @@ class TeacherKnowledgeNodeRefResponse(BaseModel):
     id: int
     node_name: str
     node_type: str | None = None
+    chapter: str | None = None
     match_type: str = "match"
     relevance_score: int = 0
 
@@ -62,6 +63,7 @@ class GraphNodeResponse(BaseModel):
     name: str
     desc: str
     node_type: str
+    chapter: str
     search_match: bool = True
     relevance_score: int = 0
 
@@ -86,12 +88,19 @@ class GraphNodeCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     desc: str = Field(default="")
     node_type: str | None = Field(default=None, max_length=64)
+    chapter: str | None = Field(default=None, max_length=64)
 
 
 class GraphNodeUpdateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     desc: str = Field(default="")
     node_type: str | None = Field(default=None, max_length=64)
+    chapter: str | None = Field(default=None, max_length=64)
+
+
+class GraphNodeBatchChapterRequest(BaseModel):
+    names: list[str] = Field(default_factory=list)
+    chapter: str = Field(min_length=1, max_length=64)
 
 
 class GraphNodeDescriptionGenerateRequest(BaseModel):

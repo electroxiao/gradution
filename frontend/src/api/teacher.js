@@ -6,6 +6,8 @@ export const generateTeacherNodeDescriptionApi = (payload) =>
   http.post("/api/teacher/graph/nodes/generate-description", payload);
 export const updateTeacherNodeApi = (nodeName, payload) =>
   http.patch(`/api/teacher/graph/nodes/${encodeURIComponent(nodeName)}`, payload);
+export const batchUpdateTeacherNodeChapterApi = (payload) =>
+  http.post("/api/teacher/graph/nodes/batch-chapter", payload);
 export const deleteTeacherNodeApi = (nodeName) =>
   http.delete(`/api/teacher/graph/nodes/${encodeURIComponent(nodeName)}`);
 

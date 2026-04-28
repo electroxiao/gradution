@@ -9,6 +9,7 @@ from backend.models.user import User
 
 def ensure_schema_and_seed(engine: Engine) -> None:
     _ensure_user_role_column(engine)
+    _ensure_knowledge_node_columns(engine)
     _ensure_assignment_submission_timing_columns(engine)
     _ensure_assignment_grading_columns(engine)
     _ensure_assignment_graph_linkage(engine)
@@ -28,6 +29,21 @@ def _ensure_user_role_column(engine: Engine) -> None:
     with engine.begin() as connection:
         connection.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'student'"))
         connection.execute(text("CREATE INDEX ix_users_role ON users (role)"))
+
+
+def _ensure_knowledge_node_columns(engine: Engine) -> None:
+    inspector = inspect(engine)
+    try:
+        table_names = set(inspector.get_table_names())
+        if "knowledge_nodes" not in table_names:
+            return
+        columns = {column["name"] for column in inspector.get_columns("knowledge_nodes")}
+    except Exception:
+        return
+
+    with engine.begin() as connection:
+        if "chapter" not in columns:
+            connection.execute(text("ALTER TABLE knowledge_nodes ADD COLUMN chapter VARCHAR(64) NULL"))
 
 
 def _ensure_assignment_submission_timing_columns(engine: Engine) -> None:
