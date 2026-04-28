@@ -44,6 +44,7 @@ def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
         db.query(
             User.id,
             User.username,
+            User.class_name,
             func.count(UserWeakPoint.id).label("weak_point_count"),
         )
         .outerjoin(
@@ -54,14 +55,15 @@ def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
             ),
         )
         .filter(User.role == "student")
-        .group_by(User.id, User.username)
-        .order_by(User.username.asc(), User.id.asc())
+        .group_by(User.id, User.username, User.class_name)
+        .order_by(User.class_name.asc(), User.username.asc(), User.id.asc())
         .all()
     )
     return [
         TeacherStudentResponse(
             id=row.id,
             username=row.username,
+            class_name=row.class_name,
             weak_point_count=int(row.weak_point_count or 0),
         )
         for row in rows

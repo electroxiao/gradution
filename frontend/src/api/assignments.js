@@ -18,10 +18,18 @@ export const updateTeacherAssignmentQuestionsApi = (assignmentId, payload) =>
   http.put(`/api/teacher/assignments/${assignmentId}/questions`, payload);
 export const generateAssignmentQuestionApi = (payload) =>
   http.post("/api/teacher/assignments/generate-question", payload);
+export const generateAssignmentQuestionsApi = (payload) =>
+  http.post("/api/teacher/assignments/generate-questions", payload);
 export const generateAssignmentTestCasesApi = (payload) =>
   http.post("/api/teacher/assignments/generate-testcases", payload);
 export const generateAssignmentFocusApi = (payload) =>
   http.post("/api/teacher/assignments/generate-focus", payload);
+export const listTeacherQuestionBankApi = (params = {}) =>
+  http.get("/api/teacher/assignments/question-bank", { params });
+export const createTeacherQuestionBankItemApi = (payload) =>
+  http.post("/api/teacher/assignments/question-bank", payload);
+export const reuseTeacherQuestionBankItemApi = (itemId) =>
+  http.post(`/api/teacher/assignments/question-bank/${itemId}/reuse`);
 
 export const listStudentAssignmentsApi = () => http.get("/api/assignments");
 export const getStudentAssignmentApi = (assignmentId) => http.get(`/api/assignments/${assignmentId}`);

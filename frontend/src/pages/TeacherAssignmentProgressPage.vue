@@ -47,10 +47,14 @@
             <div class="matrix-head sticky-left">学生</div>
             <div v-for="question in progress.questions" :key="question.id" class="matrix-head">
               {{ question.title || `题目 ${question.sort_order + 1}` }}
+              <small>{{ questionTypeText(question.question_type) }}</small>
             </div>
 
             <template v-for="student in filteredStudents" :key="student.id">
-              <div class="student-cell sticky-left">{{ student.username }}</div>
+              <div class="student-cell sticky-left">
+                {{ student.username }}
+                <small v-if="student.class_name">{{ student.class_name }}</small>
+              </div>
               <button
                 v-for="question in progress.questions"
                 :key="`${student.id}-${question.id}`"
@@ -428,6 +432,14 @@ function statusText(status) {
   }[status] || status;
 }
 
+function questionTypeText(value) {
+  return {
+    programming: "编程题",
+    multiple_choice: "选择题",
+    fill_blank: "填空题",
+  }[value || "programming"] || "编程题";
+}
+
 function decisionSourceText(value) {
   return {
     testcase: "测试用例结果",
@@ -658,11 +670,20 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .student-cell {
-  display: flex;
-  align-items: center;
+  display: grid;
+  align-content: center;
   background: #fdfefe;
   color: #10283d;
   font-size: var(--compact-body);
+  font-weight: 500;
+}
+
+.student-cell small,
+.matrix-head small {
+  display: block;
+  margin-top: 4px;
+  color: var(--app-text-muted);
+  font-size: 11px;
   font-weight: 500;
 }
 

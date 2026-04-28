@@ -14,6 +14,7 @@ class Assignment(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(32), default="draft", index=True)
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -39,6 +40,10 @@ class AssignmentQuestion(Base):
     assignment_id: Mapped[int] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(255), default="")
     prompt: Mapped[str] = mapped_column(Text)
+    question_type: Mapped[str] = mapped_column(String(32), default="programming", server_default="programming", index=True)
+    options_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    answer_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    explanation: Mapped[str] = mapped_column(Text, default="")
     starter_code: Mapped[str] = mapped_column(Text, default="")
     language: Mapped[str] = mapped_column(String(32), default="java")
     grading_mode: Mapped[str] = mapped_column(String(32), default="testcase", server_default="testcase")
@@ -105,7 +110,8 @@ class AssignmentSubmission(Base):
     assignment_id: Mapped[int] = mapped_column(ForeignKey("assignments.id", ondelete="CASCADE"), index=True)
     question_id: Mapped[int] = mapped_column(ForeignKey("assignment_questions.id", ondelete="CASCADE"), index=True)
     student_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    code: Mapped[str] = mapped_column(Text)
+    code: Mapped[str] = mapped_column(Text, default="")
+    answer_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="submitted", index=True)
     results_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     ai_context_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
@@ -126,6 +132,39 @@ class AssignmentSubmission(Base):
     question = relationship("AssignmentQuestion", back_populates="submissions")
     student = relationship("User", foreign_keys=[student_id])
     reviewer = relationship("User", foreign_keys=[reviewed_by])
+
+
+class QuestionBankItem(Base):
+    __tablename__ = "question_bank_items"
+    __table_args__ = (
+        UniqueConstraint("teacher_id", "content_hash", name="uq_question_bank_teacher_content"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255), default="", index=True)
+    prompt: Mapped[str] = mapped_column(Text)
+    question_type: Mapped[str] = mapped_column(String(32), default="programming", server_default="programming", index=True)
+    options_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    answer_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    starter_code: Mapped[str] = mapped_column(Text, default="")
+    language: Mapped[str] = mapped_column(String(32), default="java")
+    grading_mode: Mapped[str] = mapped_column(String(32), default="testcase", server_default="testcase")
+    ai_grading_rubric: Mapped[str] = mapped_column(Text, default="")
+    ai_grading_focus_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    ai_grading_pass_threshold: Mapped[int] = mapped_column(Integer, default=85, server_default="85")
+    ai_grading_confidence_threshold: Mapped[float] = mapped_column(default=0.85, server_default="0.85")
+    test_cases_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    knowledge_node_ids_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    difficulty: Mapped[str] = mapped_column(String(32), default="medium", server_default="medium", index=True)
+    source: Mapped[str] = mapped_column(String(32), default="assignment", server_default="assignment", index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    reuse_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    teacher = relationship("User", foreign_keys=[teacher_id])
 
 
 class AssignmentQuestionKnowledgeNode(Base):

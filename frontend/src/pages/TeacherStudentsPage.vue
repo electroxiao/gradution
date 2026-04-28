@@ -19,7 +19,7 @@
           @click="selectStudent(student.id)"
         >
           <strong>{{ student.username }}</strong>
-          <span>{{ student.weak_point_count }} 个薄弱点</span>
+          <span>{{ student.class_name || "未分班" }} · {{ student.weak_point_count }} 个薄弱点</span>
         </button>
       </aside>
 
@@ -27,7 +27,7 @@
         <div v-if="activeStudent" class="detail-header">
           <div>
             <h3>{{ activeStudent.username }}</h3>
-            <p>当前未掌握 {{ studentWeakPoints.length }} 个节点，已记录 {{ studentMastery.length }} 个作业掌握条目</p>
+            <p>{{ activeStudent.class_name || "未分班" }} · 当前未掌握 {{ studentWeakPoints.length }} 个节点，已记录 {{ studentMastery.length }} 个作业掌握条目</p>
           </div>
         </div>
 

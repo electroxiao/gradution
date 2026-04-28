@@ -1,21 +1,14 @@
 <template>
-  <section class="editor-page">
-    <header class="editor-hero">
-      <div class="hero-copy">
-        <span class="eyebrow">Assignment Studio</span>
-        <h2>{{ isNew ? "新建作业" : "编辑作业" }}</h2>
-        <p>在同一个工作台完成发布对象、题目内容、知识点绑定、AI 判题和测试用例配置。</p>
+  <section class="assignment-studio">
+    <header class="studio-hero">
+      <div>
+        <h1>{{ isNew ? "新建作业" : "编辑作业" }} <span>/ Assignment Studio</span></h1>
+        <p>面向高频布置作业：AI 出题、题库复用、题型编辑和班级发布都在一个工作台完成。</p>
       </div>
       <div class="hero-actions">
-        <router-link class="btn btn-quiet" to="/teacher/assignments">返回列表</router-link>
-        <router-link
-          v-if="!isNew"
-          class="btn btn-quiet"
-          :to="`/teacher/assignments/${assignmentId}/progress`"
-        >
-          完成情况
-        </router-link>
-        <button type="button" class="btn btn-primary" :disabled="saving" @click="saveAssignment">
+        <router-link class="btn ghost" to="/teacher/assignments">返回列表</router-link>
+        <router-link v-if="!isNew" class="btn ghost" :to="`/teacher/assignments/${assignmentId}/progress`">完成情况</router-link>
+        <button type="button" class="btn primary" :disabled="saving" @click="saveAssignment">
           {{ saving ? "保存中..." : "保存作业" }}
         </button>
       </div>
@@ -24,390 +17,268 @@
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
 
-    <section class="meta-strip">
-      <label class="field title-field">
-        <span>作业标题</span>
-        <input v-model="form.title" placeholder="例如：JDBC 事务与资源释放练习" />
-      </label>
-      <label class="field status-field">
-        <span>状态</span>
-        <span class="status-select">
-          <select v-model="form.status">
-            <option value="draft">草稿</option>
-            <option value="published">发布</option>
-            <option value="closed">关闭</option>
-          </select>
-        </span>
-      </label>
-      <label class="field description-field">
-        <span>作业说明</span>
-        <textarea v-model="form.description" rows="1" placeholder="写给学生的作业说明" />
-      </label>
-      <div class="meta-kpis">
-        <span><strong>{{ form.questions.length }}</strong>题目</span>
-        <span><strong>{{ form.student_ids.length }}</strong>学生</span>
-        <span class="state">{{ assignmentStatusText(form.status) }}</span>
-      </div>
-    </section>
-
-    <main class="studio-layout">
-      <aside class="studio-sidebar">
-        <section class="panel roster-panel">
-          <div class="panel-head">
-            <div>
-              <h3>发布学生</h3>
-              <p>{{ form.student_ids.length }} / {{ students.length }} 已选择</p>
-            </div>
+    <main class="studio-grid">
+      <aside class="question-rail panel">
+        <div class="panel-head">
+          <div>
+            <h2>当前作业题目</h2>
+            <span>共 {{ form.questions.length }} 题</span>
           </div>
-          <div class="student-list">
-            <label v-for="student in students" :key="student.id" class="student-item">
-              <input v-model="form.student_ids" type="checkbox" :value="student.id" />
-              <span>{{ student.username }}</span>
-            </label>
-          </div>
-        </section>
+        </div>
 
-        <section class="panel question-nav">
-          <div class="panel-head">
-            <div>
-              <h3>题目目录</h3>
-              <p>{{ form.questions.length }} 道题</p>
-            </div>
-            <button type="button" class="btn btn-primary btn-small" @click="addQuestion">新增</button>
-          </div>
-
+        <div class="question-list">
           <article
-            v-for="(question, qIndex) in form.questions"
+            v-for="(question, index) in form.questions"
             :key="question.localKey"
-            class="question-item"
-            :class="{ active: qIndex === activeQuestionIndex }"
-            @click="selectQuestion(qIndex)"
+            class="question-card"
+            :class="{ active: index === activeQuestionIndex }"
+            @click="selectQuestion(index)"
           >
             <button type="button" class="question-main">
-              <span class="question-order">Q{{ qIndex + 1 }}</span>
-              <span class="question-title">{{ question.title || "未命名题目" }}</span>
-              <span class="question-meta">
-                {{ gradingModeText(question.grading_mode) }} ·
-                {{ usesRunCases(question) ? `${question.test_cases.length || 1} 次运行` : "无需运行输入" }}
+              <span class="order">{{ index + 1 }}</span>
+              <span class="copy">
+                <strong>{{ question.title || "未命名题目" }}</strong>
+                <small :class="['type-chip', question.question_type]">{{ questionTypeText(question.question_type) }}</small>
               </span>
             </button>
-            <div class="question-actions">
-              <button
-                type="button"
-                class="icon-btn"
-                title="上移题目"
-                :disabled="qIndex === 0"
-                @click.stop="moveQuestion(qIndex, -1)"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                class="icon-btn"
-                title="下移题目"
-                :disabled="qIndex === form.questions.length - 1"
-                @click.stop="moveQuestion(qIndex, 1)"
-              >
-                ↓
-              </button>
-              <button type="button" class="icon-btn danger" title="删除题目" @click.stop="removeQuestion(qIndex)">
-                ×
-              </button>
+            <div class="mini-actions">
+              <button type="button" title="上移" :disabled="index === 0" @click.stop="moveQuestion(index, -1)">↑</button>
+              <button type="button" title="下移" :disabled="index === form.questions.length - 1" @click.stop="moveQuestion(index, 1)">↓</button>
+              <button type="button" title="删除" class="danger" @click.stop="removeQuestion(index)">×</button>
             </div>
           </article>
-        </section>
+        </div>
+
+        <div class="rail-actions">
+          <button type="button" class="btn dashed" @click="addQuestion({ question_type: 'multiple_choice' })">+ 选择题</button>
+          <button type="button" class="btn dashed" @click="addQuestion({ question_type: 'fill_blank' })">+ 填空题</button>
+          <button type="button" class="btn dashed" @click="addQuestion({ question_type: 'programming' })">+ 编程题</button>
+        </div>
       </aside>
 
       <section class="studio-main">
-        <section class="ai-draft-panel panel">
-          <div class="draft-heading">
-            <span class="section-index">AI</span>
-            <div>
-              <h3>AI 生成题目草稿</h3>
-              <p>输入题目要求和知识点后，系统会追加一题草稿；生成后仍可手动调整题目、判题规则和测试用例。</p>
-            </div>
+        <section class="meta-panel panel">
+          <div class="panel-head compact">
+            <h2>作业基本信息</h2>
+            <span>{{ selectedClassCount }} 个班级 · {{ assignedStudentCount }} 名学生</span>
           </div>
-          <div class="draft-fields">
-            <label class="field">
-              <span>题目要求</span>
-              <textarea
-                v-model="generateRequirement"
-                rows="5"
-                placeholder="例如：设计转账事务并处理异常，要求说明事务边界、资源释放、输入输出格式和错误处理。"
-              />
+          <div class="meta-grid">
+            <label class="field title-field">
+              <span>作业标题</span>
+              <input v-model="form.title" placeholder="例如：JDBC 事务与资源释放练习" />
             </label>
-            <div class="draft-bottom-row">
-              <label class="field">
-                <span>知识点</span>
-                <input v-model="generateKnowledge" placeholder="例如：Java 事务处理、异常回滚" />
-              </label>
-              <button type="button" class="btn btn-primary" :disabled="generating || !generateRequirement.trim()" @click="generateQuestion">
-                {{ generating ? "生成中..." : "生成题目" }}
-              </button>
-            </div>
+            <label class="field">
+              <span>开始时间</span>
+              <input v-model="form.starts_at" type="datetime-local" />
+            </label>
+            <label class="field">
+              <span>截止时间</span>
+              <input v-model="form.due_at" type="datetime-local" />
+            </label>
+          </div>
+          <div class="class-row">
+            <label v-for="className in classOptions" :key="className" class="class-check">
+              <input v-model="form.class_names" type="checkbox" :value="className" />
+              <span>{{ className }}</span>
+            </label>
           </div>
         </section>
 
-        <section v-if="activeQuestion" class="question-workspace">
-          <div class="question-summary panel">
-            <div class="question-summary-title">
-              <h3>{{ activeQuestion.title || "未命名题目" }}</h3>
+        <section class="core-row">
+          <section class="ai-panel panel">
+            <div class="panel-head">
+              <div>
+                <h2>智能出题与题库复用</h2>
+                <span>AI 会按题型数量生成题目，可直接追加到当前作业并自动入库。</span>
+              </div>
+              <div class="mode-tabs">
+                <button type="button" :class="{ active: coreMode === 'ai' }" @click="coreMode = 'ai'">AI 生成题目</button>
+                <button type="button" :class="{ active: coreMode === 'bank' }" @click="coreMode = 'bank'">复用题库</button>
+              </div>
             </div>
-            <div class="summary-tags">
-              <span>{{ gradingModeText(activeQuestion.grading_mode) }}</span>
-              <span>{{ usesRunCases(activeQuestion) ? `${activeQuestion.test_cases.length || 1} 次运行` : "AI 独立审查" }}</span>
-              <span>{{ selectedKnowledgeNodes.length }} 个知识点</span>
+
+            <div v-if="coreMode === 'ai'" class="ai-form">
+              <label class="field">
+                <span>题目要求</span>
+                <textarea
+                  v-model="generateRequirement"
+                  rows="5"
+                  placeholder="例如：围绕 Java 事务、异常回滚和资源释放生成一套分层练习。"
+                />
+              </label>
+              <div class="ai-controls">
+                <label class="field">
+                  <span>知识点</span>
+                  <input v-model="generateKnowledge" placeholder="例如：JDBC 事务" />
+                </label>
+                <label class="field mini">
+                  <span>选择题</span>
+                  <input v-model.number="generateCounts.multiple_choice" min="0" max="20" type="number" />
+                </label>
+                <label class="field mini">
+                  <span>填空题</span>
+                  <input v-model.number="generateCounts.fill_blank" min="0" max="20" type="number" />
+                </label>
+                <label class="field mini">
+                  <span>编程题</span>
+                  <input v-model.number="generateCounts.programming" min="0" max="10" type="number" />
+                </label>
+                <button type="button" class="btn primary" :disabled="generating || !generateRequirement.trim()" @click="generateQuestions">
+                  {{ generating ? "生成中..." : "生成题目" }}
+                </button>
+              </div>
+            </div>
+
+            <div v-else class="bank-inline">
+              <div class="bank-filters">
+                <input v-model="bankFilters.keyword" placeholder="搜索题目标题 / 题干 / 知识点" @keydown.enter.prevent="loadQuestionBank" />
+                <select v-model="bankFilters.question_type">
+                  <option value="">全部题型</option>
+                  <option value="multiple_choice">选择题</option>
+                  <option value="fill_blank">填空题</option>
+                  <option value="programming">编程题</option>
+                </select>
+                <select v-model="bankFilters.difficulty">
+                  <option value="">全部难度</option>
+                  <option value="easy">简单</option>
+                  <option value="medium">中等</option>
+                  <option value="hard">困难</option>
+                </select>
+                <button type="button" class="btn ghost" :disabled="bankLoading" @click="loadQuestionBank">
+                  {{ bankLoading ? "搜索中..." : "搜索" }}
+                </button>
+              </div>
+              <div class="bank-list">
+                <article v-for="item in questionBank" :key="item.id" class="bank-item">
+                  <div>
+                    <strong>{{ item.title }}</strong>
+                    <p>{{ item.prompt }}</p>
+                    <span :class="['type-chip', item.question_type]">{{ questionTypeText(item.question_type) }}</span>
+                  </div>
+                  <button type="button" class="btn primary small" @click="reuseBankQuestion(item)">加入作业</button>
+                </article>
+                <p v-if="!questionBank.length && !bankLoading" class="empty-note">暂无可复用题目，保存作业后会自动沉淀到题库。</p>
+              </div>
+            </div>
+          </section>
+
+          <aside class="bank-panel panel">
+            <div class="panel-head compact">
+              <h2>复用题库</h2>
+              <button type="button" class="link-btn" @click="loadQuestionBank">刷新</button>
+            </div>
+            <div class="compact-bank-list">
+              <button
+                v-for="item in questionBank.slice(0, 5)"
+                :key="`compact-${item.id}`"
+                type="button"
+                class="compact-bank-item"
+                @click="reuseBankQuestion(item)"
+              >
+                <span>{{ item.title }}</span>
+                <small>{{ questionTypeText(item.question_type) }}</small>
+              </button>
+              <p v-if="!questionBank.length" class="empty-note">题库为空</p>
+            </div>
+          </aside>
+        </section>
+
+        <section v-if="activeQuestion" class="editor-panel panel">
+          <div class="editor-head">
+            <div>
+              <h2>题目编辑 / 预览</h2>
+              <span>{{ questionTypeText(activeQuestion.question_type) }}</span>
+            </div>
+            <div class="editor-tools">
+              <select v-model="activeQuestion.question_type" @change="normalizeActiveQuestionByType">
+                <option value="multiple_choice">选择题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="programming">编程题</option>
+              </select>
+              <button type="button" class="btn ghost small" @click="saveActiveQuestionToBank">保存到题库</button>
             </div>
           </div>
 
-          <section class="editor-section panel">
-            <div class="section-head">
-              <div>
-                <h4>题目内容</h4>
-                <p>题目、初始代码和知识图谱绑定会直接影响学生作答与画像更新。</p>
-              </div>
-            </div>
-            <div class="content-grid">
+          <div class="editor-grid">
+            <section class="editor-fields">
               <label class="field">
                 <span>题目标题</span>
-                <input v-model="activeQuestion.title" placeholder="例如：实现线程安全的库存扣减" />
+                <input v-model="activeQuestion.title" placeholder="请输入题目标题" />
               </label>
-              <label class="field prompt-field">
-                <span>题目描述</span>
-                <textarea
-                  v-auto-resize
-                  v-model="activeQuestion.prompt"
-                  class="prompt-input"
-                  rows="5"
-                  placeholder="题目描述、输入输出要求、实现约束、评分重点"
-                />
-              </label>
-              <label class="field prompt-field">
-                <span>初始代码</span>
-                <textarea
-                  v-auto-resize
-                  v-model="activeQuestion.starter_code"
-                  class="prompt-input code-input"
-                  rows="5"
-                  placeholder="学生首次打开这道题时，编辑器将默认填入这段代码；若学生已存在草稿，则不会覆盖。"
-                />
-              </label>
-            </div>
-
-            <div class="knowledge-block">
-              <div class="section-head compact">
-                <div>
-                  <h4>关联知识点</h4>
-                  <p>绑定已有知识图谱节点后，这道题的提交结果才会参与掌握度更新。</p>
-                </div>
-              </div>
-              <div class="knowledge-search">
-                <div class="knowledge-search-box">
-                  <input
-                    v-model="knowledgeNodeKeyword"
-                    placeholder="输入关键词搜索图谱节点"
-                    @input="handleKnowledgeNodeInput"
-                    @focus="handleKnowledgeNodeInput"
-                    @keydown.enter.prevent="searchKnowledgeNodes"
-                  />
-                  <button
-                    v-if="knowledgeNodeKeyword.trim()"
-                    type="button"
-                    class="knowledge-clear"
-                    title="清空搜索"
-                    @mousedown.prevent
-                    @click="resetKnowledgeNodeSearch"
-                  >
-                    ×
-                  </button>
-                  <div v-if="showKnowledgeNodeDropdown && knowledgeNodeSuggestions.length" class="knowledge-dropdown">
-                    <button
-                      v-for="node in knowledgeNodeSuggestions"
-                      :key="node.id"
-                      type="button"
-                      class="knowledge-dropdown-item"
-                      @mousedown.prevent="toggleKnowledgeNode(node)"
-                    >
-                      <strong>{{ node.node_name }}</strong>
-                      <small v-if="node.match_type === 'neighbor'">相邻节点</small>
-                      <small v-else>直接匹配</small>
-                    </button>
-                  </div>
-                </div>
-                <button type="button" class="btn btn-quiet" :disabled="knowledgeNodeLoading" @click="searchKnowledgeNodes()">
-                  {{ knowledgeNodeLoading ? "搜索中..." : "搜索" }}
-                </button>
-                <button type="button" class="btn btn-quiet" @click="resetKnowledgeNodeSearch">全部</button>
-              </div>
-              <p v-if="knowledgeNodeKeyword.trim()" class="helper-text">
-                搜索结果会包含直接命中的节点，并补充与其相连的节点。
-              </p>
-              <div v-if="selectedKnowledgeNodes.length" class="knowledge-tags">
-                <span
-                  v-for="node in selectedKnowledgeNodes"
-                  :key="node.id"
-                  class="knowledge-tag"
-                >
-                  <span class="knowledge-tag-name">
-                    {{ node.node_name }}
-                    <small v-if="node.match_type === 'neighbor'">相邻</small>
-                  </span>
-                  <button
-                    type="button"
-                    class="knowledge-remove"
-                    :title="`移除 ${node.node_name}`"
-                    @click="removeKnowledgeNode(node.id)"
-                  >
-                    ×
-                  </button>
-                </span>
-              </div>
-              <p v-else class="helper-text">尚未选择知识点。输入关键词后可在下拉列表里直接添加。</p>
-            </div>
-          </section>
-
-          <section class="assessment-stack">
-            <section class="editor-section panel grading-panel">
-              <div class="section-head">
-                <div>
-                  <h4>判题设置</h4>
-                  <p>选择一次判题方式；系统会自动匹配测试、观察运行或 AI 审查流程。</p>
-                </div>
-                <span class="pill">AI 开启</span>
-              </div>
-
-              <div class="review-level-switch">
-                <button
-                  type="button"
-                  class="level-option"
-                  :class="{ active: activeQuestion.grading_mode === 'testcase' }"
-                  @click="setGradingMode(activeQuestion, 'testcase')"
-                >
-                  <strong>标准输出判题</strong>
-                  <span>适合结果确定的算法题，严格比对实际输出和期望输出。</span>
-                </button>
-                <button
-                  type="button"
-                  class="level-option"
-                  :class="{ active: activeQuestion.grading_mode === 'observed_ai' }"
-                  @click="setGradingMode(activeQuestion, 'observed_ai')"
-                >
-                  <strong>观察运行 + AI 判题</strong>
-                  <span>适合多线程、随机性、模拟类题目，运行输出交给 AI 判断。</span>
-                </button>
-                <button
-                  type="button"
-                  class="level-option"
-                  :class="{ active: activeQuestion.grading_mode === 'ai_review' }"
-                  @click="setGradingMode(activeQuestion, 'ai_review')"
-                >
-                  <strong>仅 AI 判题</strong>
-                  <span>适合设计、代码审查类题目，只编译后由 AI 根据代码和标准评审。</span>
-                </button>
-              </div>
-
               <label class="field">
-                <span>评分标准</span>
-                <textarea
-                  v-model="activeQuestion.ai_grading_rubric"
-                  rows="6"
-                  placeholder="例如：重点检查事务边界、异常处理、资源释放，以及是否满足题目业务约束"
-                />
+                <span>题目内容</span>
+                <textarea v-model="activeQuestion.prompt" rows="7" placeholder="请输入题干、要求和必要说明" />
               </label>
 
-              <div class="focus-block">
-                <div class="section-head compact">
-                  <div>
-                    <h4>AI 关注点</h4>
-                    <p>教师可手动填写，也可以让 AI 根据题目自动补全。</p>
-                  </div>
-                  <button
-                    type="button"
-                    class="btn btn-quiet"
-                    :disabled="focusGenerating || !canGenerateFocus(activeQuestion)"
-                    @click="generateFocus(activeQuestion)"
-                  >
-                    {{ focusGenerating ? "生成中..." : "AI 生成" }}
-                  </button>
+              <div v-if="activeQuestion.question_type === 'multiple_choice'" class="option-editor">
+                <div class="sub-head">
+                  <strong>选项（单选）</strong>
+                  <button type="button" class="link-btn" @click="addOption(activeQuestion)">新增选项</button>
                 </div>
+                <article v-for="(option, index) in activeQuestion.options" :key="option.localKey" class="option-row">
+                  <label>
+                    <input v-model="activeQuestion.answer" type="radio" :value="option.key" />
+                    <span>{{ option.key }}</span>
+                  </label>
+                  <input v-model="option.text" placeholder="选项内容" />
+                  <button type="button" class="icon-danger" @click="removeOption(activeQuestion, index)">×</button>
+                </article>
+              </div>
+
+              <label v-if="activeQuestion.question_type === 'fill_blank'" class="field">
+                <span>参考答案</span>
+                <textarea v-model="activeQuestion.answer_text" rows="3" placeholder="可填写一个或多个参考答案，用逗号分隔" />
+              </label>
+
+              <template v-if="activeQuestion.question_type === 'programming'">
                 <label class="field">
-                  <span>关注点输入</span>
-                  <input
-                    v-model="activeQuestion.ai_grading_focus_text"
-                    placeholder="例如：事务边界, 异常处理, 资源释放"
-                  />
+                  <span>初始代码</span>
+                  <textarea v-model="activeQuestion.starter_code" rows="5" class="code-textarea" placeholder="学生打开题目时默认展示的代码" />
                 </label>
-                <p class="helper-text">{{ activeQuestion.focus_summary || "系统会结合题目内容和教师要求，引导 AI 审查代码重点。" }}</p>
-              </div>
-            </section>
-
-            <section class="editor-section panel testcase-panel">
-              <div class="section-head">
-                <div>
-                  <h4>{{ activeQuestion.grading_mode === 'observed_ai' ? '运行输入' : '测试用例' }}</h4>
-                  <p>{{ testcasePanelText(activeQuestion) }}</p>
-                </div>
-              </div>
-
-              <transition name="fade-slide">
-                <div v-if="usesRunCases(activeQuestion)" class="testcase-body">
-                  <div class="testcase-actions">
-                    <button
-                      type="button"
-                      class="btn btn-quiet"
-                      :disabled="activeQuestion.grading_mode !== 'testcase' || testcaseGenerating || !canGenerateTestCases(activeQuestion)"
-                      @click="generateTestCases(activeQuestion)"
-                    >
+                <div class="grading-box">
+                  <div class="sub-head">
+                    <strong>编程题判题</strong>
+                    <button type="button" class="link-btn" :disabled="testcaseGenerating" @click="generateTestCases(activeQuestion)">
                       {{ testcaseGenerating ? "生成中..." : "AI 生成测试用例" }}
                     </button>
-                    <button type="button" class="btn btn-primary" @click="addTestCase(activeQuestion)">
-                      {{ activeQuestion.grading_mode === 'observed_ai' ? '新增运行输入' : '新增用例' }}
-                    </button>
                   </div>
-
-                  <article
-                    v-for="(testCase, cIndex) in activeQuestion.test_cases"
-                    :key="testCase.localKey"
-                    class="case-card"
-                  >
-                    <div class="case-title">
-                      <strong>{{ activeQuestion.grading_mode === 'observed_ai' ? '运行' : '用例' }} {{ cIndex + 1 }}</strong>
-                      <label class="sample-check">
-                        <input v-model="testCase.is_sample" type="checkbox" />
-                        <span>示例</span>
-                      </label>
-                    </div>
-                    <div class="case-fields">
-                      <label class="field">
-                        <span>输入</span>
-                        <textarea v-model="testCase.input_data" rows="4" placeholder="stdin 输入，可留空" />
-                      </label>
-                      <label v-if="isExactOutputMode(activeQuestion)" class="field">
-                        <span>期望输出</span>
-                        <textarea v-model="testCase.expected_output" rows="4" placeholder="期望 stdout" />
-                      </label>
-                      <p v-else class="helper-text observation-note">
-                        观察运行不会填写固定答案；程序 stdout、stderr、退出码和耗时会作为 AI 判题证据。
-                      </p>
-                    </div>
-                    <div class="case-footer">
-                      <button type="button" class="btn btn-danger" @click="removeTestCase(activeQuestion, cIndex)">删除用例</button>
-                    </div>
+                  <select v-model="activeQuestion.grading_mode">
+                    <option value="testcase">标准输出判题</option>
+                    <option value="observed_ai">观察运行 + AI 判题</option>
+                    <option value="ai_review">仅 AI 判题</option>
+                  </select>
+                  <article v-for="(testCase, index) in activeQuestion.test_cases" :key="testCase.localKey" class="case-row">
+                    <textarea v-model="testCase.input_data" rows="2" placeholder="输入" />
+                    <textarea v-model="testCase.expected_output" rows="2" placeholder="期望输出" />
+                    <label><input v-model="testCase.is_sample" type="checkbox" /> 示例</label>
+                    <button type="button" class="icon-danger" @click="removeTestCase(activeQuestion, index)">×</button>
                   </article>
+                  <button type="button" class="btn dashed small" @click="addTestCase(activeQuestion)">+ 新增用例</button>
                 </div>
-              </transition>
+              </template>
 
-              <p v-if="!usesRunCases(activeQuestion)" class="helper-text">
-                当前题目仅做编译检查和 AI 代码评审，保存时不会提交运行输入。
-              </p>
+              <label class="field">
+                <span>解析 / AI 判分依据</span>
+                <textarea v-model="activeQuestion.explanation" rows="3" placeholder="给教师和 AI 判分参考的解析，可留空" />
+              </label>
             </section>
-          </section>
-        </section>
 
-        <section v-else class="empty-editor panel">
-          <strong>还没有题目</strong>
-          <p>先新增一道题目，或用 AI 生成题目草稿。</p>
-          <button type="button" class="btn btn-primary" @click="addQuestion">新增题目</button>
+            <aside class="preview-box">
+              <div class="preview-title">
+                <span>预览</span>
+                <strong>{{ activeQuestion.title || "未命名题目" }}</strong>
+              </div>
+              <p>{{ activeQuestion.prompt || "题干将在这里预览。" }}</p>
+              <div v-if="activeQuestion.question_type === 'multiple_choice'" class="preview-options">
+                <div v-for="option in activeQuestion.options" :key="`p-${option.localKey}`">
+                  <span>{{ option.key }}</span>
+                  <p>{{ option.text || "选项内容" }}</p>
+                </div>
+              </div>
+              <div v-if="activeQuestion.question_type === 'fill_blank'" class="blank-preview">学生将在这里填写答案</div>
+              <pre v-if="activeQuestion.question_type === 'programming'" class="code-preview">{{ activeQuestion.starter_code || "public class Main {\\n    public static void main(String[] args) {\\n    }\\n}" }}</pre>
+            </aside>
+          </div>
         </section>
       </section>
     </main>
@@ -415,249 +286,183 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
   createTeacherAssignmentApi,
-  generateAssignmentFocusApi,
-  generateAssignmentQuestionApi,
+  createTeacherQuestionBankItemApi,
+  generateAssignmentQuestionsApi,
   generateAssignmentTestCasesApi,
   getTeacherAssignmentApi,
+  listTeacherQuestionBankApi,
+  reuseTeacherQuestionBankItemApi,
   updateTeacherAssignmentApi,
   updateTeacherAssignmentQuestionsApi,
 } from "../api/assignments";
-import { listTeacherKnowledgeNodesApi, listTeacherStudentsApi } from "../api/teacher";
+import { listTeacherStudentsApi } from "../api/teacher";
 import { clearAuthSession } from "../utils/authStorage";
 
 const route = useRoute();
 const router = useRouter();
 const isNew = computed(() => route.params.assignmentId === undefined);
 const assignmentId = computed(() => Number(route.params.assignmentId));
+
 const students = ref([]);
+const questionBank = ref([]);
 const errorMessage = ref("");
 const successMessage = ref("");
 const saving = ref(false);
 const generating = ref(false);
 const testcaseGenerating = ref(false);
-const focusGenerating = ref(false);
-const generateKnowledge = ref("");
-const generateRequirement = ref("");
+const bankLoading = ref(false);
+const coreMode = ref("ai");
 const activeQuestionIndex = ref(0);
-const knowledgeNodeOptions = ref([]);
-const allKnowledgeNodeOptions = ref([]);
-const knowledgeNodeKeyword = ref("");
-const knowledgeNodeLoading = ref(false);
-const showKnowledgeNodeDropdown = ref(false);
+const generateRequirement = ref("");
+const generateKnowledge = ref("");
+const generateCounts = ref({ multiple_choice: 5, fill_blank: 3, programming: 1 });
+const bankFilters = ref({ keyword: "", question_type: "", difficulty: "" });
 const form = ref({
   title: "",
-  description: "",
-  status: "draft",
-  student_ids: [],
+  status: "published",
+  starts_at: "",
+  due_at: "",
+  class_names: [],
   questions: [],
 });
 
+const classOptions = computed(() => {
+  const classes = [...new Set(students.value.map((student) => student.class_name).filter(Boolean))];
+  return classes.length ? classes : ["软件1班", "软件2班"];
+});
+const selectedClassCount = computed(() => form.value.class_names.length);
+const assignedStudentCount = computed(() =>
+  students.value.filter((student) => form.value.class_names.includes(student.class_name)).length,
+);
 const activeQuestion = computed(() => form.value.questions[activeQuestionIndex.value] || null);
-const displayKnowledgeNodeOptions = computed(() => {
-  const selectedIds = new Set((activeQuestion.value?.knowledge_node_ids || []).map(Number));
-  const merged = new Map();
-  for (const node of knowledgeNodeOptions.value) {
-    merged.set(Number(node.id), node);
-  }
-  for (const node of allKnowledgeNodeOptions.value) {
-    if (selectedIds.has(Number(node.id))) {
-      merged.set(Number(node.id), node);
-    }
-  }
-  return [...merged.values()];
-});
-const knowledgeNodeSuggestions = computed(() => displayKnowledgeNodeOptions.value.slice(0, 12));
-const selectedKnowledgeNodes = computed(() => {
-  const selectedIds = new Set((activeQuestion.value?.knowledge_node_ids || []).map(Number));
-  return [...new Map(allKnowledgeNodeOptions.value.map((node) => [Number(node.id), node])).values()]
-    .filter((node) => selectedIds.has(Number(node.id)));
-});
-let knowledgeNodeSuggestTimer = null;
-
-const vAutoResize = {
-  mounted(element) {
-    element.addEventListener("input", resizeTextarea);
-    resizeTextarea({ target: element });
-  },
-  updated(element) {
-    nextTick(() => resizeTextarea({ target: element }));
-  },
-  beforeUnmount(element) {
-    element.removeEventListener("input", resizeTextarea);
-  },
-};
 
 onMounted(async () => {
-  await loadStudents();
-  await loadKnowledgeNodes();
+  await Promise.all([loadStudents(), loadQuestionBank()]);
   if (!isNew.value) {
     await loadAssignment();
   } else {
-    addQuestion();
+    form.value.class_names = classOptions.value.slice(0, 1);
+    addQuestion({ question_type: "multiple_choice" });
   }
 });
 
-function resizeTextarea(event) {
-  const element = event?.target;
-  if (!element) return;
-  element.style.height = "auto";
-  element.style.height = `${element.scrollHeight}px`;
-}
+watch(() => activeQuestion.value?.question_type, () => {
+  if (activeQuestion.value) normalizeQuestionByType(activeQuestion.value);
+});
 
 async function loadStudents() {
   try {
     const { data } = await listTeacherStudentsApi();
-    students.value = data;
+    students.value = data || [];
   } catch (error) {
     handleApiError(error, "加载学生失败。");
   }
 }
 
-async function loadKnowledgeNodes() {
-  knowledgeNodeLoading.value = true;
+async function loadQuestionBank() {
+  bankLoading.value = true;
   try {
-    const { data } = await listTeacherKnowledgeNodesApi({ limit: 200 });
-    knowledgeNodeOptions.value = data || [];
-    allKnowledgeNodeOptions.value = data || [];
+    const { data } = await listTeacherQuestionBankApi({ ...bankFilters.value, limit: 80 });
+    questionBank.value = data || [];
   } catch (error) {
-    handleApiError(error, "加载知识图谱节点失败。");
+    handleApiError(error, "加载题库失败。");
   } finally {
-    knowledgeNodeLoading.value = false;
-  }
-}
-
-function handleKnowledgeNodeInput() {
-  if (knowledgeNodeSuggestTimer) clearTimeout(knowledgeNodeSuggestTimer);
-  const query = knowledgeNodeKeyword.value.trim();
-  if (!query) {
-    knowledgeNodeOptions.value = allKnowledgeNodeOptions.value;
-    showKnowledgeNodeDropdown.value = false;
-    return;
-  }
-  knowledgeNodeSuggestTimer = setTimeout(() => {
-    searchKnowledgeNodes(query);
-  }, 180);
-}
-
-async function searchKnowledgeNodes(queryOverride = "") {
-  const query = (queryOverride || knowledgeNodeKeyword.value).trim();
-  if (!query) {
-    knowledgeNodeOptions.value = allKnowledgeNodeOptions.value;
-    showKnowledgeNodeDropdown.value = false;
-    return;
-  }
-  knowledgeNodeLoading.value = true;
-  try {
-    const { data } = await listTeacherKnowledgeNodesApi({
-      keyword: query,
-      include_neighbors: true,
-      limit: 200,
-    });
-    knowledgeNodeOptions.value = data || [];
-    for (const node of data || []) {
-      if (!allKnowledgeNodeOptions.value.some((item) => Number(item.id) === Number(node.id))) {
-        allKnowledgeNodeOptions.value.push(node);
-      }
-    }
-    showKnowledgeNodeDropdown.value = knowledgeNodeOptions.value.length > 0;
-  } catch (error) {
-    handleApiError(error, "搜索知识图谱节点失败。");
-    showKnowledgeNodeDropdown.value = false;
-  } finally {
-    knowledgeNodeLoading.value = false;
-  }
-}
-
-function resetKnowledgeNodeSearch() {
-  knowledgeNodeKeyword.value = "";
-  knowledgeNodeOptions.value = allKnowledgeNodeOptions.value;
-  showKnowledgeNodeDropdown.value = false;
-}
-
-function toggleKnowledgeNode(node) {
-  if (!activeQuestion.value) return;
-  const nodeId = Number(node.id);
-  const selected = new Set((activeQuestion.value.knowledge_node_ids || []).map(Number));
-  if (selected.has(nodeId)) {
-    showKnowledgeNodeDropdown.value = false;
-    return;
-  } else {
-    activeQuestion.value.knowledge_node_ids = [...activeQuestion.value.knowledge_node_ids, nodeId];
-    showKnowledgeNodeDropdown.value = false;
-  }
-  if (!allKnowledgeNodeOptions.value.some((item) => Number(item.id) === nodeId)) {
-    allKnowledgeNodeOptions.value.push(node);
-  }
-}
-
-function removeKnowledgeNode(nodeId) {
-  if (!activeQuestion.value) return;
-  activeQuestion.value.knowledge_node_ids = activeQuestion.value.knowledge_node_ids.filter((id) => Number(id) !== Number(nodeId));
-}
-
-function mergeKnowledgeNodeOptions(nodes) {
-  for (const node of nodes || []) {
-    if (!node?.id) continue;
-    if (!allKnowledgeNodeOptions.value.some((item) => Number(item.id) === Number(node.id))) {
-      allKnowledgeNodeOptions.value.push(node);
-    }
-    if (!knowledgeNodeOptions.value.some((item) => Number(item.id) === Number(node.id))) {
-      knowledgeNodeOptions.value.push(node);
-    }
+    bankLoading.value = false;
   }
 }
 
 async function loadAssignment() {
   try {
     const { data } = await getTeacherAssignmentApi(assignmentId.value);
-    applyAssignmentData(data);
+    form.value = {
+      title: data.title || "",
+      status: data.status || "published",
+      starts_at: toDatetimeLocal(data.starts_at),
+      due_at: toDatetimeLocal(data.due_at),
+      class_names: data.class_names || [],
+      questions: (data.questions || []).map(normalizeQuestion),
+    };
+    activeQuestionIndex.value = 0;
   } catch (error) {
     handleApiError(error, "加载作业失败。");
   }
 }
 
-function applyAssignmentData(data) {
-  form.value = {
-    title: data.title,
-    description: data.description || "",
-    status: data.status,
-    student_ids: data.assigned_students.map((item) => item.id),
-    questions: data.questions.map(normalizeQuestion),
-  };
-  activeQuestionIndex.value = Math.min(activeQuestionIndex.value, Math.max(form.value.questions.length - 1, 0));
-}
-
 function normalizeQuestion(question = {}) {
-  const gradingMode = normalizeGradingMode(question.grading_mode, question);
-  return {
+  const questionType = normalizeQuestionType(question.question_type);
+  const normalized = {
     id: question.id,
     localKey: question.id || `q-${Date.now()}-${Math.random()}`,
     title: question.title || "",
     prompt: question.prompt || "",
+    question_type: questionType,
+    options: normalizeOptions(question.options),
+    answer: normalizeAnswer(question.answer, questionType),
+    answer_text: Array.isArray(question.answer) ? question.answer.join(", ") : String(question.answer || ""),
+    explanation: question.explanation || "",
     starter_code: question.starter_code || "",
     knowledge_node_ids: Array.isArray(question.knowledge_node_ids) ? question.knowledge_node_ids.map(Number) : [],
     language: "java",
-    grading_mode: gradingMode,
-    enable_testcases: gradingMode !== "ai_review",
-    ai_review_level: gradingMode === "testcase" ? "light" : "deep",
+    grading_mode: question.grading_mode || "testcase",
+    ai_review_level: question.ai_review_level || "light",
     ai_grading_rubric: question.ai_grading_rubric || "",
-    ai_grading_focus_text: Array.isArray(question.ai_grading_focus) ? question.ai_grading_focus.join(", ") : "",
-    focus_summary: question.focus_summary || "",
+    ai_grading_focus: question.ai_grading_focus || [],
     sort_order: question.sort_order || 0,
-    test_cases: (question.test_cases || []).map((item) => ({
+    test_cases: (question.test_cases || []).map((item, index) => ({
       id: item.id,
-      localKey: item.id || `c-${Date.now()}-${Math.random()}`,
+      localKey: item.id || `c-${Date.now()}-${index}-${Math.random()}`,
       input_data: item.input_data || "",
       expected_output: item.expected_output || "",
       is_sample: item.is_sample !== false,
-      sort_order: item.sort_order || 0,
+      sort_order: item.sort_order || index,
     })),
   };
+  normalizeQuestionByType(normalized);
+  return normalized;
+}
+
+function normalizeQuestionByType(question) {
+  if (question.question_type === "multiple_choice" && !question.options.length) {
+    question.options = ["A", "B", "C", "D"].map((key) => ({ key, text: "", localKey: `o-${key}-${Date.now()}` }));
+    question.answer = "A";
+  }
+  if (question.question_type === "fill_blank") {
+    question.options = [];
+    question.grading_mode = "ai_review";
+  }
+  if (question.question_type === "programming") {
+    question.answer = null;
+    question.answer_text = "";
+    if (!question.test_cases.length) addTestCase(question);
+  }
+}
+
+function normalizeActiveQuestionByType() {
+  if (activeQuestion.value) normalizeQuestionByType(activeQuestion.value);
+}
+
+function normalizeOptions(options = []) {
+  if (!Array.isArray(options) || !options.length) return [];
+  return options.map((item, index) => ({
+    key: item.key || String.fromCharCode(65 + index),
+    text: item.text || "",
+    localKey: item.localKey || `o-${Date.now()}-${index}-${Math.random()}`,
+  }));
+}
+
+function normalizeQuestionType(value) {
+  return ["multiple_choice", "fill_blank", "programming"].includes(value) ? value : "programming";
+}
+
+function normalizeAnswer(answer, questionType) {
+  if (questionType === "multiple_choice") return Array.isArray(answer) ? answer[0] : (answer || "A");
+  if (questionType === "fill_blank") return Array.isArray(answer) ? answer : (answer || "");
+  return null;
 }
 
 function selectQuestion(index) {
@@ -665,28 +470,24 @@ function selectQuestion(index) {
 }
 
 function addQuestion(source = {}) {
-  form.value.questions.push(
-    normalizeQuestion({
-      title: source.title || "",
-      prompt: source.prompt || "",
-      starter_code: source.starter_code || "",
-      knowledge_node_ids: source.knowledge_node_ids || [],
-      grading_mode: source.grading_mode || ((source.test_cases || []).length > 0 ? "testcase" : "ai_review"),
-      ai_review_level: source.ai_review_level || "light",
-      ai_grading_focus: source.ai_grading_focus || [],
-      test_cases: source.test_cases || [],
-    }),
-  );
+  form.value.questions.push(normalizeQuestion({
+    title: source.title || "",
+    prompt: source.prompt || "",
+    question_type: source.question_type || "multiple_choice",
+    options: source.options || [],
+    answer: source.answer,
+    explanation: source.explanation || "",
+    starter_code: source.starter_code || "",
+    knowledge_node_ids: source.knowledge_node_ids || [],
+    grading_mode: source.grading_mode || "testcase",
+    test_cases: source.test_cases || [],
+  }));
   activeQuestionIndex.value = form.value.questions.length - 1;
 }
 
 function removeQuestion(index) {
   form.value.questions.splice(index, 1);
-  if (!form.value.questions.length) {
-    activeQuestionIndex.value = 0;
-    return;
-  }
-  activeQuestionIndex.value = Math.min(activeQuestionIndex.value, form.value.questions.length - 1);
+  activeQuestionIndex.value = Math.min(activeQuestionIndex.value, Math.max(form.value.questions.length - 1, 0));
 }
 
 function moveQuestion(index, direction) {
@@ -694,12 +495,18 @@ function moveQuestion(index, direction) {
   if (next < 0 || next >= form.value.questions.length) return;
   const [item] = form.value.questions.splice(index, 1);
   form.value.questions.splice(next, 0, item);
+  activeQuestionIndex.value = next;
+}
 
-  if (activeQuestionIndex.value === index) {
-    activeQuestionIndex.value = next;
-  } else if (activeQuestionIndex.value === next) {
-    activeQuestionIndex.value = index;
-  }
+function addOption(question) {
+  const key = String.fromCharCode(65 + question.options.length);
+  question.options.push({ key, text: "", localKey: `o-${Date.now()}-${Math.random()}` });
+  if (!question.answer) question.answer = key;
+}
+
+function removeOption(question, index) {
+  const [removed] = question.options.splice(index, 1);
+  if (removed?.key === question.answer) question.answer = question.options[0]?.key || "";
 }
 
 function addTestCase(question) {
@@ -716,21 +523,21 @@ function removeTestCase(question, index) {
   question.test_cases.splice(index, 1);
 }
 
-async function generateQuestion() {
+async function generateQuestions() {
   generating.value = true;
   errorMessage.value = "";
   successMessage.value = "";
   try {
-    const { data } = await generateAssignmentQuestionApi({
-      knowledge_point: generateKnowledge.value,
+    const { data } = await generateAssignmentQuestionsApi({
       requirement: generateRequirement.value,
+      knowledge_point: generateKnowledge.value,
+      programming_count: Number(generateCounts.value.programming || 0),
+      multiple_choice_count: Number(generateCounts.value.multiple_choice || 0),
+      fill_blank_count: Number(generateCounts.value.fill_blank || 0),
     });
-    mergeKnowledgeNodeOptions(data.knowledge_nodes || []);
-    addQuestion({
-      ...data,
-      ai_review_level: "light",
-    });
-    successMessage.value = "题目草稿已追加，请继续完善 AI 判题设置。";
+    const generated = Array.isArray(data.questions) && data.questions.length ? data.questions : [data];
+    generated.forEach((item) => addQuestion(item));
+    successMessage.value = `已追加 ${generated.length} 道题目。`;
   } catch (error) {
     handleApiError(error, "生成题目失败。");
   } finally {
@@ -738,28 +545,9 @@ async function generateQuestion() {
   }
 }
 
-async function generateFocus(question) {
-  focusGenerating.value = true;
-  errorMessage.value = "";
-  try {
-    const { data } = await generateAssignmentFocusApi({
-      title: question.title,
-      prompt: question.prompt,
-      ai_grading_rubric: question.ai_grading_rubric,
-      ai_review_level: question.ai_review_level,
-    });
-    question.ai_grading_focus_text = (data.ai_grading_focus || []).join(", ");
-    question.focus_summary = data.summary || "";
-  } catch (error) {
-    handleApiError(error, "生成 AI 关注点失败。");
-  } finally {
-    focusGenerating.value = false;
-  }
-}
-
 async function generateTestCases(question) {
+  if (!question.prompt.trim()) return;
   testcaseGenerating.value = true;
-  errorMessage.value = "";
   try {
     const { data } = await generateAssignmentTestCasesApi({
       title: question.title,
@@ -767,18 +555,38 @@ async function generateTestCases(question) {
       knowledge_point: generateKnowledge.value,
     });
     question.test_cases = (data || []).map((item, index) => ({
-      id: item.id,
-      localKey: item.id || `c-${Date.now()}-${index}-${Math.random()}`,
+      localKey: `c-${Date.now()}-${index}-${Math.random()}`,
       input_data: item.input_data || "",
       expected_output: item.expected_output || "",
       is_sample: item.is_sample !== false,
-      sort_order: item.sort_order || index,
+      sort_order: index,
     }));
-    setGradingMode(question, "testcase");
   } catch (error) {
     handleApiError(error, "生成测试用例失败。");
   } finally {
     testcaseGenerating.value = false;
+  }
+}
+
+async function reuseBankQuestion(item) {
+  try {
+    const { data } = await reuseTeacherQuestionBankItemApi(item.id);
+    addQuestion(data);
+    successMessage.value = "题库题目已加入当前作业。";
+    await loadQuestionBank();
+  } catch (error) {
+    handleApiError(error, "复用题目失败。");
+  }
+}
+
+async function saveActiveQuestionToBank() {
+  if (!activeQuestion.value) return;
+  try {
+    await createTeacherQuestionBankItemApi(toQuestionPayload(activeQuestion.value, 0));
+    successMessage.value = "当前题目已保存到题库。";
+    await loadQuestionBank();
+  } catch (error) {
+    handleApiError(error, "保存题库失败。");
   }
 }
 
@@ -787,28 +595,31 @@ async function saveAssignment() {
   errorMessage.value = "";
   successMessage.value = "";
   try {
-    const validationMessage = validateAssignmentForm();
-    if (validationMessage) {
-      errorMessage.value = validationMessage;
+    const validation = validateForm();
+    if (validation) {
+      errorMessage.value = validation;
       return;
     }
     const payload = buildPayload();
     if (isNew.value) {
       const { data } = await createTeacherAssignmentApi(payload);
-      applyAssignmentData(data);
+      applySavedAssignment(data);
       router.replace(`/teacher/assignments/${data.id}`);
-      successMessage.value = "作业已创建。";
+      successMessage.value = "作业已创建，题目已同步到题库。";
     } else {
       await updateTeacherAssignmentApi(assignmentId.value, {
         title: payload.title,
-        description: payload.description,
+        description: "",
         status: payload.status,
-        student_ids: payload.student_ids,
+        starts_at: payload.starts_at,
+        due_at: payload.due_at,
+        class_names: payload.class_names,
       });
       const { data } = await updateTeacherAssignmentQuestionsApi(assignmentId.value, { questions: payload.questions });
-      applyAssignmentData(data);
-      successMessage.value = "作业已保存。";
+      applySavedAssignment(data);
+      successMessage.value = "作业已保存，题目已同步到题库。";
     }
+    await loadQuestionBank();
   } catch (error) {
     handleApiError(error, "保存作业失败。");
   } finally {
@@ -816,113 +627,89 @@ async function saveAssignment() {
   }
 }
 
-function validateAssignmentForm() {
-  if (!form.value.title.trim()) {
-    return "请填写作业标题。";
-  }
-  if (!form.value.description.trim()) {
-    return "请填写作业说明。";
-  }
-  if (!form.value.questions.length) {
-    return "请至少添加一道题目。";
-  }
-  const invalidQuestionIndex = form.value.questions.findIndex((question) => !String(question.prompt || "").trim());
-  if (invalidQuestionIndex >= 0) {
-    activeQuestionIndex.value = invalidQuestionIndex;
-    return `请填写第 ${invalidQuestionIndex + 1} 题的题目描述。`;
+function applySavedAssignment(data) {
+  form.value = {
+    title: data.title || "",
+    status: data.status || "published",
+    starts_at: toDatetimeLocal(data.starts_at),
+    due_at: toDatetimeLocal(data.due_at),
+    class_names: data.class_names || form.value.class_names,
+    questions: (data.questions || []).map(normalizeQuestion),
+  };
+}
+
+function validateForm() {
+  if (!form.value.title.trim()) return "请填写作业标题。";
+  if (!form.value.class_names.length) return "请选择发布班级。";
+  if (!form.value.questions.length) return "请至少添加一道题目。";
+  const invalidIndex = form.value.questions.findIndex((question) => !question.prompt.trim());
+  if (invalidIndex >= 0) {
+    activeQuestionIndex.value = invalidIndex;
+    return `请填写第 ${invalidIndex + 1} 题的题目内容。`;
   }
   return "";
 }
 
 function buildPayload() {
   return {
-    title: form.value.title,
-    description: form.value.description,
-    status: form.value.status,
-    student_ids: form.value.student_ids,
-    questions: form.value.questions.map((question, qIndex) => ({
-      id: question.id,
-      title: question.title,
-      prompt: question.prompt,
-      starter_code: question.starter_code || "",
-      knowledge_node_ids: (question.knowledge_node_ids || []).map(Number),
-      language: "java",
-      grading_mode: normalizeGradingMode(question.grading_mode, question),
-      enable_testcases: usesRunCases(question),
-      ai_review_level: question.grading_mode === "testcase" ? "light" : "deep",
-      ai_grading_rubric: question.ai_grading_rubric || "",
-      ai_grading_focus: parseFocusText(question.ai_grading_focus_text),
-      sort_order: qIndex,
-      test_cases: (usesRunCases(question) ? question.test_cases : []).map((testCase, cIndex) => ({
-        id: testCase.id,
-        input_data: String(testCase.input_data ?? ""),
-        expected_output: isExactOutputMode(question) ? testCase.expected_output : "",
-        is_sample: testCase.is_sample,
-        sort_order: cIndex,
-      })),
-    })),
+    title: form.value.title.trim(),
+    description: "",
+    status: form.value.status || "published",
+    starts_at: fromDatetimeLocal(form.value.starts_at),
+    due_at: fromDatetimeLocal(form.value.due_at),
+    class_names: form.value.class_names,
+    questions: form.value.questions.map(toQuestionPayload),
   };
 }
 
-function parseFocusText(value) {
-  return String(value || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function reviewLevelText(value) {
-  return value === "deep" ? "深审查" : "轻审查";
-}
-
-function normalizeGradingMode(value, question = {}) {
-  if (["testcase", "observed_ai", "ai_review"].includes(value)) return value;
-  if (value === "hybrid") return "testcase";
-  return question.enable_testcases === false ? "ai_review" : "testcase";
-}
-
-function setGradingMode(question, mode) {
-  question.grading_mode = normalizeGradingMode(mode, question);
-  question.enable_testcases = question.grading_mode !== "ai_review";
-  question.ai_review_level = question.grading_mode === "testcase" ? "light" : "deep";
-}
-
-function usesRunCases(question) {
-  return ["testcase", "observed_ai"].includes(normalizeGradingMode(question?.grading_mode, question || {}));
-}
-
-function isExactOutputMode(question) {
-  return normalizeGradingMode(question?.grading_mode, question || {}) === "testcase";
-}
-
-function gradingModeText(value) {
+function toQuestionPayload(question, index = 0) {
+  const questionType = normalizeQuestionType(question.question_type);
+  const answer = questionType === "fill_blank"
+    ? String(question.answer_text || "").split(/[,，\n]/).map((item) => item.trim()).filter(Boolean)
+    : question.answer;
   return {
-    testcase: "标准输出判题",
-    observed_ai: "观察运行 + AI",
-    ai_review: "仅 AI 判题",
-  }[normalizeGradingMode(value)] || "标准输出判题";
+    id: question.id,
+    title: question.title || questionTypeText(questionType),
+    prompt: question.prompt,
+    question_type: questionType,
+    options: questionType === "multiple_choice" ? question.options.map(({ key, text }) => ({ key, text })) : [],
+    answer,
+    explanation: question.explanation || "",
+    starter_code: questionType === "programming" ? question.starter_code || "" : "",
+    knowledge_node_ids: question.knowledge_node_ids || [],
+    language: "java",
+    grading_mode: questionType === "programming" ? question.grading_mode || "testcase" : "ai_review",
+    enable_testcases: questionType === "programming" && question.grading_mode !== "ai_review",
+    ai_review_level: questionType === "programming" && question.grading_mode === "testcase" ? "light" : "deep",
+    ai_grading_rubric: question.ai_grading_rubric || "",
+    ai_grading_focus: question.ai_grading_focus || [],
+    sort_order: index,
+    test_cases: questionType === "programming" ? question.test_cases.map((item, caseIndex) => ({
+      id: item.id,
+      input_data: item.input_data || "",
+      expected_output: item.expected_output || "",
+      is_sample: item.is_sample !== false,
+      sort_order: caseIndex,
+    })) : [],
+  };
 }
 
-function testcasePanelText(question) {
-  if (question.grading_mode === "observed_ai") {
-    return "只配置运行输入；系统记录输出和错误信息，交给 AI 结合评分标准判断。";
-  }
-  if (question.grading_mode === "ai_review") {
-    return "无需配置用例；系统只检查编译结果，并由 AI 根据代码和评分标准评审。";
-  }
-  return "显式验证功能正确性，系统会严格比对实际输出和期望输出。";
+function questionTypeText(value) {
+  return { multiple_choice: "选择题", fill_blank: "填空题", programming: "编程题" }[value] || "编程题";
 }
 
-function assignmentStatusText(value) {
-  return { draft: "草稿", published: "发布中", closed: "已关闭" }[value] || value;
+function toDatetimeLocal(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
 }
 
-function canGenerateFocus(question) {
-  return Boolean(question?.prompt?.trim());
-}
-
-function canGenerateTestCases(question) {
-  return Boolean(question?.prompt?.trim());
+function fromDatetimeLocal(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -932,929 +719,582 @@ function handleApiError(error, fallbackMessage) {
     router.push("/login");
     return;
   }
-  errorMessage.value = formatApiErrorDetail(error?.response?.data?.detail) || fallbackMessage;
-}
-
-function formatApiErrorDetail(detail) {
-  if (!Array.isArray(detail)) {
-    return typeof detail === "string" ? detail : "";
-  }
-  const messages = detail.map((item) => {
-    const loc = item?.loc || [];
-    const field = loc[loc.length - 1];
-    if (field === "title") return "请填写作业标题。";
-    if (field === "description") return "请填写作业说明。";
-    if (field === "prompt") {
-      const questionIndex = loc[loc.indexOf("questions") + 1];
-      return Number.isInteger(questionIndex) ? `请填写第 ${questionIndex + 1} 题的题目描述。` : "请填写题目描述。";
-    }
-    return item?.msg || "";
-  }).filter(Boolean);
-  return [...new Set(messages)].join(" ");
+  errorMessage.value = error?.response?.data?.detail || fallbackMessage;
 }
 </script>
 
 <style scoped>
-.editor-page {
-  --editor-accent: var(--app-primary);
-  --editor-accent-strong: var(--app-primary-deep);
-  --editor-accent-soft: var(--app-primary-soft);
-  --editor-border: var(--app-line);
-  --editor-border-strong: var(--app-line-strong);
-  --editor-surface: var(--app-panel);
-  --editor-soft: var(--app-panel-soft);
-  --editor-text: var(--app-text);
-  --editor-muted: var(--app-text-muted);
-  --editor-danger: var(--app-danger);
-  --editor-success: var(--app-success);
+.assignment-studio {
   display: grid;
   gap: 14px;
+  color: #18233a;
   font-size: var(--compact-body);
 }
 
+.studio-hero,
 .panel,
 .feedback {
-  border: 1px solid var(--editor-border);
-  border-radius: var(--app-radius-xl);
-  background: var(--editor-surface);
-  box-shadow: var(--app-shadow);
+  border: 1px solid #dfe7f5;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 34px rgba(38, 65, 112, 0.08);
 }
 
-.editor-hero,
-.hero-actions,
-.panel-head,
-.section-head,
-.summary-tags,
-.testcase-actions,
-.case-title {
+.studio-hero {
   display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.editor-hero {
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: 20px;
+  padding: 18px 20px;
 }
 
-.hero-copy {
-  min-width: 0;
-}
-
-.eyebrow {
-  display: inline-flex;
-  margin-bottom: 8px;
-  color: #60748a;
-  font-size: 12px;
+.studio-hero h1 {
+  margin: 0 0 6px;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
-.editor-hero h2 {
-  margin: 0 0 8px;
-  color: var(--editor-text);
-  font-size: var(--compact-page-title);
-  line-height: 1.08;
-  font-weight: 500;
+.studio-hero h1 span {
+  color: #52637d;
+  font-weight: 600;
 }
 
-.editor-hero p,
-.panel-head p,
-.section-head p,
-.helper-text,
-.empty-editor p {
+.studio-hero p,
+.panel-head span,
+.empty-note {
   margin: 0;
-  color: var(--editor-muted);
-  line-height: 1.65;
+  color: #6d7890;
 }
 
-.hero-actions {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.meta-strip {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) 180px minmax(320px, 1.1fr) auto;
-  gap: 10px;
-  align-items: end;
-  padding: 12px;
-  border: 1px solid var(--editor-border);
-  border-radius: var(--app-radius-xl);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: var(--app-shadow);
-}
-
-.field {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-  color: #34495f;
-  font-size: var(--compact-body);
-  font-weight: 400;
-}
-
-.field span {
-  color: #53687e;
-}
-
-.meta-kpis {
+.hero-actions,
+.editor-tools,
+.ai-controls,
+.bank-filters,
+.mini-actions {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  justify-content: flex-end;
-  min-height: 54px;
-  min-width: 260px;
-  flex-wrap: wrap;
-}
-
-.meta-kpis span {
-  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 10px;
+}
+
+.btn {
+  min-height: 36px;
+  border: 1px solid #d8e1f0;
+  border-radius: 7px;
+  background: #fff;
+  color: #20304d;
+  padding: 8px 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn.primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.btn.ghost {
+  background: #f8fbff;
+}
+
+.btn.dashed {
+  border-style: dashed;
+  color: #2563eb;
+}
+
+.btn.small {
   min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid #dfe7f1;
-  border-radius: 999px;
-  background: #fff;
-  color: #50657a;
-  font-size: 13px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
-.meta-kpis strong {
-  color: var(--editor-text);
-  font-size: 16px;
-  font-weight: 400;
+.btn:disabled,
+.mini-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-.meta-kpis .state {
-  background: var(--editor-accent-soft);
-  color: var(--editor-accent-strong);
-  border-color: #cfe0ff;
+.feedback {
+  padding: 10px 12px;
 }
 
-.status-select {
-  position: relative;
-  display: block;
+.feedback.error {
+  border-color: #fecaca;
+  color: #b42318;
+  background: #fff7f7;
 }
 
-.status-select::after {
-  content: "";
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid #49657f;
-  border-bottom: 2px solid #49657f;
-  pointer-events: none;
-  transform: translateY(-65%) rotate(45deg);
+.feedback.success {
+  border-color: #bbf7d0;
+  color: #166534;
+  background: #f4fff7;
 }
 
-.status-select select {
-  height: 38px;
-  appearance: none;
-  padding-right: 42px;
-  background: #fff;
-  color: var(--editor-text);
-  font-weight: 500;
-}
-
-.studio-layout {
+.studio-grid {
   display: grid;
-  grid-template-columns: 318px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
 }
 
-.studio-sidebar,
-.studio-main,
-.question-workspace {
-  display: grid;
-  gap: 14px;
-}
-
-.studio-sidebar {
+.question-rail {
   position: sticky;
-  top: 16px;
-}
-
-.roster-panel,
-.question-nav,
-.ai-draft-panel,
-.question-summary,
-.editor-section,
-.empty-editor {
-  padding: 16px;
+  top: 12px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
 }
 
 .panel-head,
-.section-head {
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.panel-head h3,
-.section-head h4,
-.ai-draft-panel h3,
-.question-summary h3,
-.empty-editor strong {
-  margin: 0;
-  color: var(--editor-text);
-  font-weight: 600;
-}
-
-.panel-head h3,
-.ai-draft-panel h3 {
-  font-size: var(--compact-section-title);
-  font-weight: 500;
-}
-
-.section-head h4 {
-  font-size: var(--compact-section-title);
-  font-weight: 500;
-}
-
-.student-list {
-  display: grid;
-  gap: 8px;
-  max-height: 232px;
-  margin-top: 14px;
-  overflow: auto;
-}
-
-.student-item {
+.editor-head,
+.sub-head {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-head.compact,
+.sub-head {
   align-items: center;
-  gap: 9px;
-  min-height: 32px;
-  padding: 6px 8px;
-  border: 1px solid #e5edf5;
-  border-radius: var(--app-radius-md);
-  background: var(--editor-soft);
-  color: #31445f;
-  font-size: var(--compact-body);
-  font-weight: 400;
 }
 
-.question-nav {
+.panel-head h2,
+.editor-head h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.question-list,
+.bank-list,
+.compact-bank-list {
   display: grid;
   gap: 8px;
 }
 
-.question-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid #e3ebf4;
-  border-radius: 12px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.question-item:hover {
-  border-color: #bdd1e8;
+.question-card {
+  border: 1px solid #dde7f6;
+  border-radius: 8px;
   background: #fbfdff;
+  padding: 8px;
 }
 
-.question-item.active {
-  border-color: var(--editor-accent);
-  background: var(--editor-accent-soft);
-  box-shadow: none;
-}
-
-.question-item.active .question-order,
-.question-item.active .question-title {
-  color: var(--editor-accent-strong);
+.question-card.active {
+  border-color: #3b82f6;
+  box-shadow: inset 3px 0 0 #3b82f6;
 }
 
 .question-main {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  padding: 0;
+  display: flex;
+  width: 100%;
+  gap: 10px;
   border: 0;
   background: transparent;
+  color: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.question-order {
-  color: var(--editor-accent);
-  font-size: 12px;
-  font-weight: 700;
+.order {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 7px;
+  background: #eef4ff;
+  color: #2563eb;
+  font-weight: 800;
 }
 
-.question-title {
+.copy {
+  display: grid;
   min-width: 0;
+  gap: 5px;
+}
+
+.copy strong,
+.compact-bank-item span,
+.bank-item strong {
   overflow: hidden;
-  color: var(--editor-text);
-  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.question-meta {
-  color: var(--editor-muted);
-  font-size: 12px;
+.mini-actions {
+  justify-content: flex-end;
+  margin-top: 6px;
 }
 
-.question-actions {
+.mini-actions button,
+.icon-danger {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #d9e3f2;
+  border-radius: 6px;
+  background: #fff;
+  color: #51617c;
+  cursor: pointer;
+}
+
+.mini-actions .danger,
+.icon-danger {
+  color: #dc2626;
+}
+
+.rail-actions {
   display: grid;
-  grid-template-columns: repeat(3, 28px);
-  gap: 4px;
-  align-content: start;
+  gap: 8px;
 }
 
-.ai-draft-panel {
+.studio-main {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  align-items: start;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(47, 103, 246, 0.08), transparent 32%),
-    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-}
-
-.draft-heading {
-  display: flex;
-  align-items: flex-start;
   gap: 14px;
 }
 
-.section-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--app-radius-md);
-  background: var(--editor-accent);
-  color: #fff;
-  font-size: 13px;
+.meta-panel,
+.ai-panel,
+.bank-panel,
+.editor-panel {
+  padding: 16px;
+}
+
+.meta-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 190px 190px;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  color: #3c4960;
   font-weight: 700;
-  flex-shrink: 0;
 }
 
-.draft-fields {
-  display: grid;
-  gap: 10px;
-  width: 100%;
-}
-
-.draft-bottom-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: end;
-}
-
-.draft-bottom-row .btn {
-  min-width: 132px;
-}
-
-.question-summary {
-  justify-content: space-between;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.question-summary-title {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-}
-
-.question-summary h3 {
-  margin: 0;
-  font-size: var(--compact-section-title);
-  font-weight: 400;
-}
-
-.summary-tags {
-  flex-wrap: wrap;
-  justify-content: center;
-  align-self: center;
-}
-
-.summary-tags span,
-.pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--compact-pill-height);
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid #d8e5f3;
-  background: #f4f8fd;
-  color: #49627c;
+.field span {
   font-size: 12px;
-  font-weight: 400;
-}
-
-.pill {
-  background: #ecfdf3;
-  border-color: #cce7d8;
-  color: var(--editor-success);
-}
-
-.editor-section {
-  display: grid;
-  gap: 12px;
-}
-
-.content-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.assessment-stack {
-  display: grid;
-  gap: 14px;
-}
-
-.knowledge-block,
-.focus-block,
-.testcase-body {
-  display: grid;
-  gap: 14px;
-  padding-top: 2px;
-}
-
-.knowledge-search {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 10px;
-  align-items: start;
-}
-
-.knowledge-search-box {
-  position: relative;
-}
-
-.knowledge-search-box input {
-  padding-right: 44px;
-}
-
-.knowledge-clear {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  z-index: 2;
-  min-width: 26px;
-  min-height: 26px;
-  padding: 0;
-  border-radius: 50%;
-  border-color: #d8e5f3;
-  background: #f7fafc;
-  color: #66788b;
-  font-size: 16px;
-  line-height: 1;
-  transform: translateY(-50%);
-}
-
-.knowledge-clear:hover:not(:disabled) {
-  background: #eef5ff;
-  color: var(--editor-accent-strong);
-  box-shadow: none;
-  transform: translateY(-50%);
-}
-
-.knowledge-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  z-index: 10;
-  display: grid;
-  gap: 6px;
-  max-height: 280px;
-  padding: 8px;
-  overflow-y: auto;
-  border: 1px solid var(--editor-border);
-  border-radius: var(--app-radius-lg);
-  background: #fff;
-  box-shadow: 0 16px 34px rgba(20, 34, 53, 0.12);
-}
-
-.knowledge-dropdown-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 40px;
-  padding: 8px 10px;
-  border: 1px solid #e3ebf4;
-  border-radius: var(--app-radius-md);
-  background: #fff;
-  color: #29455f;
-  text-align: left;
-}
-
-.knowledge-dropdown-item:hover {
-  border-color: #9bbdf2;
-  background: var(--editor-accent-soft);
-}
-
-.knowledge-dropdown-item small {
-  color: var(--editor-muted);
-  white-space: nowrap;
-}
-
-.knowledge-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.knowledge-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 6px 0 10px;
-  border: 1px solid #cfe0ff;
-  border-radius: 999px;
-  background: var(--editor-accent-soft);
-  color: #2454a6;
-  font-weight: 500;
-}
-
-.knowledge-tag-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.knowledge-tag small {
-  color: #60748a;
-}
-
-.knowledge-remove {
-  min-width: 24px;
-  min-height: 24px;
-  padding: 0;
-  border-radius: 50%;
-  border-color: #bfd3f5;
-  background: #fff;
-  color: #37659f;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.knowledge-remove:hover:not(:disabled) {
-  background: #e7f0ff;
-  box-shadow: none;
-  transform: none;
-}
-
-.review-level-switch {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.level-option {
-  display: grid;
-  gap: 6px;
-  justify-items: start;
-  min-width: 0;
-  min-height: 66px;
-  padding: 10px;
-  border: 1px solid #dbe5f0;
-  border-radius: var(--app-radius-lg);
-  background: #fff;
-  color: var(--editor-text);
-  overflow-wrap: anywhere;
-  text-align: left;
-  white-space: normal;
-}
-
-.level-option strong {
-  min-width: 0;
-  font-size: var(--compact-body);
-  font-weight: 400;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.level-option span {
-  min-width: 0;
-  color: var(--editor-muted);
-  font-size: var(--compact-caption);
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.level-option.active {
-  border-color: var(--editor-accent);
-  background: var(--editor-accent-soft);
-  box-shadow: none;
-}
-
-.level-option.active strong {
-  color: var(--editor-accent-strong);
-}
-
-.level-option.active span {
-  color: #37659f;
-}
-
-.switch,
-.sample-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #35495e;
-  font-weight: 600;
-}
-
-.switch {
-  min-height: 34px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid #dfe7f1;
-  background: #fff;
-  font-size: 13px;
-}
-
-.switch input,
-.student-item input,
-.sample-check input {
-  width: auto;
-}
-
-.testcase-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-
-.case-card {
-  display: grid;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid #e3ebf4;
-  border-radius: var(--app-radius-lg);
-  background: var(--editor-soft);
-}
-
-.case-title {
-  justify-content: space-between;
-}
-
-.case-title strong {
-  color: var(--editor-text);
-  font-weight: 400;
-}
-
-.case-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.observation-note {
-  display: flex;
-  align-items: center;
-  min-height: 100%;
-}
-
-.case-footer {
-  display: flex;
-  justify-content: flex-end;
 }
 
 input,
 textarea,
 select {
   width: 100%;
-  min-height: 38px;
-  padding: 10px 12px;
-  border: 1px solid var(--editor-border);
-  border-radius: var(--app-radius-md);
-  color: #12263a;
+  min-width: 0;
+  border: 1px solid #d9e3f2;
+  border-radius: 7px;
   background: #fff;
+  color: #17233b;
+  padding: 9px 10px;
   font: inherit;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: #9bbdf2;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  letter-spacing: 0;
 }
 
 textarea {
-  resize: none;
+  resize: vertical;
 }
 
-.description-field textarea {
-  height: 38px;
-  min-height: 38px;
+.class-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.class-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #dbe6f6;
+  border-radius: 7px;
+  background: #f8fbff;
+  padding: 8px 10px;
+  font-weight: 700;
+}
+
+.class-check input {
+  width: auto;
+}
+
+.core-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+}
+
+.mode-tabs {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #d8e3f2;
+  border-radius: 7px;
   overflow: hidden;
 }
 
-.prompt-input,
-.case-row textarea {
+.mode-tabs button {
+  border: 0;
+  background: #fff;
+  padding: 8px 14px;
+  color: #52637d;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mode-tabs .active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.ai-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.ai-controls {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) 90px 90px 90px auto;
+}
+
+.field.mini input {
+  text-align: center;
+}
+
+.bank-inline {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.bank-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 130px 130px auto;
+}
+
+.bank-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e0e9f6;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfdff;
+}
+
+.bank-item p {
+  display: -webkit-box;
+  margin: 4px 0 8px;
+  overflow: hidden;
+  color: #6c7890;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.compact-bank-item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e0e9f6;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.compact-bank-item small {
+  color: #6d7890;
+}
+
+.link-btn {
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.type-chip {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: #edf4ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.type-chip.fill_blank {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.type-chip.programming {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.editor-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.option-editor,
+.grading-box {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e1eaf7;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.option-row,
+.case-row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-row label,
+.case-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.option-row input[type="radio"],
+.case-row input[type="checkbox"] {
+  width: auto;
+}
+
+.case-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 70px 28px;
+}
+
+.code-textarea,
+.code-preview {
   font-family: Consolas, "Courier New", monospace;
 }
 
-.prompt-input {
-  min-height: 128px;
-  overflow: hidden;
+.preview-box {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  border: 1px solid #dfe8f5;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  padding: 14px;
 }
 
-.prompt-input.code-input {
-  min-height: 120px;
+.preview-title {
+  display: grid;
+  gap: 4px;
 }
 
-.btn,
-.icon-btn,
-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--compact-control-height);
-  padding: 0 12px;
-  border: 1px solid var(--editor-border);
-  border-radius: var(--app-radius-md);
-  background: #fff;
-  color: #18344f;
-  cursor: pointer;
-  text-decoration: none;
-  white-space: nowrap;
+.preview-title span {
+  color: #6d7890;
+  font-size: 12px;
+  font-weight: 800;
 }
 
-.btn:hover:not(:disabled),
-.icon-btn:hover:not(:disabled),
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(20, 34, 53, 0.08);
+.preview-box p {
+  white-space: pre-wrap;
+  color: #31405a;
+  line-height: 1.65;
 }
 
-.btn-primary {
-  background: var(--editor-accent);
-  border-color: var(--editor-accent);
-  color: #fff;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+.preview-options {
+  display: grid;
+  gap: 8px;
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--editor-accent-strong);
-  border-color: var(--editor-accent-strong);
+.preview-options div {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border: 1px solid #e4edf8;
+  border-radius: 7px;
+  padding: 8px;
 }
 
-.btn-quiet {
-  background: #f7fafc;
-  color: #31445f;
+.preview-options span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #2563eb;
+  font-weight: 800;
 }
 
-.btn-danger {
-  width: fit-content;
-  min-height: 36px;
-  border-color: #efcaca;
-  background: #fff5f5;
-  color: var(--editor-danger);
+.blank-preview {
+  border: 1px dashed #bfd0e7;
+  border-radius: 7px;
+  padding: 12px;
+  color: #7a879d;
 }
 
-.btn-small {
-  min-height: 34px;
-  padding: 0 10px;
+.code-preview {
+  overflow: auto;
+  border-radius: 7px;
+  background: #182238;
+  color: #e8eef8;
+  padding: 12px;
+  white-space: pre;
 }
 
-.icon-btn {
-  min-width: 28px;
-  min-height: 28px;
-  padding: 0;
-  border-radius: 10px;
-  color: #4a627a;
-  font-size: 13px;
-}
-
-.icon-btn.danger {
-  border-color: #efcaca;
-  background: #fff5f5;
-  color: var(--editor-danger);
-}
-
-button:disabled,
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.empty-editor {
-  justify-items: start;
-  gap: 10px;
-}
-
-.empty-editor strong {
-  color: var(--editor-text);
-  font-size: var(--compact-section-title);
-  font-weight: 500;
-}
-
-.feedback {
-  padding: 12px 14px;
-}
-
-.feedback.error {
-  color: var(--editor-danger);
-  background: #fff8f8;
-  border-color: #efcaca;
-}
-
-.feedback.success {
-  color: var(--editor-success);
-  background: #ecfdf3;
-  border-color: #cce7d8;
-}
-
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.fade-slide-enter-from,
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-@media (max-width: 1260px) {
-  .meta-strip,
-  .studio-layout,
-  .ai-draft-panel,
-  .draft-fields,
-  .knowledge-search {
+@media (max-width: 1180px) {
+  .studio-grid,
+  .core-row,
+  .editor-grid {
     grid-template-columns: 1fr;
   }
 
-  .meta-kpis,
-  .summary-tags {
-    justify-content: center;
-    min-width: 0;
+  .question-rail {
+    position: static;
   }
 
-  .studio-sidebar {
-    position: static;
+  .meta-grid,
+  .ai-controls,
+  .bank-filters {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
-@media (max-width: 760px) {
-  .editor-hero,
-  .hero-actions,
+@media (max-width: 720px) {
+  .studio-hero,
   .panel-head,
-  .section-head,
-  .question-summary,
-  .testcase-actions,
-  .case-title {
-    display: grid;
-    justify-content: stretch;
+  .editor-head {
+    flex-direction: column;
   }
 
-  .hero-actions > *,
-  .draft-fields > *,
-  .draft-bottom-row > *,
-  .testcase-actions > *,
-  .knowledge-search > * {
+  .hero-actions,
+  .editor-tools,
+  .meta-grid,
+  .ai-controls,
+  .bank-filters {
+    display: grid;
+    grid-template-columns: 1fr;
     width: 100%;
   }
 
-  .editor-hero h2 {
-    font-size: 28px;
-  }
-
-  .question-item {
+  .case-row,
+  .option-row {
     grid-template-columns: 1fr;
-  }
-
-  .question-actions {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .draft-bottom-row,
-  .review-level-switch {
-    grid-template-columns: 1fr;
-  }
-
-  .case-fields {
-    grid-template-columns: 1fr;
-  }
-
-  .roster-panel,
-  .question-nav,
-  .ai-draft-panel,
-  .question-summary,
-  .editor-section,
-  .empty-editor {
-    padding: 18px;
   }
 }
 </style>

@@ -3,7 +3,7 @@
     <header class="hero">
       <div>
         <h1>我的作业</h1>
-        <p>查看教师发布的 Java 编程作业，提交代码并查看测试结果。</p>
+        <p>查看教师按班级发布的作业，完成选择题、填空题和编程题。</p>
       </div>
     </header>
 
@@ -53,6 +53,7 @@
           <div class="card-copy col-name">
             <h2>{{ item.title }}</h2>
             <p class="date-line">发布时间：{{ formatDateTime(item.created_at) }}</p>
+            <p>{{ assignmentTypeSummary(item) }}</p>
             <p>{{ item.description || "暂无说明" }}</p>
           </div>
 
@@ -144,6 +145,16 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function assignmentTypeSummary(item) {
+  const counts = item.question_type_counts || {};
+  const parts = [
+    counts.multiple_choice ? `选择题 ${counts.multiple_choice}` : "",
+    counts.fill_blank ? `填空题 ${counts.fill_blank}` : "",
+    counts.programming ? `编程题 ${counts.programming}` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "暂无题型统计";
 }
 
 function setPage(page) {

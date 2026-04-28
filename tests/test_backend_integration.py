@@ -1,6 +1,9 @@
 import httpx
 import pytest
 
+from backend.core.security import get_password_hash
+from backend.db.session import SessionLocal
+from backend.models.user import User
 from tests.conftest import assert_status, auth_headers, unique_name
 
 
@@ -178,3 +181,86 @@ def test_assignment_submission_integration_flow(
         item["id"] == submit_data["submission"]["id"]
         for item in submissions_response.json()
     )
+
+
+def test_mixed_assignment_class_publish_and_question_bank(
+    client: httpx.Client,
+    auto_test_prefix: str,
+    teacher_token: str,
+) -> None:
+    teacher_headers = auth_headers(teacher_token)
+    class_name = unique_name(auto_test_prefix, "class")
+    usernames = [unique_name(auto_test_prefix, f"class_student_{index}") for index in range(2)]
+    password = "AutoTest123"
+    with SessionLocal() as db:
+        for username in usernames:
+            db.add(
+                User(
+                    username=username,
+                    password_hash=get_password_hash(password),
+                    role="student",
+                    class_name=class_name,
+                )
+            )
+        db.commit()
+
+    assignment_title = unique_name(auto_test_prefix, "mixed_assignment")
+    create_response = client.post(
+        "/api/teacher/assignments",
+        headers=teacher_headers,
+        json={
+            "title": assignment_title,
+            "status": "published",
+            "class_names": [class_name],
+            "questions": [
+                {
+                    "title": f"{auto_test_prefix}选择题",
+                    "prompt": "JDBC 中提交事务通常调用哪个方法？",
+                    "question_type": "multiple_choice",
+                    "options": [
+                        {"key": "A", "text": "commit"},
+                        {"key": "B", "text": "rollback"},
+                    ],
+                    "answer": "A",
+                    "explanation": "commit 用于提交事务。",
+                },
+                {
+                    "title": f"{auto_test_prefix}填空题",
+                    "prompt": "释放 JDBC 连接通常应调用 ____ 方法。",
+                    "question_type": "fill_blank",
+                    "answer": ["close"],
+                    "explanation": "close 用于释放连接资源。",
+                },
+            ],
+        },
+    )
+    assert_status(create_response, 200)
+    assignment = create_response.json()
+    assert assignment["class_names"] == [class_name]
+    assert len(assignment["assigned_students"]) == 2
+    assert {question["question_type"] for question in assignment["questions"]} == {"multiple_choice", "fill_blank"}
+
+    bank_response = client.get(
+        "/api/teacher/assignments/question-bank",
+        headers=teacher_headers,
+        params={"keyword": auto_test_prefix},
+    )
+    assert_status(bank_response, 200)
+    bank_items = bank_response.json()
+    assert len(bank_items) >= 2
+    assert {item["question_type"] for item in bank_items} >= {"multiple_choice", "fill_blank"}
+
+    login_response = client.post("/api/auth/login", json={"username": usernames[0], "password": password})
+    assert_status(login_response, 200)
+    student_headers = auth_headers(login_response.json()["access_token"])
+    question_id = assignment["questions"][0]["id"]
+    submit_response = client.post(
+        f"/api/assignments/{assignment['id']}/questions/{question_id}/submit",
+        headers=student_headers,
+        json={"answer": "A"},
+    )
+    assert_status(submit_response, 200)
+    data = submit_response.json()
+    assert data["status"] in {"accepted", "needs_manual_review"}
+    assert data["decision_source"] == "ai_objective_review"
+    assert data["submission"]["answer"] == "A"

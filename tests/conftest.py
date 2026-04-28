@@ -18,6 +18,7 @@ from backend.models.assignment import (
     AssignmentQuestionKnowledgeNode,
     AssignmentSubmission,
     AssignmentTestCase,
+    QuestionBankItem,
 )
 from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
@@ -167,6 +168,8 @@ def cleanup_auto_test_data(prefix: str) -> None:
                 delete(AssignmentQuestion).where(AssignmentQuestion.assignment_id.in_(assignment_ids))
             )
             db.execute(delete(Assignment).where(Assignment.id.in_(assignment_ids)))
+
+        db.execute(delete(QuestionBankItem).where(QuestionBankItem.title.like(prefix_pattern, escape="\\")))
 
         if user_ids:
             db.execute(delete(User).where(User.id.in_(user_ids)))

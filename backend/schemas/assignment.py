@@ -12,10 +12,19 @@ class AssignmentTestCaseInput(BaseModel):
     sort_order: int = 0
 
 
+class AssignmentQuestionOptionInput(BaseModel):
+    key: str = Field(default="", max_length=32)
+    text: str = Field(default="", max_length=2000)
+
+
 class AssignmentQuestionInput(BaseModel):
     id: int | None = None
     title: str = Field(default="", max_length=255)
     prompt: str = Field(min_length=1)
+    question_type: str = Field(default="programming", max_length=32)
+    options: list[AssignmentQuestionOptionInput] = Field(default_factory=list)
+    answer: Any = None
+    explanation: str = Field(default="")
     starter_code: str = Field(default="")
     knowledge_node_ids: list[int] = Field(default_factory=list)
     language: str = Field(default="java", max_length=32)
@@ -34,7 +43,9 @@ class AssignmentCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str = Field(default="")
     status: str = Field(default="draft", max_length=32)
+    starts_at: datetime | None = None
     due_at: datetime | None = None
+    class_names: list[str] = Field(default_factory=list)
     student_ids: list[int] = Field(default_factory=list)
     questions: list[AssignmentQuestionInput] = Field(default_factory=list)
 
@@ -43,7 +54,9 @@ class AssignmentUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     description: str | None = None
     status: str | None = Field(default=None, max_length=32)
+    starts_at: datetime | None = None
     due_at: datetime | None = None
+    class_names: list[str] | None = None
     student_ids: list[int] | None = None
 
 
@@ -54,6 +67,9 @@ class AssignmentQuestionsUpdateRequest(BaseModel):
 class AssignmentGenerateQuestionRequest(BaseModel):
     requirement: str = Field(min_length=1, max_length=2000)
     knowledge_point: str = Field(default="", max_length=255)
+    programming_count: int = Field(default=1, ge=0, le=10)
+    multiple_choice_count: int = Field(default=0, ge=0, le=20)
+    fill_blank_count: int = Field(default=0, ge=0, le=20)
 
 
 class AssignmentGenerateTestCasesRequest(BaseModel):
@@ -70,7 +86,8 @@ class AssignmentGenerateFocusRequest(BaseModel):
 
 
 class AssignmentSubmitRequest(BaseModel):
-    code: str = Field(min_length=1)
+    code: str = Field(default="")
+    answer: Any = None
     started_at: datetime | None = None
 
 
@@ -83,6 +100,7 @@ class AssignmentAiHelpRequest(BaseModel):
 class AssignmentStudentRef(BaseModel):
     id: int
     username: str
+    class_name: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -101,6 +119,10 @@ class AssignmentQuestionResponse(BaseModel):
     id: int
     title: str
     prompt: str
+    question_type: str = "programming"
+    options: list[AssignmentQuestionOptionInput] = Field(default_factory=list)
+    answer: Any = None
+    explanation: str = ""
     starter_code: str = ""
     knowledge_node_ids: list[int] = Field(default_factory=list)
     knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
@@ -124,6 +146,7 @@ class AssignmentSubmissionResponse(BaseModel):
     question_id: int
     student_id: int
     code: str
+    answer: Any = None
     status: str
     results_json: Any = None
     ai_review_json: Any = None
@@ -146,6 +169,7 @@ class AssignmentSummaryResponse(BaseModel):
     title: str
     description: str
     status: str
+    starts_at: datetime | None = None
     due_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -153,6 +177,8 @@ class AssignmentSummaryResponse(BaseModel):
     assignee_count: int = 0
     submitted_count: int = 0
     accepted_count: int = 0
+    class_names: list[str] = Field(default_factory=list)
+    question_type_counts: dict[str, int] = Field(default_factory=dict)
 
     model_config = {"from_attributes": True}
 
@@ -162,11 +188,13 @@ class AssignmentDetailResponse(BaseModel):
     title: str
     description: str
     status: str
+    starts_at: datetime | None = None
     due_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
     questions: list[AssignmentQuestionResponse]
     assigned_students: list[AssignmentStudentRef] = Field(default_factory=list)
+    class_names: list[str] = Field(default_factory=list)
     submissions: list[AssignmentSubmissionResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
@@ -190,12 +218,17 @@ class AssignmentAiHelpResponse(BaseModel):
 
 
 class AssignmentGeneratedQuestionResponse(BaseModel):
-    title: str
-    prompt: str
+    title: str = ""
+    prompt: str = ""
+    question_type: str = "programming"
+    options: list[AssignmentQuestionOptionInput] = Field(default_factory=list)
+    answer: Any = None
+    explanation: str = ""
     language: str = "java"
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
     knowledge_node_ids: list[int] = Field(default_factory=list)
     knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
+    questions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AssignmentGeneratedFocusResponse(BaseModel):
@@ -206,6 +239,7 @@ class AssignmentGeneratedFocusResponse(BaseModel):
 class AssignmentProgressQuestionResponse(BaseModel):
     id: int
     title: str
+    question_type: str = "programming"
     sort_order: int
     knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
 
@@ -213,6 +247,7 @@ class AssignmentProgressQuestionResponse(BaseModel):
 class AssignmentProgressStudentResponse(BaseModel):
     id: int
     username: str
+    class_name: str | None = None
 
 
 class AssignmentProgressCellResponse(BaseModel):
@@ -242,6 +277,7 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     student_id: int
     student_username: str
     code: str
+    answer: Any = None
     status: str
     results_json: Any = None
     ai_review_json: Any = None
@@ -268,3 +304,32 @@ class AssignmentSubmissionHistoryResponse(BaseModel):
 class AssignmentReviewRequest(BaseModel):
     status: str = Field(pattern="^(accepted|ai_rejected|needs_manual_review)$")
     note: str = Field(default="", max_length=2000)
+
+
+class QuestionBankItemCreateRequest(AssignmentQuestionInput):
+    difficulty: str = Field(default="medium", max_length=32)
+    source: str = Field(default="manual", max_length=32)
+
+
+class QuestionBankItemResponse(BaseModel):
+    id: int
+    title: str
+    prompt: str
+    question_type: str
+    options: list[AssignmentQuestionOptionInput] = Field(default_factory=list)
+    answer: Any = None
+    explanation: str = ""
+    starter_code: str = ""
+    language: str = "java"
+    grading_mode: str = "testcase"
+    ai_grading_rubric: str = ""
+    ai_grading_focus: list[str] = Field(default_factory=list)
+    ai_grading_pass_threshold: int = 85
+    ai_grading_confidence_threshold: float = 0.85
+    test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
+    knowledge_node_ids: list[int] = Field(default_factory=list)
+    difficulty: str = "medium"
+    source: str = "assignment"
+    reuse_count: int = 0
+    created_at: datetime
+    updated_at: datetime

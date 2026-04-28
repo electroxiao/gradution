@@ -14,22 +14,27 @@ from backend.schemas.assignment import (
     AssignmentReviewRequest,
     AssignmentSubmitRequest,
     AssignmentUpdateRequest,
+    QuestionBankItemCreateRequest,
 )
 from backend.services.assignment_service import (
     assignment_ai_help,
     assignment_ai_help_stream,
     create_assignment,
+    create_question_bank_item,
     generate_assignment_focus,
     generate_assignment_question,
+    generate_assignment_questions,
     generate_assignment_test_cases,
     get_student_assignment_detail,
     get_teacher_assignment_detail,
     get_teacher_assignment_progress,
     get_teacher_submission_detail,
     list_teacher_question_submissions,
+    list_question_bank_items,
     list_student_assignments,
     list_student_submissions,
     list_teacher_assignments,
+    reuse_question_bank_item,
     review_assignment_submission,
     submit_assignment_question,
     update_assignment,
@@ -66,6 +71,15 @@ def post_generate_assignment_question(
     return generate_assignment_question(db, payload)
 
 
+@teacher_router.post("/generate-questions")
+def post_generate_assignment_questions(
+    payload: AssignmentGenerateQuestionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return generate_assignment_questions(db, payload)
+
+
 @teacher_router.post("/generate-testcases")
 def post_generate_assignment_test_cases(
     payload: AssignmentGenerateTestCasesRequest,
@@ -80,6 +94,36 @@ def post_generate_assignment_focus(
     current_user: User = Depends(get_current_teacher),
 ):
     return generate_assignment_focus(payload)
+
+
+@teacher_router.get("/question-bank")
+def get_question_bank(
+    keyword: str = "",
+    question_type: str = "",
+    difficulty: str = "",
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return list_question_bank_items(db, current_user, keyword, question_type, difficulty, limit)
+
+
+@teacher_router.post("/question-bank")
+def post_question_bank_item(
+    payload: QuestionBankItemCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return create_question_bank_item(db, current_user, payload)
+
+
+@teacher_router.post("/question-bank/{item_id}/reuse")
+def post_question_bank_reuse(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    return reuse_question_bank_item(db, current_user, item_id)
 
 
 @teacher_router.get("/{assignment_id}/progress")
@@ -186,7 +230,7 @@ def post_assignment_submission(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return submit_assignment_question(db, current_user, assignment_id, question_id, payload.code, payload.started_at)
+    return submit_assignment_question(db, current_user, assignment_id, question_id, payload.code, payload.started_at, payload.answer)
 
 
 @student_router.post("/{assignment_id}/questions/{question_id}/ai-help")

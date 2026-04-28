@@ -1,5 +1,6 @@
 import json
 import re
+import hashlib
 from datetime import datetime
 from difflib import SequenceMatcher
 
@@ -15,6 +16,7 @@ from backend.models.assignment import (
     AssignmentQuestionKnowledgeNode,
     AssignmentSubmission,
     AssignmentTestCase,
+    QuestionBankItem,
 )
 from backend.models.knowledge import KnowledgeNode
 from backend.models.knowledge_state import UserConceptMastery
@@ -44,6 +46,8 @@ from backend.schemas.assignment import (
     AssignmentSummaryResponse,
     AssignmentTestCaseInput,
     AssignmentUpdateRequest,
+    QuestionBankItemCreateRequest,
+    QuestionBankItemResponse,
 )
 from backend.services import rag_engine
 from backend.services.chat_service import get_neo4j_driver, get_openai_client
@@ -56,6 +60,7 @@ VALID_ASSIGNMENT_STATUSES = {"draft", "published", "closed"}
 VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid", "observed_ai"}
 VALID_AI_REVIEW_LEVELS = {"light", "deep"}
 VALID_REVIEW_STATUSES = {"accepted", "ai_rejected", "needs_manual_review"}
+VALID_QUESTION_TYPES = {"programming", "multiple_choice", "fill_blank"}
 DEFAULT_AI_GRADING_PASS_THRESHOLD = 85
 DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD = 0.85
 FAST_PASS_THRESHOLD_SECONDS = 60
@@ -81,12 +86,14 @@ def create_assignment(db: Session, teacher: User, payload: AssignmentCreateReque
         description=payload.description,
         teacher_id=teacher.id,
         status=payload.status,
+        starts_at=payload.starts_at,
         due_at=payload.due_at,
     )
     db.add(assignment)
     db.flush()
-    _replace_assignees(db, assignment, payload.student_ids)
+    _replace_assignees(db, assignment, _resolve_assignee_student_ids(db, payload.student_ids, payload.class_names))
     _sync_questions(db, assignment, payload.questions)
+    _sync_assignment_questions_to_bank(db, teacher, assignment)
     db.commit()
     return get_teacher_assignment_detail(db, teacher, assignment.id)
 
@@ -110,10 +117,16 @@ def update_assignment(
     if payload.status is not None:
         _validate_status(payload.status)
         assignment.status = payload.status
+    if "starts_at" in payload.model_fields_set:
+        assignment.starts_at = payload.starts_at
     if "due_at" in payload.model_fields_set:
         assignment.due_at = payload.due_at
-    if payload.student_ids is not None:
-        _replace_assignees(db, assignment, payload.student_ids)
+    if payload.student_ids is not None or payload.class_names is not None:
+        _replace_assignees(
+            db,
+            assignment,
+            _resolve_assignee_student_ids(db, payload.student_ids or [], payload.class_names or []),
+        )
     db.commit()
     return get_teacher_assignment_detail(db, teacher, assignment_id)
 
@@ -126,11 +139,15 @@ def update_assignment_questions(
 ) -> AssignmentDetailResponse:
     assignment = _get_teacher_assignment(db, teacher, assignment_id)
     _sync_questions(db, assignment, payload.questions)
+    _sync_assignment_questions_to_bank(db, teacher, assignment)
     db.commit()
     return get_teacher_assignment_detail(db, teacher, assignment_id)
 
 
 def generate_assignment_question(db: Session, payload: AssignmentGenerateQuestionRequest) -> AssignmentGeneratedQuestionResponse:
+    requested_total = payload.programming_count + payload.multiple_choice_count + payload.fill_blank_count
+    if requested_total != 1 or payload.programming_count != 1:
+        return generate_assignment_questions(db, payload)
     prompt = f"""
 你是一名 Java 编程作业设计助手。请根据教师要求生成一道 Java 编程题草稿和 2 到 4 个测试用例。
 
@@ -179,6 +196,7 @@ JSON 格式：
         return AssignmentGeneratedQuestionResponse(
             title=title,
             prompt=prompt_text,
+            question_type="programming",
             language="java",
             test_cases=test_cases,
             knowledge_node_ids=[item["id"] for item in knowledge_nodes],
@@ -189,6 +207,97 @@ JSON 格式：
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"生成题目失败：{error}",
         ) from error
+
+
+def generate_assignment_questions(db: Session, payload: AssignmentGenerateQuestionRequest) -> AssignmentGeneratedQuestionResponse:
+    requested_total = payload.programming_count + payload.multiple_choice_count + payload.fill_blank_count
+    if requested_total <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="至少需要生成一道题目。")
+    prompt = f"""
+你是一名 Java 课程作业设计助手。请根据教师要求一次生成多道作业题，支持编程题、选择题和填空题。
+
+知识点：{payload.knowledge_point or "未指定"}
+教师要求：{payload.requirement}
+
+数量：
+- 编程题：{payload.programming_count}
+- 选择题：{payload.multiple_choice_count}
+- 填空题：{payload.fill_blank_count}
+
+要求：
+1. 只返回 JSON，不要解释。
+2. question_type 只能是 programming、multiple_choice、fill_blank。
+3. 编程题面向 Java 初学者，主类固定 Main，给出 2 到 4 个测试用例。
+4. 选择题 options 使用 key/text，answer 填正确 key，可单选。
+5. 填空题 answer 填参考答案字符串或字符串数组，explanation 给简短解析。
+
+JSON 格式：
+{{
+  "questions": [
+    {{
+      "title": "题目标题",
+      "prompt": "题目描述",
+      "question_type": "multiple_choice",
+      "options": [{{"key": "A", "text": "选项"}}],
+      "answer": "A",
+      "explanation": "解析",
+      "language": "java",
+      "test_cases": []
+    }}
+  ]
+}}
+"""
+    client = get_openai_client()
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+        )
+        data = _parse_json_object(response.choices[0].message.content or "")
+        raw_questions = data.get("questions") if isinstance(data.get("questions"), list) else []
+        questions = []
+        for index, raw in enumerate(raw_questions):
+            if not isinstance(raw, dict):
+                continue
+            question_type = _normalize_question_type(raw.get("question_type"))
+            title = str(raw.get("title") or f"题目 {index + 1}").strip()
+            prompt_text = str(raw.get("prompt") or payload.requirement).strip()
+            knowledge_nodes = _recommend_assignment_knowledge_nodes(db, title, prompt_text, payload)
+            questions.append(
+                {
+                    "title": title,
+                    "prompt": prompt_text,
+                    "question_type": question_type,
+                    "options": _normalize_options(raw.get("options")),
+                    "answer": _normalize_answer(raw.get("answer")),
+                    "explanation": str(raw.get("explanation") or "").strip(),
+                    "language": "java",
+                    "test_cases": _normalize_generated_test_cases(raw.get("test_cases"), question_type),
+                    "knowledge_node_ids": [item["id"] for item in knowledge_nodes],
+                    "knowledge_nodes": knowledge_nodes,
+                }
+            )
+        if not questions:
+            raise ValueError("大模型未返回有效题目。")
+        first = questions[0]
+        return AssignmentGeneratedQuestionResponse(
+            title=first["title"],
+            prompt=first["prompt"],
+            question_type=first["question_type"],
+            options=first["options"],
+            answer=first["answer"],
+            explanation=first["explanation"],
+            language="java",
+            test_cases=first["test_cases"],
+            knowledge_node_ids=first["knowledge_node_ids"],
+            knowledge_nodes=first["knowledge_nodes"],
+            questions=questions,
+        )
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"生成题目失败：{error}") from error
 
 
 def _recommend_assignment_knowledge_nodes(
@@ -377,6 +486,43 @@ JSON 格式：
         ) from error
 
 
+def list_question_bank_items(
+    db: Session,
+    teacher: User,
+    keyword: str = "",
+    question_type: str = "",
+    difficulty: str = "",
+    limit: int = 50,
+) -> list[QuestionBankItemResponse]:
+    query = db.query(QuestionBankItem).filter(QuestionBankItem.teacher_id == teacher.id)
+    if keyword.strip():
+        like = f"%{keyword.strip()}%"
+        query = query.filter((QuestionBankItem.title.like(like)) | (QuestionBankItem.prompt.like(like)))
+    if question_type.strip():
+        query = query.filter(QuestionBankItem.question_type == _normalize_question_type(question_type))
+    if difficulty.strip():
+        query = query.filter(QuestionBankItem.difficulty == difficulty.strip())
+    rows = query.order_by(QuestionBankItem.updated_at.desc(), QuestionBankItem.id.desc()).limit(limit).all()
+    return [_question_bank_item_response(row) for row in rows]
+
+
+def create_question_bank_item(db: Session, teacher: User, payload: QuestionBankItemCreateRequest) -> QuestionBankItemResponse:
+    row = _upsert_question_bank_item(db, teacher, payload, source=payload.source or "manual", increment_reuse=False)
+    db.commit()
+    db.refresh(row)
+    return _question_bank_item_response(row)
+
+
+def reuse_question_bank_item(db: Session, teacher: User, item_id: int) -> QuestionBankItemResponse:
+    row = db.query(QuestionBankItem).filter(QuestionBankItem.id == item_id, QuestionBankItem.teacher_id == teacher.id).first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="题库题目不存在。")
+    row.reuse_count = int(row.reuse_count or 0) + 1
+    db.commit()
+    db.refresh(row)
+    return _question_bank_item_response(row)
+
+
 def list_student_assignments(db: Session, student: User) -> list[AssignmentSummaryResponse]:
     assignments = (
         db.query(Assignment)
@@ -402,9 +548,13 @@ def submit_assignment_question(
     question_id: int,
     code: str,
     started_at: datetime | None = None,
+    answer=None,
 ) -> AssignmentRunResultResponse:
     assignment = _get_student_assignment(db, student, assignment_id)
     question = _get_assignment_question(assignment, question_id)
+    question_type = _normalize_question_type(question.question_type)
+    if question_type != "programming":
+        return _submit_objective_assignment_question(db, student, assignment, question, answer, started_at)
     if question.language != "java":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前仅支持 Java 作业。")
     if _normalize_grading_mode(question.grading_mode) in {"testcase", "hybrid"} and not question.test_cases:
@@ -423,6 +573,7 @@ def submit_assignment_question(
         question_id=question.id,
         student_id=student.id,
         code=code,
+        answer_json=None,
         status=status_value,
         results_json=results,
         ai_review_json=ai_review,
@@ -434,6 +585,62 @@ def submit_assignment_question(
         started_at=started_at,
         duration_seconds=duration_seconds,
         submitted_at=submitted_at,
+    )
+
+
+def _submit_objective_assignment_question(
+    db: Session,
+    student: User,
+    assignment: Assignment,
+    question: AssignmentQuestion,
+    answer,
+    started_at: datetime | None = None,
+) -> AssignmentRunResultResponse:
+    if answer is None or (isinstance(answer, str) and not answer.strip()):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先填写答案。")
+    submitted_at = datetime.now()
+    previous_submission = _get_previous_submission(db, student.id, assignment.id, question.id)
+    started_at = _resolve_submission_started_at(started_at, previous_submission)
+    duration_seconds = _duration_seconds(started_at, submitted_at)
+    normalized_answer = _normalize_answer(answer)
+    ai_review = _run_ai_objective_review(assignment, question, normalized_answer)
+    status_value = _resolve_ai_only_status(question, ai_review)
+    results = [
+        {
+            "case_index": 1,
+            "status": status_value,
+            "check_mode": "ai_objective_review",
+            "summary": ai_review.get("summary") if isinstance(ai_review, dict) else "",
+        }
+    ]
+    submission = AssignmentSubmission(
+        assignment_id=assignment.id,
+        question_id=question.id,
+        student_id=student.id,
+        code="",
+        answer_json=normalized_answer,
+        status=status_value,
+        results_json=results,
+        ai_review_json=ai_review,
+        final_decision_source="ai_objective_review",
+        teacher_review_status="pending" if status_value == "needs_manual_review" else None,
+        excluded_from_mastery_update=False,
+        started_at=started_at,
+        duration_seconds=duration_seconds,
+        submitted_at=submitted_at,
+    )
+    db.add(submission)
+    db.flush()
+    _apply_submission_mastery_evidence(db, student, question, submission)
+    db.commit()
+    db.refresh(submission)
+    return AssignmentRunResultResponse(
+        submission=_submission_to_response(submission),
+        status=status_value,
+        results=results,
+        ai_review=ai_review,
+        decision_source="ai_objective_review",
+        manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
     )
     db.add(submission)
     db.flush()
@@ -522,6 +729,7 @@ def get_teacher_assignment_progress(db: Session, teacher: User, assignment_id: i
             AssignmentProgressQuestionResponse(
                 id=question.id,
                 title=question.title or f"第 {index + 1} 题",
+                question_type=_normalize_question_type(question.question_type),
                 sort_order=question.sort_order,
                 knowledge_nodes=[
                     {"id": relation.knowledge_node.id, "node_name": relation.knowledge_node.node_name}
@@ -532,7 +740,7 @@ def get_teacher_assignment_progress(db: Session, teacher: User, assignment_id: i
             for index, question in enumerate(questions)
         ],
         students=[
-            AssignmentProgressStudentResponse(id=assignee.student_id, username=assignee.student.username)
+            AssignmentProgressStudentResponse(id=assignee.student_id, username=assignee.student.username, class_name=assignee.student.class_name)
             for assignee in assignees
         ],
         cells=cells,
@@ -607,6 +815,7 @@ def _teacher_submission_detail_response(submission: AssignmentSubmission) -> Ass
         student_id=submission.student_id,
         student_username=submission.student.username if submission.student else "",
         code=submission.code,
+        answer=submission.answer_json,
         status=submission.status,
         results_json=submission.results_json,
         ai_review_json=submission.ai_review_json,
@@ -917,21 +1126,35 @@ def _replace_assignees(db: Session, assignment: Assignment, student_ids: list[in
         db.add(AssignmentAssignee(assignment_id=assignment.id, student_id=student_id))
 
 
+def _resolve_assignee_student_ids(db: Session, student_ids: list[int], class_names: list[str]) -> list[int]:
+    resolved = set(int(item) for item in student_ids if str(item).strip())
+    normalized_classes = [item.strip() for item in class_names if str(item).strip()]
+    if normalized_classes:
+        class_student_ids = db.query(User.id).filter(User.role == "student", User.class_name.in_(normalized_classes)).all()
+        resolved.update(int(row.id) for row in class_student_ids)
+    return sorted(resolved)
+
+
 def _sync_questions(db: Session, assignment: Assignment, payload_questions: list[AssignmentQuestionInput]) -> None:
     existing = {question.id: question for question in assignment.questions}
     keep_ids: set[int] = set()
 
     for index, item in enumerate(payload_questions):
-        if item.language != "java":
+        question_type = _normalize_question_type(item.question_type)
+        if question_type == "programming" and item.language != "java":
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前仅支持 Java 题目。")
         ai_review_level = _normalize_ai_review_level(item.ai_review_level)
-        grading_mode = _resolve_grading_mode(item)
+        grading_mode = _resolve_grading_mode(item) if question_type == "programming" else "ai_review"
         sort_order = item.sort_order if item.sort_order is not None else index
         if item.id and item.id in existing:
             question = existing[item.id]
             keep_ids.add(question.id)
             question.title = item.title
             question.prompt = item.prompt
+            question.question_type = question_type
+            question.options_json = [option.model_dump() for option in item.options]
+            question.answer_json = _normalize_answer(item.answer)
+            question.explanation = item.explanation or ""
             question.starter_code = item.starter_code or ""
             question.language = "java"
             question.grading_mode = grading_mode
@@ -945,6 +1168,10 @@ def _sync_questions(db: Session, assignment: Assignment, payload_questions: list
                 assignment=assignment,
                 title=item.title,
                 prompt=item.prompt,
+                question_type=question_type,
+                options_json=[option.model_dump() for option in item.options],
+                answer_json=_normalize_answer(item.answer),
+                explanation=item.explanation or "",
                 starter_code=item.starter_code or "",
                 language="java",
                 grading_mode=grading_mode,
@@ -957,7 +1184,7 @@ def _sync_questions(db: Session, assignment: Assignment, payload_questions: list
             db.add(question)
             db.flush()
             keep_ids.add(question.id)
-        _sync_test_cases(db, question, item.test_cases)
+        _sync_test_cases(db, question, item.test_cases if question_type == "programming" else [])
         _sync_question_knowledge_nodes(db, question, item.knowledge_node_ids)
 
     for question in list(assignment.questions):
@@ -1034,6 +1261,7 @@ def _assignment_summary(db: Session, assignment: Assignment, student: User | Non
         title=assignment.title,
         description=assignment.description,
         status=assignment.status,
+        starts_at=assignment.starts_at,
         due_at=assignment.due_at,
         created_at=assignment.created_at,
         updated_at=assignment.updated_at,
@@ -1041,6 +1269,8 @@ def _assignment_summary(db: Session, assignment: Assignment, student: User | Non
         assignee_count=len(assignment.assignees),
         submitted_count=submitted_count,
         accepted_count=accepted_count,
+        class_names=sorted({item.student.class_name for item in assignment.assignees if item.student and item.student.class_name}),
+        question_type_counts=_question_type_counts(assignment),
     )
 
 
@@ -1077,6 +1307,10 @@ def _assignment_detail(
                     "id": question.id,
                     "title": question.title,
                     "prompt": question.prompt,
+                    "question_type": _normalize_question_type(question.question_type),
+                    "options": _normalize_options(question.options_json),
+                    "answer": question.answer_json if teacher_view else None,
+                    "explanation": question.explanation or "",
                     "starter_code": question.starter_code or "",
                     "knowledge_node_ids": [item["id"] for item in knowledge_nodes],
                     "knowledge_nodes": knowledge_nodes,
@@ -1111,6 +1345,7 @@ def _assignment_detail(
         title=assignment.title,
         description=assignment.description,
         status=assignment.status,
+        starts_at=assignment.starts_at,
         due_at=assignment.due_at,
         created_at=assignment.created_at,
         updated_at=assignment.updated_at,
@@ -1120,6 +1355,11 @@ def _assignment_detail(
             for item in assignment.assignees
             if teacher_view and item.student
         ],
+        class_names=sorted({
+            item.student.class_name
+            for item in assignment.assignees
+            if item.student and item.student.class_name
+        }),
         submissions=[_submission_to_response(item) for item in submissions],
     )
 
@@ -1167,6 +1407,183 @@ def _normalize_grading_mode(value: str | None) -> str:
             detail="判题模式必须是 testcase、observed_ai、ai_review 或 hybrid。",
         )
     return value
+
+
+def _normalize_question_type(value: str | None) -> str:
+    normalized = (value or "programming").strip().lower()
+    if normalized not in VALID_QUESTION_TYPES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="题型必须是 programming、multiple_choice 或 fill_blank。")
+    return normalized
+
+
+def _normalize_options(value) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    options = []
+    for index, item in enumerate(value):
+        if isinstance(item, dict):
+            key = str(item.get("key") or chr(65 + index)).strip()
+            text = str(item.get("text") or "").strip()
+        else:
+            key = chr(65 + index)
+            text = str(item).strip()
+        if text:
+            options.append({"key": key, "text": text})
+    return options
+
+
+def _normalize_answer(value):
+    if value is None:
+        return None
+    if isinstance(value, (list, dict)):
+        return value
+    return str(value).strip()
+
+
+def _normalize_generated_test_cases(value, question_type: str) -> list[AssignmentTestCaseInput]:
+    if question_type != "programming" or not isinstance(value, list):
+        return []
+    return [
+        AssignmentTestCaseInput(
+            input_data=str(item.get("input_data") or ""),
+            expected_output=str(item.get("expected_output") or ""),
+            is_sample=bool(item.get("is_sample", index == 0)),
+            sort_order=int(item.get("sort_order", index) or index),
+        )
+        for index, item in enumerate(value)
+        if isinstance(item, dict)
+    ]
+
+
+def _question_type_counts(assignment: Assignment) -> dict[str, int]:
+    counts = {"programming": 0, "multiple_choice": 0, "fill_blank": 0}
+    for question in assignment.questions:
+        question_type = _normalize_question_type(question.question_type)
+        counts[question_type] = counts.get(question_type, 0) + 1
+    return counts
+
+
+def _sync_assignment_questions_to_bank(db: Session, teacher: User, assignment: Assignment) -> None:
+    for question in assignment.questions:
+        payload = QuestionBankItemCreateRequest(
+            title=question.title or "",
+            prompt=question.prompt,
+            question_type=_normalize_question_type(question.question_type),
+            options=_normalize_options(question.options_json),
+            answer=question.answer_json,
+            explanation=question.explanation or "",
+            starter_code=question.starter_code or "",
+            knowledge_node_ids=[
+                relation.knowledge_node_id
+                for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
+            ],
+            language=question.language or "java",
+            grading_mode=_normalize_grading_mode(question.grading_mode),
+            ai_grading_rubric=question.ai_grading_rubric or "",
+            ai_grading_focus=_normalize_ai_focus(question.ai_grading_focus_json),
+            ai_grading_pass_threshold=question.ai_grading_pass_threshold or DEFAULT_AI_GRADING_PASS_THRESHOLD,
+            ai_grading_confidence_threshold=question.ai_grading_confidence_threshold or DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD,
+            test_cases=[
+                AssignmentTestCaseInput(
+                    input_data=test_case.input_data or "",
+                    expected_output=test_case.expected_output or "",
+                    is_sample=test_case.is_sample,
+                    sort_order=test_case.sort_order,
+                )
+                for test_case in sorted(question.test_cases, key=lambda item: (item.sort_order, item.id))
+            ],
+            source="assignment",
+        )
+        _upsert_question_bank_item(db, teacher, payload, source="assignment", increment_reuse=False)
+
+
+def _upsert_question_bank_item(
+    db: Session,
+    teacher: User,
+    payload: QuestionBankItemCreateRequest,
+    source: str = "assignment",
+    increment_reuse: bool = False,
+) -> QuestionBankItem:
+    question_type = _normalize_question_type(payload.question_type)
+    content_hash = _question_bank_content_hash(teacher.id, question_type, payload.title, payload.prompt)
+    row = (
+        db.query(QuestionBankItem)
+        .filter(QuestionBankItem.teacher_id == teacher.id, QuestionBankItem.content_hash == content_hash)
+        .first()
+    )
+    values = {
+        "title": payload.title.strip() or "未命名题目",
+        "prompt": payload.prompt.strip(),
+        "question_type": question_type,
+        "options_json": [option.model_dump() if hasattr(option, "model_dump") else option for option in payload.options],
+        "answer_json": _normalize_answer(payload.answer),
+        "explanation": payload.explanation or "",
+        "starter_code": payload.starter_code or "",
+        "language": "java",
+        "grading_mode": _resolve_grading_mode(payload) if question_type == "programming" else "ai_review",
+        "ai_grading_rubric": (payload.ai_grading_rubric or "").strip(),
+        "ai_grading_focus_json": _normalize_ai_focus(payload.ai_grading_focus),
+        "ai_grading_pass_threshold": payload.ai_grading_pass_threshold,
+        "ai_grading_confidence_threshold": payload.ai_grading_confidence_threshold,
+        "test_cases_json": [item.model_dump() if hasattr(item, "model_dump") else item for item in payload.test_cases],
+        "knowledge_node_ids_json": [int(item) for item in payload.knowledge_node_ids if str(item).strip()],
+        "difficulty": (payload.difficulty or "medium").strip(),
+        "source": source,
+    }
+    if row:
+        for key, value in values.items():
+            setattr(row, key, value)
+        if increment_reuse:
+            row.reuse_count = int(row.reuse_count or 0) + 1
+        return row
+    row = QuestionBankItem(teacher_id=teacher.id, content_hash=content_hash, reuse_count=1 if increment_reuse else 0, **values)
+    db.add(row)
+    db.flush()
+    return row
+
+
+def _question_bank_content_hash(teacher_id: int, question_type: str, title: str, prompt: str) -> str:
+    raw = json.dumps(
+        {
+            "teacher_id": teacher_id,
+            "question_type": question_type,
+            "title": (title or "").strip(),
+            "prompt": (prompt or "").strip(),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _question_bank_item_response(row: QuestionBankItem) -> QuestionBankItemResponse:
+    return QuestionBankItemResponse(
+        id=row.id,
+        title=row.title,
+        prompt=row.prompt,
+        question_type=_normalize_question_type(row.question_type),
+        options=_normalize_options(row.options_json),
+        answer=row.answer_json,
+        explanation=row.explanation or "",
+        starter_code=row.starter_code or "",
+        language=row.language or "java",
+        grading_mode=_normalize_grading_mode(row.grading_mode),
+        ai_grading_rubric=row.ai_grading_rubric or "",
+        ai_grading_focus=_normalize_ai_focus(row.ai_grading_focus_json),
+        ai_grading_pass_threshold=row.ai_grading_pass_threshold or DEFAULT_AI_GRADING_PASS_THRESHOLD,
+        ai_grading_confidence_threshold=float(row.ai_grading_confidence_threshold or DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD),
+        test_cases=[
+            AssignmentTestCaseInput(**item)
+            for item in (row.test_cases_json if isinstance(row.test_cases_json, list) else [])
+            if isinstance(item, dict)
+        ],
+        knowledge_node_ids=[int(item) for item in (row.knowledge_node_ids_json if isinstance(row.knowledge_node_ids_json, list) else []) if str(item).strip()],
+        difficulty=row.difficulty or "medium",
+        source=row.source or "assignment",
+        reuse_count=int(row.reuse_count or 0),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
 
 
 def _normalize_ai_review_level(value: str | None) -> str:
@@ -1225,6 +1642,7 @@ def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmi
         question_id=submission.question_id,
         student_id=submission.student_id,
         code=submission.code,
+        answer=submission.answer_json,
         status=submission.status,
         results_json=submission.results_json,
         ai_review_json=submission.ai_review_json,
@@ -2024,6 +2442,73 @@ def _run_ai_code_review(
     except Exception as error:
         fallback["summary"] = f"AI 判题失败：{error}"
         return fallback
+
+
+def _run_ai_objective_review(assignment: Assignment, question: AssignmentQuestion, answer) -> dict:
+    client = get_openai_client()
+    prompt = f"""
+你是一名 Java 课程客观题判分助手。请根据题目、标准答案和学生答案进行语义判分。
+
+要求：
+1. 只返回 JSON，不要解释。
+2. decision 只能是 accepted、ai_rejected、needs_manual_review。
+3. 选择题若学生选择与标准答案一致，应 accepted；若明显不一致，应 ai_rejected。
+4. 填空题允许语义等价、同义表达或合理格式差异；不确定时 needs_manual_review。
+5. 输出 score、confidence、summary、issues、strengths、diagnoses、manual_review_required。
+
+作业：{assignment.title}
+题型：{_normalize_question_type(question.question_type)}
+题目：{question.title}
+题干：
+{question.prompt}
+选项：
+{json.dumps(_normalize_options(question.options_json), ensure_ascii=False)}
+标准答案：
+{json.dumps(question.answer_json, ensure_ascii=False)}
+解析：
+{question.explanation or ""}
+学生答案：
+{json.dumps(answer, ensure_ascii=False)}
+
+返回 JSON 格式：
+{{
+  "decision": "accepted",
+  "score": 90,
+  "confidence": 0.92,
+  "summary": "简要说明",
+  "issues": [],
+  "strengths": [],
+  "diagnoses": [],
+  "manual_review_required": false
+}}
+"""
+    fallback = _local_objective_review(question, answer)
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.15,
+        )
+        return _normalize_ai_review_payload(_parse_json_object(response.choices[0].message.content or ""))
+    except Exception:
+        return fallback
+
+
+def _local_objective_review(question: AssignmentQuestion, answer) -> dict:
+    expected = question.answer_json
+    answer_text = json.dumps(answer, ensure_ascii=False, sort_keys=True) if isinstance(answer, (list, dict)) else str(answer or "").strip()
+    expected_text = json.dumps(expected, ensure_ascii=False, sort_keys=True) if isinstance(expected, (list, dict)) else str(expected or "").strip()
+    is_match = answer_text.lower().replace(" ", "") == expected_text.lower().replace(" ", "")
+    return {
+        "decision": "accepted" if is_match else "needs_manual_review",
+        "score": 100 if is_match else 0,
+        "confidence": 0.9 if is_match else 0.2,
+        "summary": "答案与标准答案一致。" if is_match else "AI 判题暂时不可用，已转入人工复核。",
+        "issues": [] if is_match else ["无法完成语义判分。"],
+        "strengths": ["答案匹配。"] if is_match else [],
+        "diagnoses": [],
+        "manual_review_required": not is_match,
+    }
 
 
 def _enrich_prompt_with_graph_context(question: AssignmentQuestion) -> list[str]:

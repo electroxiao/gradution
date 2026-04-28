@@ -23,7 +23,8 @@
         </div>
 
         <section v-if="activeQuestion" class="problem-content">
-          <h2>{{ activeQuestion.title || "编程题" }}</h2>
+          <h2>{{ activeQuestion.title || questionTypeText(activeQuestion.question_type) }}</h2>
+          <span class="question-type-badge">{{ questionTypeText(activeQuestion.question_type) }}</span>
           <MarkdownContent :content="activeQuestion.prompt" />
 
           <div v-if="sampleCases.length" class="sample-list">
@@ -42,10 +43,10 @@
       <section v-if="activeQuestion" ref="editorPane" class="editor-pane" :class="{ 'has-result': lastResult }">
         <header class="editor-toolbar">
           <div>
-            <h2>Main.java</h2>
+            <h2>{{ answerPaneTitle }}</h2>
           </div>
           <div class="toolbar-actions">
-            <span class="language-pill">Java</span>
+            <span class="language-pill">{{ questionTypeText(activeQuestion.question_type) }}</span>
             <span class="draft-pill">已自动保存</span>
             <button type="button" class="secondary-btn" @click="showAiPanel = !showAiPanel">
               {{ showAiPanel ? "收起 AI" : "AI 助教" }}
@@ -53,14 +54,29 @@
             <button type="button" class="secondary-btn" :disabled="loadingPreviousResult" @click="showPreviousSubmissionResult">
               {{ loadingPreviousResult ? "加载中..." : "查看上次提交" }}
             </button>
-            <button type="button" class="primary-btn" :disabled="submitting || !activeCode.trim()" @click="submitCode">
-              {{ submitting ? "运行中..." : "提交运行" }}
+            <button type="button" class="primary-btn" :disabled="submitting || !canSubmitAnswer" @click="submitAnswer">
+              {{ submitting ? "提交中..." : submitButtonText }}
             </button>
           </div>
         </header>
 
-        <div class="editor-shell">
+        <div v-if="isProgrammingQuestion" class="editor-shell">
           <CodeEditor v-model="activeCode" />
+        </div>
+        <div v-else-if="activeQuestion.question_type === 'multiple_choice'" class="objective-shell">
+          <label
+            v-for="option in activeQuestion.options || []"
+            :key="option.key"
+            class="choice-option"
+            :class="{ selected: objectiveAnswer === option.key }"
+          >
+            <input v-model="objectiveAnswer" type="radio" :value="option.key" />
+            <span>{{ option.key }}</span>
+            <p>{{ option.text }}</p>
+          </label>
+        </div>
+        <div v-else class="objective-shell">
+          <textarea v-model="objectiveAnswer" rows="10" placeholder="请输入你的答案，系统会结合参考答案进行 AI 语义判分。" />
         </div>
 
         <div v-if="lastResult" class="result-resize-handle" @pointerdown="startResultResize" />
@@ -232,6 +248,7 @@ const authStore = useAuthStore();
 const assignment = ref(null);
 const activeQuestion = ref(null);
 const codeByQuestion = ref({});
+const answerByQuestion = ref({});
 const startedAtByQuestion = ref({});
 const lastResultByQuestion = ref({});
 const aiMessage = ref("");
@@ -253,6 +270,23 @@ const aiPaneWidth = ref(360);
 const resultPaneHeight = ref(0);
 
 const sampleCases = computed(() => activeQuestion.value?.test_cases?.filter((item) => item.is_sample) || []);
+const isProgrammingQuestion = computed(() => (activeQuestion.value?.question_type || "programming") === "programming");
+const answerPaneTitle = computed(() => isProgrammingQuestion.value ? "Main.java" : "作答区");
+const submitButtonText = computed(() => isProgrammingQuestion.value ? "提交运行" : "提交答案");
+const objectiveAnswer = computed({
+  get() {
+    if (!activeQuestion.value) return "";
+    return answerByQuestion.value[activeQuestion.value.id] ?? "";
+  },
+  set(value) {
+    if (!activeQuestion.value) return;
+    answerByQuestion.value[activeQuestion.value.id] = value;
+  },
+});
+const canSubmitAnswer = computed(() => {
+  if (!activeQuestion.value) return false;
+  return isProgrammingQuestion.value ? activeCode.value.trim() : String(objectiveAnswer.value || "").trim();
+});
 const aiConcepts = computed(() => {
   const names = new Set(aiKeywords.value.map((item) => String(item)).filter(Boolean));
   for (const fact of aiFacts.value) {
@@ -325,8 +359,11 @@ async function loadAssignment() {
 
 function selectQuestion(question) {
   activeQuestion.value = question;
-  if (!(question.id in codeByQuestion.value)) {
+  if ((question.question_type || "programming") === "programming" && !(question.id in codeByQuestion.value)) {
     codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? resolveStarterCode(question);
+  }
+  if ((question.question_type || "programming") !== "programming" && !(question.id in answerByQuestion.value)) {
+    answerByQuestion.value[question.id] = "";
   }
   if (!startedAtByQuestion.value[question.id]) {
     const startedAt = loadStartedAt(question.id) || new Date().toISOString();
@@ -337,14 +374,19 @@ function selectQuestion(question) {
   clearAiHelp();
 }
 
-async function submitCode() {
+async function submitAnswer() {
   submitting.value = true;
   errorMessage.value = "";
   try {
-    const { data } = await submitAssignmentQuestionApi(assignment.value.id, activeQuestion.value.id, {
-      code: activeCode.value,
+    const payload = {
       started_at: startedAtByQuestion.value[activeQuestion.value.id],
-    });
+    };
+    if (isProgrammingQuestion.value) {
+      payload.code = activeCode.value;
+    } else {
+      payload.answer = objectiveAnswer.value;
+    }
+    const { data } = await submitAssignmentQuestionApi(assignment.value.id, activeQuestion.value.id, payload);
     ensureDefaultResultPaneHeight();
     lastResultByQuestion.value[activeQuestion.value.id] = data;
     if (data.submission?.submitted_at) {
@@ -352,7 +394,7 @@ async function submitCode() {
       saveStartedAt(activeQuestion.value.id, data.submission.submitted_at);
     }
   } catch (error) {
-    handleApiError(error, "提交运行失败。");
+    handleApiError(error, "提交失败。");
   } finally {
     submitting.value = false;
   }
@@ -584,6 +626,14 @@ function statusText(status) {
     published: "已发布",
     closed: "已关闭",
   }[status] || status;
+}
+
+function questionTypeText(value) {
+  return {
+    programming: "编程题",
+    multiple_choice: "选择题",
+    fill_blank: "填空题",
+  }[value || "programming"] || "编程题";
 }
 
 function decisionSourceText(value) {
@@ -863,6 +913,74 @@ pre {
   min-height: 0;
   padding: 8px;
   overflow: hidden;
+}
+
+.objective-shell {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  background: #f8fbff;
+}
+
+.choice-option {
+  display: grid;
+  grid-template-columns: 20px 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid #dce7f5;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.choice-option.selected {
+  border-color: #2563eb;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.choice-option input {
+  margin-top: 5px;
+}
+
+.choice-option span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.choice-option p {
+  margin: 4px 0 0;
+  color: #22314d;
+  line-height: 1.6;
+}
+
+.objective-shell textarea {
+  min-height: 240px;
+  border: 1px solid #dce7f5;
+  border-radius: 8px;
+  padding: 14px;
+  resize: vertical;
+  font: inherit;
+}
+
+.question-type-badge {
+  display: inline-flex;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: #2563eb;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .editor-shell :deep(.code-editor) {

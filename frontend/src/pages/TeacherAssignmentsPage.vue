@@ -62,7 +62,7 @@
           <span class="col-name">作业名称</span>
           <span>状态</span>
           <span>题目</span>
-          <span>学生</span>
+          <span>班级/学生</span>
           <span>提交</span>
           <span>通过</span>
           <span>操作</span>
@@ -71,13 +71,14 @@
           <div class="assignment-copy col-name">
             <h3>{{ item.title }}</h3>
             <p class="date-line">发布时间：{{ formatDateTime(item.created_at) }}</p>
+            <p class="description-line muted">{{ assignmentTypeSummary(item) }}</p>
             <p v-if="item.description" class="description-line">{{ item.description }}</p>
             <p v-else class="description-line muted">暂无说明</p>
           </div>
 
           <div><span class="status" :class="item.status">{{ statusText(item.status) }}</span></div>
           <strong class="number-cell">{{ item.question_count }}</strong>
-          <strong class="number-cell">{{ item.assignee_count }}</strong>
+          <strong class="number-cell">{{ classSummary(item) }} / {{ item.assignee_count }}</strong>
           <strong class="number-cell">{{ item.submitted_count }}</strong>
           <strong class="number-cell">{{ item.accepted_count }}</strong>
 
@@ -187,6 +188,20 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function classSummary(item) {
+  return item.class_names?.length ? item.class_names.join("、") : "--";
+}
+
+function assignmentTypeSummary(item) {
+  const counts = item.question_type_counts || {};
+  const parts = [
+    counts.multiple_choice ? `选择题 ${counts.multiple_choice}` : "",
+    counts.fill_blank ? `填空题 ${counts.fill_blank}` : "",
+    counts.programming ? `编程题 ${counts.programming}` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "暂无题型统计";
 }
 
 function setPage(page) {

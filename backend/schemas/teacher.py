@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class TeacherStudentResponse(BaseModel):
     id: int
     username: str
+    class_name: str | None = None
     weak_point_count: int
 
 
