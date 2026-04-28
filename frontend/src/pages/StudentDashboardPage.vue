@@ -184,19 +184,20 @@ function handleApiError(error, fallbackMessage, target) {
 <style scoped>
 .dashboard-page {
   display: grid;
-  gap: 22px;
+  gap: 14px;
+  font-size: var(--compact-body);
 }
 
 .dashboard-page .app-title {
   margin: 0 0 8px;
-  font-size: 32px;
+  font-size: var(--compact-page-title);
   line-height: 1.08;
   font-weight: 500;
 }
 
 .dashboard-page .app-subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--compact-body);
   line-height: 1.7;
 }
 
@@ -217,7 +218,7 @@ function handleApiError(error, fallbackMessage, target) {
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .summary-card,
@@ -230,8 +231,8 @@ function handleApiError(error, fallbackMessage, target) {
 
 .summary-card {
   display: grid;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: 6px;
+  padding: 12px 14px;
 }
 
 .summary-card span {
@@ -241,8 +242,8 @@ function handleApiError(error, fallbackMessage, target) {
 .summary-card strong {
   display: block;
   color: var(--app-text);
-  font-size: 28px;
-  font-weight: 500;
+  font-size: var(--compact-stat-sm);
+  font-weight: 400;
 }
 
 .summary-dot {
@@ -270,14 +271,14 @@ function handleApiError(error, fallbackMessage, target) {
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.52fr) minmax(340px, 0.88fr);
-  gap: 18px;
+  gap: 14px;
   align-items: stretch;
 }
 
 .panel {
-  padding: 22px;
+  padding: 16px;
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .assignment-panel {
@@ -310,14 +311,14 @@ function handleApiError(error, fallbackMessage, target) {
 }
 
 .panel h2 {
-  font-size: 22px;
+  font-size: var(--compact-section-title);
 }
 
 .assignment-list {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 14px;
+  gap: 10px;
   width: min(100%, 640px);
 }
 
@@ -334,8 +335,8 @@ function handleApiError(error, fallbackMessage, target) {
 .assignment-item,
 .weak-list article,
 .empty-state {
-  padding: 16px 18px;
-  border-radius: 18px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid #e6eef7;
   background: var(--app-panel-soft);
 }
@@ -357,7 +358,7 @@ function handleApiError(error, fallbackMessage, target) {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
 .item-meta {
@@ -371,11 +372,13 @@ function handleApiError(error, fallbackMessage, target) {
 .item-side span {
   margin: 0;
   color: var(--app-text-muted);
-  line-height: 1.65;
+  font-size: var(--compact-body);
+  line-height: 1.45;
 }
 
 .assignment-item h3 {
-  margin-bottom: 8px;
+  margin-bottom: 5px;
+  font-size: var(--compact-card-title);
 }
 
 .item-side {
@@ -387,12 +390,12 @@ function handleApiError(error, fallbackMessage, target) {
 
 .status {
   display: inline-flex;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: #eef5ff;
   color: #37659f;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .status.closed {
@@ -407,7 +410,7 @@ function handleApiError(error, fallbackMessage, target) {
 
 .weak-list strong {
   color: var(--app-text);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .learning-card p:last-of-type {
@@ -438,8 +441,8 @@ function handleApiError(error, fallbackMessage, target) {
 
 .learning-card-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 170px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -454,7 +457,7 @@ function handleApiError(error, fallbackMessage, target) {
 
 .learning-visual {
   position: relative;
-  min-height: 150px;
+  min-height: 120px;
 }
 
 .visual-ribbon {
@@ -478,11 +481,11 @@ function handleApiError(error, fallbackMessage, target) {
 
 .visual-panel {
   position: absolute;
-  inset: 24px 18px 18px 42px;
+  inset: 18px 14px 14px 32px;
   display: grid;
   gap: 10px;
-  padding: 18px 16px;
-  border-radius: 22px;
+  padding: 12px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(238, 244, 255, 0.92) 0%, rgba(255, 255, 255, 0.92) 100%);
   box-shadow: 0 18px 42px rgba(47, 103, 246, 0.08);
 }

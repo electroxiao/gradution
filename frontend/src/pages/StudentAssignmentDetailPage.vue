@@ -672,16 +672,17 @@ function handleApiError(error, fallbackMessage) {
 .problem-pane {
   height: 100vh;
   overflow: auto;
-  padding: 24px;
+  padding: 16px;
+  font-size: var(--compact-body);
 }
 
 .back-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  margin-bottom: 14px;
-  padding: 0 14px;
+  min-height: var(--compact-control-height);
+  margin-bottom: 10px;
+  padding: 0 12px;
   border: 1px solid var(--app-line);
   border-radius: 14px;
   color: #31445f;
@@ -716,7 +717,7 @@ function handleApiError(error, fallbackMessage) {
 
 .problem-header h1 {
   margin: 0 0 8px;
-  font-size: 32px;
+  font-size: var(--compact-page-title);
   line-height: 1.08;
   font-weight: 500;
 }
@@ -725,15 +726,15 @@ function handleApiError(error, fallbackMessage) {
 .muted {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: var(--compact-body);
+  line-height: 1.5;
 }
 
 .question-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 18px 0;
+  gap: 6px;
+  margin: 12px 0;
 }
 
 button,
@@ -741,10 +742,10 @@ button,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 0 12px;
+  min-height: var(--compact-control-height);
+  padding: 0 11px;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: #fff;
   color: #31445f;
   cursor: pointer;
@@ -769,14 +770,22 @@ button:disabled {
 
 .problem-content {
   display: grid;
-  gap: 14px;
+  gap: 10px;
+}
+
+.problem-content h2,
+.editor-toolbar h2,
+.ai-header h2,
+.result-console h3 {
+  font-size: var(--compact-section-title);
+  font-weight: 500;
 }
 
 .sample-list,
 .result-list,
 .review-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .sample-card,
@@ -786,15 +795,15 @@ button:disabled {
 .trace-box,
 .ai-state,
 .ai-error {
-  padding: 12px;
-  border-radius: 16px;
+  padding: 9px 10px;
+  border-radius: 12px;
   background: var(--app-panel-soft);
 }
 
 pre {
   overflow: auto;
   margin: 6px 0 10px;
-  padding: 12px;
+  padding: 10px;
   border-radius: 14px;
   background: #15263b;
   color: #fff;
@@ -823,7 +832,7 @@ pre {
 }
 
 .editor-toolbar {
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--app-line);
   background: rgba(255, 255, 255, 0.96);
 }
@@ -838,11 +847,11 @@ pre {
 .language-pill,
 .draft-pill,
 .result-status {
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: #eef5ff;
   color: #35639f;
-  font-size: 13px;
+  font-size: var(--compact-caption);
 }
 
 .draft-pill {
@@ -852,7 +861,7 @@ pre {
 
 .editor-shell {
   min-height: 0;
-  padding: 10px;
+  padding: 8px;
   overflow: hidden;
 }
 
@@ -880,7 +889,7 @@ pre {
 
 .result-console {
   overflow: auto;
-  padding: 18px 20px;
+  padding: 12px 16px;
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -890,26 +899,26 @@ pre {
 
 .ai-review-block {
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
-  padding: 16px;
-  border-radius: 20px;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 14px;
   background: var(--app-panel-soft);
 }
 
 .review-badge {
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: #eef5ff;
   color: #35639f;
-  font-size: 13px;
+  font-size: var(--compact-caption);
 }
 
 .ai-reject-alert {
   display: grid;
   gap: 4px;
-  margin-bottom: 12px;
-  padding: 12px 14px;
+  margin-bottom: 10px;
+  padding: 9px 10px;
   border: 1px solid #f04438;
   border-radius: 12px;
   background: #fff1f0;
@@ -919,7 +928,7 @@ pre {
 
 .ai-reject-alert strong {
   color: #7a271a;
-  font-size: 15px;
+  font-size: var(--compact-body);
 }
 
 .ai-reject-alert p {
@@ -957,8 +966,8 @@ pre {
 }
 
 .review-metrics div {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 9px;
+  border-radius: 12px;
   background: #fff;
 }
 
@@ -970,7 +979,7 @@ pre {
 .review-metrics dd {
   margin: 4px 0 0;
   color: var(--app-text);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .review-list strong {
@@ -995,8 +1004,8 @@ pre {
 
 .diagnosis-item {
   display: grid;
-  gap: 6px;
-  padding: 12px;
+  gap: 5px;
+  padding: 9px;
   border: 1px solid #d8e2ee;
   border-radius: 14px;
   background: #fff;
@@ -1010,7 +1019,7 @@ pre {
 }
 
 .diagnosis-head span {
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .diagnosis-head small {
@@ -1080,7 +1089,7 @@ pre {
 
 .feedback {
   margin: 12px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid var(--app-line);
   border-radius: 14px;
   background: #fff;
@@ -1091,8 +1100,8 @@ pre {
   overflow: auto;
   display: grid;
   align-content: start;
-  gap: 12px;
-  padding: 18px;
+  gap: 10px;
+  padding: 14px;
   border-right: none;
   border-left: 1px solid var(--app-line);
 }
@@ -1104,8 +1113,8 @@ pre {
 
 textarea {
   width: 100%;
-  min-height: 118px;
-  padding: 12px;
+  min-height: 92px;
+  padding: 10px;
   border: 1px solid var(--app-line);
   border-radius: 14px;
   resize: none;
@@ -1126,15 +1135,15 @@ textarea {
 .concept-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .concept-list span {
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: #edf6ff;
   color: #1f5f99;
-  font-size: 13px;
+  font-size: var(--compact-caption);
 }
 
 .trace-box summary {

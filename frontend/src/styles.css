@@ -31,6 +31,17 @@
   --app-gap-lg: 20px;
   --app-gap-md: 16px;
   --app-gap-sm: 10px;
+  --compact-page-title: 28px;
+  --compact-section-title: 20px;
+  --compact-card-title: 18px;
+  --compact-body: 13px;
+  --compact-caption: 12px;
+  --compact-stat: 24px;
+  --compact-stat-sm: 22px;
+  --compact-panel-padding: 16px;
+  --compact-card-padding: 12px;
+  --compact-control-height: 36px;
+  --compact-pill-height: 24px;
 }
 
 * {
@@ -86,11 +97,12 @@ input,
 textarea,
 select {
   width: 100%;
-  padding: 13px 16px;
+  padding: 11px 13px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-sm);
   background: #ffffff;
   color: var(--app-text);
+  font-size: var(--compact-body);
 }
 
 input::placeholder,
@@ -125,7 +137,8 @@ select:focus {
 
 .app-page {
   display: grid;
-  gap: var(--app-gap-lg);
+  gap: 16px;
+  font-size: var(--compact-body);
 }
 
 .dashboard-page .app-header,
@@ -141,7 +154,7 @@ select:focus {
 .assignment-page .page-header h2 {
   margin: 0 0 8px;
   color: var(--app-text);
-  font-size: 32px;
+  font-size: var(--compact-page-title);
   line-height: 1.08;
   font-weight: 500;
 }
@@ -152,7 +165,7 @@ select:focus {
 .assignment-page .page-copy {
   margin: 0;
   color: var(--app-text-muted);
-  font-size: 14px;
+  font-size: var(--compact-body);
   line-height: 1.7;
 }
 
@@ -181,7 +194,7 @@ select:focus {
 .app-header h2 {
   margin: 0 0 8px;
   color: var(--app-text);
-  font-size: clamp(28px, 3vw, 34px);
+  font-size: var(--compact-page-title);
   line-height: 1.06;
   font-weight: 500;
 }
@@ -189,6 +202,7 @@ select:focus {
 .app-subtitle {
   margin: 0;
   color: var(--app-text-muted);
+  font-size: var(--compact-body);
   line-height: 1.7;
 }
 
@@ -205,12 +219,13 @@ select:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 18px;
-  border-radius: 14px;
+  min-height: var(--compact-control-height);
+  padding: 0 14px;
+  border-radius: 12px;
   border: 1px solid transparent;
   text-decoration: none;
   cursor: pointer;
+  font-size: var(--compact-body);
 }
 
 .app-button {
@@ -252,10 +267,11 @@ button:disabled {
 }
 
 .app-feedback {
-  padding: 14px 16px;
-  border-radius: 16px;
+  padding: 11px 13px;
+  border-radius: 14px;
   border: 1px solid var(--app-line);
   background: #ffffff;
+  font-size: var(--compact-body);
 }
 
 .app-feedback.error {
@@ -274,12 +290,12 @@ button:disabled {
 .app-status-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 11px;
+  min-height: var(--compact-pill-height);
+  padding: 0 9px;
   border-radius: 999px;
   background: var(--app-primary-soft);
   color: #35639f;
-  font-size: 12px;
+  font-size: var(--compact-caption);
   font-weight: 500;
 }
 

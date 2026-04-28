@@ -968,7 +968,8 @@ function formatApiErrorDetail(detail) {
   --editor-danger: var(--app-danger);
   --editor-success: var(--app-success);
   display: grid;
-  gap: 20px;
+  gap: 14px;
+  font-size: var(--compact-body);
 }
 
 .panel,
@@ -1013,7 +1014,7 @@ function formatApiErrorDetail(detail) {
 .editor-hero h2 {
   margin: 0 0 8px;
   color: var(--editor-text);
-  font-size: 32px;
+  font-size: var(--compact-page-title);
   line-height: 1.08;
   font-weight: 500;
 }
@@ -1036,9 +1037,9 @@ function formatApiErrorDetail(detail) {
 .meta-strip {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) 180px minmax(320px, 1.1fr) auto;
-  gap: 14px;
+  gap: 10px;
   align-items: end;
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--editor-border);
   border-radius: var(--app-radius-xl);
   background: rgba(255, 255, 255, 0.86);
@@ -1047,11 +1048,11 @@ function formatApiErrorDetail(detail) {
 
 .field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   align-content: start;
   color: #34495f;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--compact-body);
+  font-weight: 400;
 }
 
 .field span {
@@ -1063,7 +1064,7 @@ function formatApiErrorDetail(detail) {
   align-items: flex-end;
   gap: 8px;
   justify-content: flex-end;
-  min-height: 78px;
+  min-height: 54px;
   min-width: 260px;
   flex-wrap: wrap;
 }
@@ -1072,8 +1073,8 @@ function formatApiErrorDetail(detail) {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 30px;
+  padding: 0 10px;
   border: 1px solid #dfe7f1;
   border-radius: 999px;
   background: #fff;
@@ -1083,8 +1084,8 @@ function formatApiErrorDetail(detail) {
 
 .meta-kpis strong {
   color: var(--editor-text);
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 400;
 }
 
 .meta-kpis .state {
@@ -1112,7 +1113,7 @@ function formatApiErrorDetail(detail) {
 }
 
 .status-select select {
-  height: 44px;
+  height: 38px;
   appearance: none;
   padding-right: 42px;
   background: #fff;
@@ -1123,7 +1124,7 @@ function formatApiErrorDetail(detail) {
 .studio-layout {
   display: grid;
   grid-template-columns: 318px minmax(0, 1fr);
-  gap: 18px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -1131,7 +1132,7 @@ function formatApiErrorDetail(detail) {
 .studio-main,
 .question-workspace {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .studio-sidebar {
@@ -1145,7 +1146,7 @@ function formatApiErrorDetail(detail) {
 .question-summary,
 .editor-section,
 .empty-editor {
-  padding: 22px;
+  padding: 16px;
 }
 
 .panel-head,
@@ -1166,12 +1167,12 @@ function formatApiErrorDetail(detail) {
 
 .panel-head h3,
 .ai-draft-panel h3 {
-  font-size: 22px;
+  font-size: var(--compact-section-title);
   font-weight: 500;
 }
 
 .section-head h4 {
-  font-size: 22px;
+  font-size: var(--compact-section-title);
   font-weight: 500;
 }
 
@@ -1187,14 +1188,14 @@ function formatApiErrorDetail(detail) {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-height: 38px;
-  padding: 8px 10px;
+  min-height: 32px;
+  padding: 6px 8px;
   border: 1px solid #e5edf5;
   border-radius: var(--app-radius-md);
   background: var(--editor-soft);
   color: #31445f;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--compact-body);
+  font-weight: 400;
 }
 
 .question-nav {
@@ -1206,9 +1207,9 @@ function formatApiErrorDetail(detail) {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid #e3ebf4;
-  border-radius: var(--app-radius-lg);
+  border-radius: 12px;
   background: #fff;
   cursor: pointer;
 }
@@ -1250,7 +1251,7 @@ function formatApiErrorDetail(detail) {
   min-width: 0;
   overflow: hidden;
   color: var(--editor-text);
-  font-weight: 500;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1270,7 +1271,7 @@ function formatApiErrorDetail(detail) {
 .ai-draft-panel {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 18px;
+  gap: 12px;
   align-items: start;
   background:
     radial-gradient(circle at 100% 0%, rgba(47, 103, 246, 0.08), transparent 32%),
@@ -1287,8 +1288,8 @@ function formatApiErrorDetail(detail) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--app-radius-md);
   background: var(--editor-accent);
   color: #fff;
@@ -1299,7 +1300,7 @@ function formatApiErrorDetail(detail) {
 
 .draft-fields {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -1317,7 +1318,7 @@ function formatApiErrorDetail(detail) {
 .question-summary {
   justify-content: space-between;
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -1329,8 +1330,8 @@ function formatApiErrorDetail(detail) {
 
 .question-summary h3 {
   margin: 0;
-  font-size: 26px;
-  font-weight: 500;
+  font-size: var(--compact-section-title);
+  font-weight: 400;
 }
 
 .summary-tags {
@@ -1343,14 +1344,14 @@ function formatApiErrorDetail(detail) {
 .pill {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: var(--compact-pill-height);
+  padding: 0 8px;
   border-radius: 999px;
   border: 1px solid #d8e5f3;
   background: #f4f8fd;
   color: #49627c;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .pill {
@@ -1361,7 +1362,7 @@ function formatApiErrorDetail(detail) {
 
 .editor-section {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .content-grid {
@@ -1371,7 +1372,7 @@ function formatApiErrorDetail(detail) {
 
 .assessment-stack {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .knowledge-block,
@@ -1516,11 +1517,11 @@ function formatApiErrorDetail(detail) {
 
 .level-option {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   justify-items: start;
   min-width: 0;
-  min-height: 96px;
-  padding: 16px;
+  min-height: 66px;
+  padding: 10px;
   border: 1px solid #dbe5f0;
   border-radius: var(--app-radius-lg);
   background: #fff;
@@ -1532,8 +1533,8 @@ function formatApiErrorDetail(detail) {
 
 .level-option strong {
   min-width: 0;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: var(--compact-body);
+  font-weight: 400;
   line-height: 1.35;
   overflow-wrap: anywhere;
   white-space: normal;
@@ -1542,7 +1543,7 @@ function formatApiErrorDetail(detail) {
 .level-option span {
   min-width: 0;
   color: var(--editor-muted);
-  font-size: 13px;
+  font-size: var(--compact-caption);
   line-height: 1.45;
   overflow-wrap: anywhere;
   white-space: normal;
@@ -1593,8 +1594,8 @@ function formatApiErrorDetail(detail) {
 
 .case-card {
   display: grid;
-  gap: 14px;
-  padding: 16px 18px;
+  gap: 10px;
+  padding: 10px 12px;
   border: 1px solid #e3ebf4;
   border-radius: var(--app-radius-lg);
   background: var(--editor-soft);
@@ -1606,7 +1607,7 @@ function formatApiErrorDetail(detail) {
 
 .case-title strong {
   color: var(--editor-text);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .case-fields {
@@ -1630,8 +1631,8 @@ input,
 textarea,
 select {
   width: 100%;
-  min-height: 44px;
-  padding: 12px 14px;
+  min-height: 38px;
+  padding: 10px 12px;
   border: 1px solid var(--editor-border);
   border-radius: var(--app-radius-md);
   color: #12263a;
@@ -1652,8 +1653,8 @@ textarea {
 }
 
 .description-field textarea {
-  height: 44px;
-  min-height: 44px;
+  height: 38px;
+  min-height: 38px;
   overflow: hidden;
 }
 
@@ -1663,12 +1664,12 @@ textarea {
 }
 
 .prompt-input {
-  min-height: 150px;
+  min-height: 128px;
   overflow: hidden;
 }
 
 .prompt-input.code-input {
-  min-height: 140px;
+  min-height: 120px;
 }
 
 .btn,
@@ -1677,8 +1678,8 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: var(--compact-control-height);
+  padding: 0 12px;
   border: 1px solid var(--editor-border);
   border-radius: var(--app-radius-md);
   background: #fff;
@@ -1755,8 +1756,8 @@ button:disabled,
 
 .empty-editor strong {
   color: var(--editor-text);
-  font-size: 22px;
-  font-weight: 600;
+  font-size: var(--compact-section-title);
+  font-weight: 500;
 }
 
 .feedback {

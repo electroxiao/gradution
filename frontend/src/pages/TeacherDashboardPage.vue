@@ -94,13 +94,14 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .dashboard-page {
-  gap: 22px;
+  gap: 14px;
+  font-size: var(--compact-body);
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .metric-card,
@@ -113,7 +114,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .metric-card {
-  padding: 22px 24px;
+  padding: 14px 16px;
 }
 
 .metric-card span {
@@ -122,52 +123,53 @@ function handleApiError(error, fallbackMessage) {
 
 .metric-card strong {
   display: block;
-  margin-top: 12px;
+  margin-top: 7px;
   color: var(--app-text);
-  font-size: 36px;
-  font-weight: 500;
+  font-size: var(--compact-stat);
+  font-weight: 400;
 }
 
 .rank-panel {
-  padding: 24px;
+  padding: 16px;
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .panel-head h3 {
   margin: 0;
   color: var(--app-text);
-  font-size: 24px;
+  font-size: var(--compact-section-title);
   font-weight: 500;
 }
 
 .rank-list {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .rank-item {
   display: grid;
-  grid-template-columns: 42px minmax(0, 280px) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 34px minmax(0, 240px) minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
 }
 
 .rank-index {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
   background: var(--app-primary-soft);
   color: #4368af;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .rank-copy strong {
   display: block;
   color: var(--app-text);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .rank-copy span {
@@ -189,7 +191,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .empty-panel {
-  padding: 22px 24px;
+  padding: 14px 16px;
   color: var(--app-text-muted);
 }
 

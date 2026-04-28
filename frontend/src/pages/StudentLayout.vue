@@ -120,7 +120,7 @@ function logout() {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 22px 18px 20px;
+  padding: 18px 14px 16px;
   background: rgba(251, 252, 254, 0.96);
   border-right: 1px solid var(--app-line);
   backdrop-filter: blur(16px);
@@ -134,13 +134,13 @@ function logout() {
 
 .sidebar-top {
   display: grid;
-  gap: 28px;
+  gap: 22px;
 }
 
 .console-brand h1 {
   margin: 0 0 10px;
   color: var(--app-text);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 500;
 }
 
@@ -165,9 +165,9 @@ function logout() {
 .console-nav a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
   color: #31445f;
   text-decoration: none;
 }
@@ -183,11 +183,11 @@ function logout() {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid var(--app-line);
   color: #4a658a;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   box-shadow: 0 8px 20px rgba(20, 34, 53, 0.05);
 }
@@ -200,7 +200,7 @@ function logout() {
 
 .nav-copy strong {
   font-weight: 500;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .nav-copy small {
@@ -210,9 +210,9 @@ function logout() {
 
 .logout-btn {
   width: 100%;
-  min-height: 48px;
+  min-height: 38px;
   border: 1px solid var(--app-line);
-  border-radius: 16px;
+  border-radius: 14px;
   background: #ffffff;
   color: #31445f;
   cursor: pointer;
@@ -228,7 +228,7 @@ function logout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 28px 0;
+  padding: 14px 24px 0;
 }
 
 .topbar-user {
@@ -237,11 +237,12 @@ function logout() {
   gap: 12px;
   margin-left: auto;
   color: #405571;
+  font-size: 13px;
 }
 
 .bell-dot {
   color: #8193a8;
-  font-size: 20px;
+  font-size: 16px;
 }
 
 .user-avatar {
@@ -249,7 +250,8 @@ function logout() {
   align-items: center;
   justify-content: center;
   width: 40px;
-  height: 40px;
+  height: 34px;
+  width: 34px;
   border-radius: 50%;
   background: #eef2f7;
   color: #66788b;
@@ -263,13 +265,15 @@ function logout() {
 
 .console-content {
   min-width: 0;
-  padding: 18px 28px 28px;
+  padding: 14px 24px 24px;
+  font-size: var(--compact-body);
 }
 
 .console-content.chat-content {
   padding: 0;
   height: 100vh;
   overflow: hidden;
+  font-size: initial;
 }
 
 .console-shell.assignment-lab-layout {

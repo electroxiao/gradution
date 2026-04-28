@@ -499,7 +499,8 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .progress-page {
   display: grid;
-  gap: 22px;
+  gap: 14px;
+  font-size: var(--compact-body);
 }
 
 .shell-card,
@@ -523,19 +524,20 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .progress-toolbar {
-  padding: 20px 22px;
+  padding: 14px 16px;
 }
 
 .progress-toolbar h2 {
   margin: 0 0 8px;
   color: var(--app-text);
-  font-size: 32px;
+  font-size: var(--compact-page-title);
 }
 
 .progress-toolbar p,
 .muted {
   margin: 0;
   color: var(--app-text-muted);
+  font-size: var(--compact-body);
 }
 
 .panel-header h3,
@@ -548,10 +550,10 @@ function handleApiError(error, fallbackMessage) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: var(--compact-control-height);
+  padding: 0 12px;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: #fff;
   color: #31445f;
   text-decoration: none;
@@ -566,8 +568,8 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-card {
   display: grid;
-  gap: 6px;
-  padding: 18px;
+  gap: 4px;
+  padding: 12px 14px;
 }
 
 .summary-card span {
@@ -577,7 +579,8 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-card strong {
   color: #10283d;
-  font-size: 28px;
+  font-size: var(--compact-stat-sm);
+  font-weight: 400;
 }
 
 .progress-layout {
@@ -586,8 +589,8 @@ function handleApiError(error, fallbackMessage) {
 
 .matrix-panel {
   display: grid;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 14px;
   overflow: hidden;
 }
 
@@ -598,8 +601,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .view-tabs button {
-  min-height: 36px;
+  min-height: 30px;
+  padding: 0 11px;
   border-radius: 999px;
+  font-size: var(--compact-body);
 }
 
 .view-tabs button.active {
@@ -609,7 +614,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .empty-state {
-  padding: 14px;
+  padding: 10px;
   border: 1px solid #e3edf7;
   border-radius: 16px;
   background: #f8fbff;
@@ -632,18 +637,18 @@ function handleApiError(error, fallbackMessage) {
 .matrix-head,
 .student-cell,
 .progress-cell {
-  min-height: 78px;
-  padding: 12px;
+  min-height: 58px;
+  padding: 8px;
   border-right: 1px solid #e7eff7;
   border-bottom: 1px solid #e7eff7;
 }
 
 .matrix-head {
-  min-height: 48px;
+  min-height: 38px;
   background: #eef6ff;
   color: #6f8297;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--compact-caption);
+  font-weight: 500;
 }
 
 .sticky-left {
@@ -657,17 +662,19 @@ function handleApiError(error, fallbackMessage) {
   align-items: center;
   background: #fdfefe;
   color: #10283d;
-  font-weight: 700;
+  font-size: var(--compact-body);
+  font-weight: 500;
 }
 
 .progress-cell {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   text-align: left;
   border-top: 0;
   border-left: 0;
   background: rgba(248, 251, 255, 0.88);
   color: #475467;
+  font-size: var(--compact-caption);
   cursor: pointer;
   transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
@@ -725,25 +732,25 @@ function handleApiError(error, fallbackMessage) {
   width: min(1080px, 100%);
   max-height: min(860px, calc(100vh - 48px));
   overflow: auto;
-  padding: 20px;
+  padding: 16px;
 }
 
 .detail-dialog-bar {
   position: sticky;
-  top: -20px;
+  top: -16px;
   z-index: 2;
   display: flex;
   justify-content: space-between;
   gap: 14px;
   align-items: flex-start;
-  margin: -20px -20px 16px;
-  padding: 18px 20px;
+  margin: -16px -16px 12px;
+  padding: 14px 16px;
   border-bottom: 1px solid #e4edf6;
   background: rgba(255, 255, 255, 0.98);
 }
 
 .close-button {
-  min-height: 36px;
+  min-height: 32px;
   border-radius: 12px;
 }
 
@@ -757,8 +764,8 @@ function handleApiError(error, fallbackMessage) {
   justify-content: stretch;
   justify-items: start;
   gap: 3px;
-  min-height: 64px;
-  border-radius: 14px;
+  min-height: 50px;
+  border-radius: 12px;
   text-align: left;
 }
 
@@ -777,10 +784,11 @@ function handleApiError(error, fallbackMessage) {
 
 .status-pill,
 .decision-pill {
-  padding: 7px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
   white-space: nowrap;
-  font-weight: 700;
+  font-size: var(--compact-caption);
+  font-weight: 500;
 }
 
 .status-pill {
@@ -815,7 +823,7 @@ function handleApiError(error, fallbackMessage) {
 .detail-section,
 .review-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .meta-grid {
@@ -826,8 +834,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .meta-grid div {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 9px;
+  border-radius: 12px;
   background: rgba(239, 246, 255, 0.72);
   border: 1px solid #deebf7;
 }
@@ -840,7 +848,7 @@ function handleApiError(error, fallbackMessage) {
 .meta-grid dd {
   margin: 4px 0 0;
   color: #10283d;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .detail-section h4 {
@@ -857,13 +865,13 @@ function handleApiError(error, fallbackMessage) {
 .tag-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: var(--compact-pill-height);
+  padding: 0 8px;
   border-radius: 999px;
   background: #eef6ff;
   color: #1f5f99;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .decision-pill {
@@ -894,7 +902,7 @@ button {
 
 textarea {
   width: 100%;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid #d7e5f3;
   border-radius: 14px;
   resize: vertical;
@@ -904,10 +912,10 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: var(--compact-control-height);
+  padding: 0 12px;
   border: 1px solid #d4e4f2;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #fff;
   color: #18344f;
   cursor: pointer;
@@ -921,7 +929,7 @@ button:disabled {
 pre {
   overflow: auto;
   margin: 6px 0 10px;
-  padding: 12px;
+  padding: 10px;
   border-radius: 14px;
   background: #10283d;
   color: #fff;
@@ -932,8 +940,8 @@ pre {
 }
 
 .result-card {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 9px;
+  border-radius: 12px;
   background: #f8fbff;
   border: 1px solid #e5eef7;
 }
@@ -961,7 +969,7 @@ pre {
 }
 
 .feedback {
-  padding: 14px 16px;
+  padding: 11px 13px;
 }
 
 @media (max-width: 1180px) {

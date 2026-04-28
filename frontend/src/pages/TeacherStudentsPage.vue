@@ -391,12 +391,13 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .students-page {
   display: grid;
-  gap: var(--app-gap-xl);
+  gap: 16px;
+  font-size: var(--compact-body);
 }
 
 .page-header h2 {
   margin: 0 0 8px;
-  font-size: 32px;
+  font-size: var(--compact-page-title);
   font-weight: 500;
   color: var(--app-text);
 }
@@ -404,12 +405,13 @@ function handleApiError(error, fallbackMessage) {
 .page-copy {
   margin: 0;
   color: var(--app-text-muted);
+  font-size: var(--compact-body);
 }
 
 .students-layout {
   display: grid;
-  grid-template-columns: 296px minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 14px;
 }
 
 .student-list,
@@ -421,9 +423,9 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .student-list {
-  padding: 16px;
+  padding: 12px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   align-self: start;
 }
 
@@ -431,9 +433,9 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 14px;
+  padding: 10px;
   border: 1px solid transparent;
-  border-radius: 18px;
+  border-radius: 14px;
   background: #ffffff;
   text-align: left;
   cursor: pointer;
@@ -441,12 +443,12 @@ function handleApiError(error, fallbackMessage) {
 
 .student-item strong {
   color: var(--app-text);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .student-item span {
   color: var(--app-text-muted);
-  font-size: 13px;
+  font-size: var(--compact-caption);
 }
 
 .student-item.active {
@@ -455,14 +457,14 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .student-detail {
-  padding: 24px;
+  padding: 16px;
   display: grid;
-  gap: 20px;
+  gap: 14px;
 }
 
 .detail-header h3 {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--compact-section-title);
   font-weight: 500;
   color: var(--app-text);
 }
@@ -476,7 +478,7 @@ function handleApiError(error, fallbackMessage) {
 
 .detail-section {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .section-head {
@@ -489,7 +491,7 @@ function handleApiError(error, fallbackMessage) {
 .section-head h4 {
   margin: 0;
   color: var(--app-text);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -497,15 +499,15 @@ function handleApiError(error, fallbackMessage) {
 .mastery-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .weak-card,
 .mastery-card,
 .feedback.error,
 .empty {
-  padding: 18px;
-  border-radius: 20px;
+  padding: 12px;
+  border-radius: 14px;
   background: var(--app-panel-soft);
   color: var(--app-text-muted);
 }
@@ -514,12 +516,12 @@ function handleApiError(error, fallbackMessage) {
 .mastery-card strong {
   display: block;
   color: var(--app-text);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .mastery-card {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid #e2ebf4;
 }
 
@@ -545,10 +547,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .status-pill {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .status-pill.weak {
@@ -615,13 +617,13 @@ function handleApiError(error, fallbackMessage) {
 
 .evidence-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .evidence-item {
   display: grid;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
+  padding: 9px;
   border: 1px solid #e1eaf3;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.68);
@@ -682,8 +684,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .portrait-overview {
-  padding: 18px;
-  border-radius: 20px;
+  padding: 12px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #f0f4ff 0%, #f8faff 100%);
   border: 1px solid #dce4f5;
 }
@@ -695,8 +697,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .portrait-stat {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 8px;
+  border-radius: 12px;
   background: #ffffff;
   border: 1px solid #eef2f8;
   text-align: center;
@@ -711,7 +713,8 @@ function handleApiError(error, fallbackMessage) {
 
 .portrait-stat strong {
   color: #10283d;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 400;
 }
 
 .portrait-stat.gap {

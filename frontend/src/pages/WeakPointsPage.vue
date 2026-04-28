@@ -483,7 +483,8 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .weak-page {
-  gap: 22px;
+  gap: 14px;
+  font-size: var(--compact-body);
 }
 
 .dashboard-hero {
@@ -495,7 +496,7 @@ function handleApiError(error, fallbackMessage) {
 
 .app-title {
   margin: 0;
-  font-size: 32px;
+  font-size: var(--compact-page-title);
   line-height: 1.08;
   font-weight: 500;
 }
@@ -504,6 +505,7 @@ function handleApiError(error, fallbackMessage) {
   margin: 0;
   max-width: 700px;
   color: var(--app-text-muted);
+  font-size: var(--compact-body);
   line-height: 1.75;
 }
 
@@ -511,8 +513,8 @@ function handleApiError(error, fallbackMessage) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 16px;
+  min-height: var(--compact-control-height);
+  padding: 0 12px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-md);
   background: #fff;
@@ -537,15 +539,15 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-card {
   display: grid;
-  gap: 10px;
-  padding: 18px 20px;
+  gap: 6px;
+  padding: 12px 14px;
 }
 
 .summary-card strong {
   display: block;
   color: var(--app-text);
-  font-size: 28px;
-  font-weight: 500;
+  font-size: var(--compact-stat-sm);
+  font-weight: 400;
 }
 
 .summary-card span {
@@ -554,7 +556,7 @@ function handleApiError(error, fallbackMessage) {
 
 .feedback {
   margin: 0;
-  padding: 14px 16px;
+  padding: 11px 13px;
 }
 
 .feedback.error {
@@ -566,7 +568,7 @@ function handleApiError(error, fallbackMessage) {
 .weak-grid-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 20px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -578,7 +580,7 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -597,7 +599,7 @@ function handleApiError(error, fallbackMessage) {
 .history-header h2,
 .recommendation-header h3,
 .empty-state h2 {
-  font-size: 22px;
+  font-size: var(--compact-section-title);
 }
 
 .quiz-header h3 {
@@ -606,7 +608,7 @@ function handleApiError(error, fallbackMessage) {
 
 .legend {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -615,7 +617,7 @@ function handleApiError(error, fallbackMessage) {
   align-items: center;
   gap: 6px;
   color: var(--app-text-muted);
-  font-size: 13px;
+  font-size: var(--compact-caption);
 }
 
 .legend-dot {
@@ -684,8 +686,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .recommendation-panel {
-  padding: 22px;
-  gap: 18px;
+  padding: 16px;
+  gap: 12px;
   max-height: 552px;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -714,29 +716,30 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .recommendation-header h3 {
-  font-size: 22px;
+  font-size: var(--compact-section-title);
 }
 
 .recommendation-summary {
   margin: 0;
   color: var(--app-text-muted);
-  line-height: 1.8;
+  font-size: var(--compact-body);
+  line-height: 1.55;
 }
 
 .recommendation-tip {
   margin: -4px 0 0;
-  padding: 10px 12px;
-  border-radius: 14px;
+  padding: 8px 10px;
+  border-radius: 12px;
   background: #f3f8ff;
   color: #49657f;
-  line-height: 1.65;
+  line-height: 1.45;
   font-size: 13px;
 }
 
 .recommendation-block {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .recommendation-label {
@@ -752,7 +755,7 @@ function handleApiError(error, fallbackMessage) {
   padding-left: 18px;
   color: #10283d;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .learning-order li {
@@ -764,11 +767,11 @@ function handleApiError(error, fallbackMessage) {
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .recommendation-list li {
-  padding: 14px 14px 12px;
+  padding: 10px;
   border: 1px solid #e8eef6;
   border-radius: var(--app-radius-lg);
   background: var(--app-panel-soft);
@@ -785,19 +788,20 @@ function handleApiError(error, fallbackMessage) {
 .recommendation-empty {
   margin: 0;
   color: var(--app-text-muted);
-  line-height: 1.75;
+  font-size: var(--compact-body);
+  line-height: 1.5;
 }
 
 .quiz-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 12px 16px;
   border-bottom: 1px solid #eef2f7;
 }
 
 .quiz-header h3 {
-  font-size: 22px;
+  font-size: var(--compact-section-title);
 }
 
 .close-btn {
@@ -816,7 +820,7 @@ function handleApiError(error, fallbackMessage) {
 .quiz-body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 14px;
 }
 
 .quiz-intro {
@@ -871,9 +875,9 @@ function handleApiError(error, fallbackMessage) {
 
 .primary-btn,
 .secondary-btn {
-  padding: 10px 18px;
+  padding: 8px 14px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: var(--compact-body);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -939,7 +943,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .quiz-question {
-  padding: 16px;
+  padding: 12px;
   border-radius: 12px;
   background: #f8fafc;
   position: relative;
@@ -1030,11 +1034,11 @@ function handleApiError(error, fallbackMessage) {
 .weak-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px;
+  gap: 12px;
 }
 
 .weak-card {
-  padding: 22px;
+  padding: 14px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-xl);
   background: var(--app-panel);
@@ -1060,12 +1064,12 @@ function handleApiError(error, fallbackMessage) {
 .weak-badge {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: #edf5ff;
   color: #34699a;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .weak-time,
@@ -1075,16 +1079,17 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .weak-card h2 {
-  margin: 18px 0 10px;
+  margin: 12px 0 6px;
   color: var(--app-text);
-  font-size: 24px;
-  font-weight: 500;
+  font-size: var(--compact-card-title);
+  font-weight: 400;
 }
 
 .weak-caption {
-  margin: 0 0 24px;
+  margin: 0 0 14px;
   color: #5f7287;
-  line-height: 1.7;
+  font-size: var(--compact-body);
+  line-height: 1.45;
 }
 
 .weak-status-hint {
@@ -1093,7 +1098,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .history-section {
-  padding: 22px;
+  padding: 16px;
 }
 
 .history-header {
@@ -1101,7 +1106,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .history-header h2 {
-  font-size: 22px;
+  font-size: var(--compact-section-title);
 }
 
 .history-header p {
@@ -1113,11 +1118,11 @@ function handleApiError(error, fallbackMessage) {
 .history-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .history-card {
-  padding: 22px;
+  padding: 14px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-xl);
   background: var(--app-panel);
@@ -1134,12 +1139,12 @@ function handleApiError(error, fallbackMessage) {
 .history-badge {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   background: #e8f8ee;
   color: #20854e;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .history-time {
@@ -1148,16 +1153,16 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .history-card h3 {
-  margin: 16px 0 10px;
+  margin: 12px 0 6px;
   color: var(--app-text);
-  font-size: 20px;
-  font-weight: 500;
+  font-size: var(--compact-card-title);
+  font-weight: 400;
 }
 
 .empty-state {
   position: relative;
   overflow: hidden;
-  padding: 64px 24px;
+  padding: 36px 18px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-xl);
   background: var(--app-panel);

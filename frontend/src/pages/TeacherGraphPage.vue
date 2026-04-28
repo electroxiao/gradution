@@ -1141,12 +1141,13 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .graph-page {
   display: grid;
-  gap: 22px;
+  gap: 14px;
+  font-size: var(--compact-body);
 }
 
 .page-header h2 {
   margin: 0 0 8px;
-  font-size: 32px;
+  font-size: var(--compact-page-title);
   font-weight: 500;
   color: var(--app-text);
 }
@@ -1155,16 +1156,17 @@ function handleApiError(error, fallbackMessage) {
   margin: 0;
   color: var(--app-text-muted);
   max-width: 760px;
+  font-size: var(--compact-body);
 }
 
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 14px;
+  padding: 10px;
   border: 1px solid var(--app-line);
-  border-radius: 24px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--app-shadow);
 }
@@ -1183,9 +1185,9 @@ function handleApiError(error, fallbackMessage) {
 .detail-body input,
 .detail-body textarea {
   width: 100%;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: #fff;
   font: inherit;
 }
@@ -1260,8 +1262,8 @@ function handleApiError(error, fallbackMessage) {
 
 button {
   border: none;
-  border-radius: 14px;
-  padding: 12px 16px;
+  border-radius: 12px;
+  padding: 9px 13px;
   background: #10283d;
   color: #fff;
   cursor: pointer;
@@ -1289,17 +1291,17 @@ button:disabled {
 .mode-switch {
   display: inline-flex;
   gap: 8px;
-  padding: 6px;
+  padding: 4px;
   width: fit-content;
   border: 1px solid #e2ebf4;
-  border-radius: 18px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
 }
 
 .mode-tab {
-  min-width: 116px;
-  padding: 10px 16px;
+  min-width: 104px;
+  padding: 8px 12px;
   border-radius: 12px;
   background: transparent;
   color: #526b84;
@@ -1313,13 +1315,13 @@ button:disabled {
 .graph-mode-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 18px;
+  gap: 14px;
   align-items: start;
 }
 
 .review-workbench {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .review-header-strip {
@@ -1331,7 +1333,7 @@ button:disabled {
 .review-mode-layout {
   display: grid;
   grid-template-columns: minmax(0, 0.94fr) minmax(380px, 0.86fr);
-  gap: 18px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -1341,10 +1343,10 @@ button:disabled {
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
   position: relative;
-  padding: 16px;
+  padding: 12px;
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
 .formal-panel {
@@ -1375,7 +1377,7 @@ button:disabled {
 .graph-panel-head h3 {
   margin: 4px 0 0;
   color: #10283d;
-  font-size: 24px;
+  font-size: var(--compact-section-title);
 }
 
 .graph-mode-copy {
@@ -1393,7 +1395,7 @@ button:disabled {
   display: grid;
   place-items: center;
   color: #6f8297;
-  font-size: 14px;
+  font-size: var(--compact-body);
   background: rgba(255, 255, 255, 0.88);
   border-radius: 20px;
   z-index: 2;
@@ -1401,7 +1403,7 @@ button:disabled {
 
 .graph-side-panel {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   grid-template-rows: auto minmax(440px, 1fr);
 }
 
@@ -1414,12 +1416,12 @@ button:disabled {
 
 .panel-card {
   min-height: 0;
-  padding: 18px;
-  border-radius: 22px;
+  padding: 12px;
+  border-radius: 16px;
   background: #f8fbff;
   border: 1px solid #ebf1f7;
   display: grid;
-  gap: 12px;
+  gap: 10px;
   overflow: hidden;
 }
 
@@ -1440,7 +1442,7 @@ button:disabled {
 .action-bar {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .action-bar button {
@@ -1494,11 +1496,11 @@ button:disabled {
 }
 
 .batch-chip {
-  min-height: 88px;
+  min-height: 62px;
   text-align: left;
-  padding: 12px 14px;
+  padding: 9px 10px;
   border: 1px solid #d9e6f3;
-  border-radius: 16px;
+  border-radius: 12px;
   background: #ffffff;
   color: #10283d;
   display: grid;
@@ -1535,7 +1537,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .panel-head h3,
@@ -1551,7 +1553,7 @@ button:disabled {
 
 .detail-body {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
@@ -1559,10 +1561,10 @@ button:disabled {
 
 .detail-body label {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   color: #526b84;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .detail-body textarea {
@@ -1592,7 +1594,7 @@ button:disabled {
 .review-summary-text {
   margin: 4px 0 0;
   color: #5f7287;
-  line-height: 1.7;
+  line-height: 1.45;
   font-size: 13px;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -1602,21 +1604,21 @@ button:disabled {
 
 .review-checklists {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
 }
 
 .checklist-group {
-  padding: 14px;
+  padding: 10px;
   border: 1px solid #e6edf5;
-  border-radius: 16px;
+  border-radius: 12px;
   background: #fff;
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 8px;
 }
 
 .sub-head {
@@ -1646,7 +1648,7 @@ button:disabled {
 
 .approval-footer {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   padding-top: 6px;
   border-top: 1px solid #e6edf5;
 }
@@ -1659,7 +1661,7 @@ button:disabled {
 .empty-detail {
   color: #6f8297;
   line-height: 1.7;
-  font-size: 14px;
+  font-size: var(--compact-body);
   text-align: center;
   padding: 20px 0;
 }
@@ -1669,8 +1671,8 @@ button:disabled {
 }
 
 .feedback.error {
-  padding: 18px;
-  border-radius: 18px;
+  padding: 12px;
+  border-radius: 14px;
   background: #fff8f8;
   color: #b42318;
 }
@@ -1700,8 +1702,8 @@ button:disabled {
   width: 100%;
   max-width: 420px;
   background: #ffffff;
-  padding: 28px;
-  border-radius: 24px;
+  padding: 18px;
+  border-radius: 18px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
 }
 
