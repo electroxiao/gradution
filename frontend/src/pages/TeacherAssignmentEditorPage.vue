@@ -31,19 +31,37 @@
             v-for="(question, index) in form.questions"
             :key="question.localKey"
             class="question-card"
-            :class="{ active: index === activeQuestionIndex }"
+            :class="{
+              active: index === activeQuestionIndex,
+              dragging: index === draggingQuestionIndex,
+              'drag-over': index === dragOverQuestionIndex && index !== draggingQuestionIndex,
+            }"
+            @dragover.prevent
+            @dragenter.prevent="dragEnterQuestion(index)"
+            @drop.prevent="dropQuestion(index)"
             @click="selectQuestion(index)"
           >
+            <button
+              type="button"
+              class="drag-handle"
+              title="拖动排序"
+              draggable="true"
+              @dragstart.stop="startQuestionDrag(index, $event)"
+              @dragend="endQuestionDrag"
+              @click.stop
+            >
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
             <button type="button" class="question-main">
               <span class="order">{{ index + 1 }}</span>
               <span class="copy">
-                <strong>{{ question.title || "未命名题目" }}</strong>
+                <span class="question-title">{{ question.title || "未命名题目" }}</span>
                 <small :class="['type-chip', question.question_type]">{{ questionTypeText(question.question_type) }}</small>
               </span>
             </button>
             <div class="mini-actions">
-              <button type="button" title="上移" :disabled="index === 0" @click.stop="moveQuestion(index, -1)">↑</button>
-              <button type="button" title="下移" :disabled="index === form.questions.length - 1" @click.stop="moveQuestion(index, 1)">↓</button>
               <button type="button" title="删除" class="danger" @click.stop="removeQuestion(index)">×</button>
             </div>
           </article>
@@ -318,6 +336,8 @@ const testcaseGenerating = ref(false);
 const bankLoading = ref(false);
 const coreMode = ref("ai");
 const activeQuestionIndex = ref(0);
+const draggingQuestionIndex = ref(null);
+const dragOverQuestionIndex = ref(null);
 const generateRequirement = ref("");
 const generateKnowledge = ref("");
 const generateCounts = ref({ multiple_choice: 5, fill_blank: 3, programming: 1 });
@@ -490,12 +510,34 @@ function removeQuestion(index) {
   activeQuestionIndex.value = Math.min(activeQuestionIndex.value, Math.max(form.value.questions.length - 1, 0));
 }
 
-function moveQuestion(index, direction) {
-  const next = index + direction;
-  if (next < 0 || next >= form.value.questions.length) return;
-  const [item] = form.value.questions.splice(index, 1);
-  form.value.questions.splice(next, 0, item);
-  activeQuestionIndex.value = next;
+function startQuestionDrag(index, event) {
+  draggingQuestionIndex.value = index;
+  dragOverQuestionIndex.value = index;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", String(index));
+}
+
+function dragEnterQuestion(index) {
+  if (draggingQuestionIndex.value === null) return;
+  dragOverQuestionIndex.value = index;
+}
+
+function dropQuestion(index) {
+  if (draggingQuestionIndex.value === null) return;
+  moveQuestionTo(draggingQuestionIndex.value, index);
+  endQuestionDrag();
+}
+
+function endQuestionDrag() {
+  draggingQuestionIndex.value = null;
+  dragOverQuestionIndex.value = null;
+}
+
+function moveQuestionTo(fromIndex, toIndex) {
+  if (fromIndex === toIndex || toIndex < 0 || toIndex >= form.value.questions.length) return;
+  const [item] = form.value.questions.splice(fromIndex, 1);
+  form.value.questions.splice(toIndex, 0, item);
+  activeQuestionIndex.value = toIndex;
 }
 
 function addOption(question) {
@@ -726,18 +768,18 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .assignment-studio {
   display: grid;
-  gap: 14px;
-  color: #18233a;
+  gap: 12px;
+  color: #162033;
   font-size: var(--compact-body);
 }
 
 .studio-hero,
 .panel,
 .feedback {
-  border: 1px solid #dfe7f5;
+  border: 1px solid #e3e8f1;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 14px 34px rgba(38, 65, 112, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 28px rgba(23, 37, 60, 0.06);
 }
 
 .studio-hero {
@@ -750,14 +792,14 @@ function handleApiError(error, fallbackMessage) {
 
 .studio-hero h1 {
   margin: 0 0 6px;
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 650;
   letter-spacing: 0;
 }
 
 .studio-hero h1 span {
-  color: #52637d;
-  font-weight: 600;
+  color: #66738a;
+  font-weight: 500;
 }
 
 .studio-hero p,
@@ -777,6 +819,10 @@ function handleApiError(error, fallbackMessage) {
   gap: 10px;
 }
 
+.hero-actions {
+  flex-shrink: 0;
+}
+
 .btn {
   min-height: 36px;
   border: 1px solid #d8e1f0;
@@ -784,9 +830,11 @@ function handleApiError(error, fallbackMessage) {
   background: #fff;
   color: #20304d;
   padding: 8px 14px;
-  font-weight: 700;
+  font-weight: 560;
   text-decoration: none;
   cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
 }
 
 .btn.primary {
@@ -796,7 +844,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .btn.ghost {
-  background: #f8fbff;
+  background: #f8fafc;
 }
 
 .btn.dashed {
@@ -834,8 +882,8 @@ function handleApiError(error, fallbackMessage) {
 
 .studio-grid {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
 }
 
@@ -843,8 +891,8 @@ function handleApiError(error, fallbackMessage) {
   position: sticky;
   top: 12px;
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px;
 }
 
 .panel-head,
@@ -865,6 +913,7 @@ function handleApiError(error, fallbackMessage) {
 .editor-head h2 {
   margin: 0 0 4px;
   font-size: 16px;
+  font-weight: 650;
   letter-spacing: 0;
 }
 
@@ -872,19 +921,57 @@ function handleApiError(error, fallbackMessage) {
 .bank-list,
 .compact-bank-list {
   display: grid;
-  gap: 8px;
+  gap: 7px;
 }
 
 .question-card {
-  border: 1px solid #dde7f6;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 28px;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #e4eaf3;
   border-radius: 8px;
-  background: #fbfdff;
-  padding: 8px;
+  background: #fff;
+  padding: 7px;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
 }
 
 .question-card.active {
-  border-color: #3b82f6;
-  box-shadow: inset 3px 0 0 #3b82f6;
+  border-color: #2563eb;
+  background: #f8fbff;
+  box-shadow: inset 2px 0 0 #2563eb;
+}
+
+.question-card.dragging {
+  opacity: 0.58;
+}
+
+.question-card.drag-over {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.drag-handle {
+  display: grid;
+  gap: 3px;
+  place-items: center;
+  width: 24px;
+  height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #9aa7ba;
 }
 
 .question-main {
@@ -900,13 +987,14 @@ function handleApiError(error, fallbackMessage) {
 
 .order {
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   place-items: center;
   border-radius: 7px;
-  background: #eef4ff;
-  color: #2563eb;
-  font-weight: 800;
+  background: #eff4ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .copy {
@@ -915,7 +1003,7 @@ function handleApiError(error, fallbackMessage) {
   gap: 5px;
 }
 
-.copy strong,
+.question-title,
 .compact-bank-item span,
 .bank-item strong {
   overflow: hidden;
@@ -923,9 +1011,13 @@ function handleApiError(error, fallbackMessage) {
   white-space: nowrap;
 }
 
+.question-title {
+  color: #1f2937;
+  font-weight: 540;
+}
+
 .mini-actions {
-  justify-content: flex-end;
-  margin-top: 6px;
+  justify-content: center;
 }
 
 .mini-actions button,
@@ -937,6 +1029,7 @@ function handleApiError(error, fallbackMessage) {
   background: #fff;
   color: #51617c;
   cursor: pointer;
+  line-height: 1;
 }
 
 .mini-actions .danger,
@@ -971,7 +1064,7 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   gap: 7px;
   color: #3c4960;
-  font-weight: 700;
+  font-weight: 540;
 }
 
 .field span {
@@ -1009,9 +1102,9 @@ textarea {
   gap: 8px;
   border: 1px solid #dbe6f6;
   border-radius: 7px;
-  background: #f8fbff;
+  background: #f8fafc;
   padding: 8px 10px;
-  font-weight: 700;
+  font-weight: 540;
 }
 
 .class-check input {
@@ -1037,7 +1130,7 @@ textarea {
   background: #fff;
   padding: 8px 14px;
   color: #52637d;
-  font-weight: 800;
+  font-weight: 560;
   cursor: pointer;
 }
 
@@ -1111,7 +1204,7 @@ textarea {
   border: 0;
   background: transparent;
   color: #2563eb;
-  font-weight: 800;
+  font-weight: 560;
   cursor: pointer;
 }
 
@@ -1123,7 +1216,7 @@ textarea {
   background: #edf4ff;
   color: #2563eb;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 560;
 }
 
 .type-chip.fill_blank {
@@ -1171,7 +1264,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-weight: 800;
+  font-weight: 560;
 }
 
 .option-row input[type="radio"],
@@ -1206,7 +1299,7 @@ textarea {
 .preview-title span {
   color: #6d7890;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 560;
 }
 
 .preview-box p {
@@ -1238,7 +1331,7 @@ textarea {
   border-radius: 50%;
   background: #eef4ff;
   color: #2563eb;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .blank-preview {
