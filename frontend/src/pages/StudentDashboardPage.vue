@@ -270,7 +270,7 @@ function handleApiError(error, fallbackMessage, target) {
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.52fr) minmax(340px, 0.88fr);
+  grid-template-columns: minmax(0, 1.52fr) minmax(280px, 0.88fr);
   gap: 14px;
   align-items: stretch;
 }
@@ -520,18 +520,15 @@ function handleApiError(error, fallbackMessage, target) {
 }
 
 @media (max-width: 980px) {
-  .summary-row,
-  .dashboard-grid {
-    grid-template-columns: 1fr;
+  .summary-row {
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
   }
 
-  .dashboard-hero {
-    flex-direction: column;
-    align-items: flex-start;
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
   }
 
   .dashboard-hero-actions {
-    width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
   }
@@ -546,6 +543,16 @@ function handleApiError(error, fallbackMessage, target) {
 }
 
 @media (max-width: 640px) {
+  .summary-row,
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .dashboard-hero-actions,
   .panel-header,
   .assignment-item,

@@ -1276,7 +1276,7 @@ textarea {
   color: #5f7287;
 }
 
-@media (max-width: 1220px) {
+@media (max-width: 900px) {
   .assignment-lab,
   .detail-page.ai-open .assignment-lab {
     grid-template-columns: 1fr;

@@ -1314,7 +1314,7 @@ button:disabled {
 
 .graph-mode-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
   gap: 14px;
   align-items: start;
 }
@@ -1326,13 +1326,13 @@ button:disabled {
 
 .review-header-strip {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
   gap: 14px;
 }
 
 .review-mode-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.94fr) minmax(380px, 0.86fr);
+  grid-template-columns: minmax(0, 0.94fr) minmax(320px, 0.86fr);
   gap: 14px;
   align-items: start;
 }
@@ -1712,7 +1712,7 @@ button:disabled {
   color: #0f2840;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 900px) {
   .graph-mode-layout,
   .review-header-strip,
   .review-mode-layout {

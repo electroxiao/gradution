@@ -481,7 +481,7 @@ function handleApiError(error, fallbackMessage) {
 
 @media (max-width: 980px) {
   .summary-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
   }
 
   .assignment-panel {
@@ -490,6 +490,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 720px) {
+  .summary-row {
+    grid-template-columns: 1fr;
+  }
+
   .empty-actions {
     display: grid;
     width: 100%;

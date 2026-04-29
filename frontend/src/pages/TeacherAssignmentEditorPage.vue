@@ -141,7 +141,7 @@
                   <span>编程题</span>
                   <input v-model.number="generateCounts.programming" min="0" max="10" type="number" />
                 </label>
-                <button type="button" class="btn primary" :disabled="generating || !generateRequirement.trim()" @click="generateQuestions">
+                <button type="button" class="btn primary generate-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestions">
                   {{ generating ? "生成中..." : "生成题目" }}
                 </button>
               </div>
@@ -824,6 +824,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .btn {
+  box-sizing: border-box;
   min-height: 36px;
   border: 1px solid #d8e1f0;
   border-radius: 7px;
@@ -1045,6 +1046,7 @@ function handleApiError(error, fallbackMessage) {
 .studio-main {
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .meta-panel,
@@ -1074,6 +1076,7 @@ function handleApiError(error, fallbackMessage) {
 input,
 textarea,
 select {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   border: 1px solid #d9e3f2;
@@ -1117,6 +1120,11 @@ textarea {
   gap: 14px;
 }
 
+.core-row > *,
+.panel-head > div {
+  min-width: 0;
+}
+
 .mode-tabs {
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
@@ -1147,11 +1155,21 @@ textarea {
 
 .ai-controls {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) 90px 90px 90px auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end;
+}
+
+.ai-controls > .field:first-child {
+  grid-column: 1 / -1;
 }
 
 .field.mini input {
   text-align: center;
+}
+
+.generate-btn {
+  align-self: end;
+  width: 100%;
 }
 
 .bank-inline {
@@ -1350,7 +1368,17 @@ textarea {
   white-space: pre;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1440px) {
+  .ai-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .generate-btn {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
   .studio-grid,
   .core-row,
   .editor-grid {

@@ -96,7 +96,7 @@ function logout() {
 <style scoped>
 .console-shell {
   --sidebar-width: 210px;
-  --sidebar-collapsed-width: 82px;
+  --sidebar-collapsed-width: 72px;
   --sidebar-current-width: var(--sidebar-width);
   display: grid;
   grid-template-columns: var(--sidebar-current-width) minmax(0, 1fr);
@@ -343,7 +343,7 @@ function logout() {
 @media (max-width: 980px) {
   .console-shell {
     --sidebar-width: 176px;
-    --sidebar-collapsed-width: 74px;
+    --sidebar-collapsed-width: 66px;
   }
 
   .console-sidebar {
@@ -361,7 +361,7 @@ function logout() {
 @media (max-width: 640px) {
   .console-shell {
     --sidebar-width: 157px;
-    --sidebar-collapsed-width: 68px;
+    --sidebar-collapsed-width: 62px;
   }
 
   .console-topbar {

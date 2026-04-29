@@ -319,6 +319,14 @@ button:disabled {
 }
 
 @media (max-width: 960px) {
+  .app-grid-2,
+  .app-grid-3,
+  .app-grid-4 {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
   .app-header {
     flex-direction: column;
   }

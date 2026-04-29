@@ -410,7 +410,7 @@ function handleApiError(error, fallbackMessage) {
 
 .students-layout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: minmax(210px, 240px) minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -804,11 +804,17 @@ function handleApiError(error, fallbackMessage) {
 
 @media (max-width: 960px) {
   .students-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
   }
 
   .portrait-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .students-layout {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -197,6 +197,12 @@ function handleApiError(error, fallbackMessage) {
 
 @media (max-width: 960px) {
   .metrics-grid {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .metrics-grid {
     grid-template-columns: 1fr;
   }
 

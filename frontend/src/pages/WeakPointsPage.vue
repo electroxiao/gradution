@@ -567,7 +567,7 @@ function handleApiError(error, fallbackMessage) {
 
 .weak-grid-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   gap: 14px;
   align-items: start;
 }
@@ -1216,6 +1216,21 @@ function handleApiError(error, fallbackMessage) {
     flex-direction: column;
   }
 
+  .summary-row {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .weak-grid-layout {
+    grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.9fr);
+  }
+
+  .graph-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 680px) {
   .summary-row,
   .weak-grid-layout {
     grid-template-columns: 1fr;
