@@ -120,6 +120,7 @@
           draggable=".question-card"
           :direction="verticalDragDirection"
           :animation="220"
+          :force-fallback="true"
           :fallback-on-body="true"
           :swap-threshold="0.65"
           :disabled="questionFilter !== 'all'"
@@ -999,7 +1000,7 @@ function handleApiError(error, fallbackMessage) {
   background: #fff;
   min-height: 70px;
   padding: 9px 10px;
-  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease, transform 0.18s ease;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
   user-select: none;
 }
 
@@ -1018,16 +1019,15 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .question-card-ghost {
-  border-color: #b9c9e2;
-  background: #f8fafc;
-  opacity: 0.72;
+  opacity: 0 !important;
+  border-color: transparent !important;
 }
 
 .question-card-drag {
   box-shadow: 0 14px 28px rgba(31, 41, 55, 0.16);
-  opacity: 0.95;
-  transform: scale(1.02);
   z-index: 5;
+  transition: none !important;
+  opacity: 1 !important;
 }
 
 .drag-handle {
