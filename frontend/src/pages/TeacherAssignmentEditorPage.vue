@@ -117,6 +117,7 @@
           ghost-class="question-card-ghost"
           chosen-class="question-card-chosen"
           drag-class="question-card-drag"
+          fallback-class="question-card-fallback"
           draggable=".question-card"
           :direction="verticalDragDirection"
           :animation="220"
@@ -132,9 +133,11 @@
             v-show="isQuestionVisible(question)"
             :key="question.localKey"
             class="question-card"
+            :data-question-key="question.localKey"
             :class="{
               active: questionIndex(question) === activeQuestionIndex,
               dragging: question.localKey === draggingQuestionKey,
+              settling: question.localKey === settlingQuestionKey,
             }"
             @click="selectQuestion(questionIndex(question))"
           >
@@ -309,7 +312,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
 
@@ -338,11 +341,15 @@ const generating = ref(false);
 const testcaseGenerating = ref(false);
 const activeQuestionIndex = ref(0);
 const draggingQuestionKey = ref(null);
+const settlingQuestionKey = ref(null);
 const questionFilter = ref("all");
 const previewOpen = ref(false);
 const generateRequirement = ref("");
 const generateKnowledge = ref("");
 const generateCounts = ref({ multiple_choice: 5, fill_blank: 3, programming: 1 });
+let questionSettleTimer = null;
+let questionFlightAnimation = null;
+let questionDragPointerOffset = null;
 const form = ref({
   title: "",
   status: "published",
@@ -383,6 +390,10 @@ onMounted(async () => {
     form.value.class_names = classOptions.value.slice(0, 1);
     addQuestion({ question_type: "multiple_choice" });
   }
+});
+
+onBeforeUnmount(() => {
+  clearQuestionSettleState();
 });
 
 watch(() => activeQuestion.value?.question_type, () => {
@@ -543,13 +554,116 @@ function duplicateQuestion(index) {
 }
 
 function startQuestionSort(event) {
+  clearQuestionSettleState();
+  settlingQuestionKey.value = null;
   draggingQuestionKey.value = form.value.questions[event.oldIndex]?.localKey || null;
+  questionDragPointerOffset = getQuestionDragPointerOffset(event);
 }
 
-function endQuestionSort() {
+function endQuestionSort(event) {
   const activeKey = activeQuestion.value?.localKey;
+  const draggedKey = draggingQuestionKey.value;
+  const pointer = getEventPointer(event);
+  const flightSource = event?.item?.cloneNode(true);
+
   draggingQuestionKey.value = null;
+  settlingQuestionKey.value = draggedKey;
+
+  nextTick(() => animateQuestionReturn(draggedKey, pointer, flightSource));
   restoreActiveQuestion(activeKey);
+}
+
+function clearQuestionSettleState() {
+  if (questionSettleTimer) {
+    clearTimeout(questionSettleTimer);
+    questionSettleTimer = null;
+  }
+  if (questionFlightAnimation) {
+    questionFlightAnimation.remove();
+    questionFlightAnimation = null;
+  }
+  questionDragPointerOffset = null;
+}
+
+function getEventPointer(event) {
+  const originalEvent = event?.originalEvent || event;
+  const touch = originalEvent?.changedTouches?.[0] || originalEvent?.touches?.[0];
+  if (touch) return { x: touch.clientX, y: touch.clientY };
+  if (Number.isFinite(originalEvent?.clientX) && Number.isFinite(originalEvent?.clientY)) {
+    return { x: originalEvent.clientX, y: originalEvent.clientY };
+  }
+  return null;
+}
+
+function getQuestionDragPointerOffset(event) {
+  const pointer = getEventPointer(event);
+  const itemRect = event?.item?.getBoundingClientRect?.();
+  if (!pointer || !itemRect) return null;
+  return {
+    x: pointer.x - itemRect.left,
+    y: pointer.y - itemRect.top,
+  };
+}
+
+function findQuestionCardElement(localKey) {
+  return Array.from(document.querySelectorAll(".question-card")).find((item) => item.dataset.questionKey === String(localKey));
+}
+
+function animateQuestionReturn(draggedKey, pointer, sourceElement) {
+  const targetElement = findQuestionCardElement(draggedKey);
+  if (!draggedKey || !pointer || !targetElement) {
+    finishQuestionReturn(draggedKey, 0);
+    return;
+  }
+
+  const targetRect = targetElement.getBoundingClientRect();
+  const pointerOffset = questionDragPointerOffset || {
+    x: targetRect.width / 2,
+    y: targetRect.height / 2,
+  };
+  const startLeft = pointer.x - pointerOffset.x;
+  const startTop = pointer.y - pointerOffset.y;
+  const flightCard = sourceElement || targetElement.cloneNode(true);
+  flightCard.classList.remove("dragging", "settling", "question-card-ghost", "question-card-drag", "question-card-fallback");
+  flightCard.classList.add("question-card-flight");
+  flightCard.style.width = `${targetRect.width}px`;
+  flightCard.style.height = `${targetRect.height}px`;
+  flightCard.style.left = `${startLeft}px`;
+  flightCard.style.top = `${startTop}px`;
+  document.body.appendChild(flightCard);
+
+  const deltaX = targetRect.left - startLeft;
+  const deltaY = targetRect.top - startTop;
+  const animation = flightCard.animate(
+    [
+      { transform: "translate3d(0, 0, 0) scale(1.02)", opacity: 1 },
+      { transform: `translate3d(${deltaX}px, ${deltaY}px, 0) scale(1)`, opacity: 1 },
+    ],
+    {
+      duration: 280,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      fill: "forwards",
+    },
+  );
+
+  questionFlightAnimation = flightCard;
+  animation.onfinish = () => {
+    flightCard.remove();
+    questionFlightAnimation = null;
+    finishQuestionReturn(draggedKey, 0);
+  };
+  animation.oncancel = () => {
+    flightCard.remove();
+  };
+}
+
+function finishQuestionReturn(draggedKey, delay = 0) {
+  questionSettleTimer = setTimeout(() => {
+    if (settlingQuestionKey.value === draggedKey) {
+      settlingQuestionKey.value = null;
+    }
+    questionSettleTimer = null;
+  }, delay);
 }
 
 function restoreActiveQuestion(activeKey) {
@@ -1010,17 +1124,26 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.08);
 }
 
-.question-card.dragging {
-  opacity: 0.58;
+.question-card.dragging:not(.question-card-drag):not(.question-card-fallback) {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.question-card.settling {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .question-card-chosen {
   border-color: #9fb8ef;
 }
 
-.question-card-ghost {
+:global(.question-card-ghost) {
   opacity: 0 !important;
+  visibility: hidden !important;
   border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .question-card-drag {
@@ -1028,6 +1151,53 @@ function handleApiError(error, fallbackMessage) {
   z-index: 5;
   transition: none !important;
   opacity: 1 !important;
+  visibility: visible !important;
+}
+
+:global(.question-card-fallback) {
+  display: grid !important;
+  grid-template-columns: 12px minmax(0, 1fr) 28px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  min-height: 70px !important;
+  padding: 9px 10px !important;
+  color: #162033;
+  font-size: 13px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+:global(.question-card-flight) {
+  position: fixed !important;
+  box-sizing: border-box;
+  display: grid !important;
+  grid-template-columns: 12px minmax(0, 1fr) 28px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  min-height: 70px !important;
+  padding: 9px 10px !important;
+  color: #162033;
+  font-size: 13px !important;
+  margin: 0 !important;
+  pointer-events: none;
+  z-index: 100000;
+  opacity: 1 !important;
+  visibility: visible !important;
+  box-shadow: 0 18px 34px rgba(31, 41, 55, 0.18);
+  transition: none !important;
+}
+
+:global(.question-card-fallback .question-main),
+:global(.question-card-flight .question-main) {
+  font: inherit !important;
+}
+
+:global(.question-card-fallback .question-title),
+:global(.question-card-flight .question-title) {
+  color: #1f2937;
+  font-size: 13px !important;
+  font-weight: 400;
+  line-height: normal;
 }
 
 .drag-handle {
