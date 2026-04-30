@@ -89,18 +89,30 @@
       </section>
     </section>
 
-    <main class="studio-grid">
+    <main class="studio-grid" :class="{ 'preview-open': previewOpen }">
       <aside class="question-rail panel">
         <div class="panel-head">
           <div>
-            <h2>当前作业题目</h2>
-            <span>共 {{ form.questions.length }} 题</span>
+            <h2>题目列表</h2>
+            <span>共 {{ form.questions.length }} 题 · 已选择 {{ activeQuestion ? 1 : 0 }} 题</span>
           </div>
+        </div>
+
+        <div class="question-tabs" aria-label="题型筛选">
+          <button
+            v-for="tab in questionFilterTabs"
+            :key="tab.value"
+            type="button"
+            :class="{ active: questionFilter === tab.value }"
+            @click="questionFilter = tab.value"
+          >
+            {{ tab.label }}
+          </button>
         </div>
 
         <div class="question-list">
           <article
-            v-for="(question, index) in form.questions"
+            v-for="{ question, index } in visibleQuestions"
             :key="question.localKey"
             class="question-card"
             :class="{
@@ -129,14 +141,20 @@
             <button type="button" class="question-main">
               <span class="order">{{ index + 1 }}</span>
               <span class="copy">
-                <span class="question-title">{{ question.title || "未命名题目" }}</span>
-                <small :class="['type-chip', question.question_type]">{{ questionTypeText(question.question_type) }}</small>
+                <span class="question-line">
+                  <span class="question-title">{{ question.title || "未命名题目" }}</span>
+                  <small :class="['type-chip', question.question_type]">{{ questionTypeText(question.question_type) }}</small>
+                </span>
+                <small :class="['edit-status', hasQuestionContent(question) ? 'done' : 'todo']">
+                  {{ hasQuestionContent(question) ? "已编辑" : "未完成" }}
+                </small>
               </span>
             </button>
             <div class="mini-actions">
               <button type="button" title="删除" class="danger" @click.stop="removeQuestion(index)">×</button>
             </div>
           </article>
+          <p v-if="!visibleQuestions.length" class="empty-note">当前筛选下暂无题目。</p>
         </div>
 
         <div class="rail-actions">
@@ -150,34 +168,51 @@
         <section v-if="activeQuestion" class="editor-panel panel">
           <div class="editor-head">
             <div>
-              <h2>题目编辑 / 预览</h2>
-              <span>{{ questionTypeText(activeQuestion.question_type) }}</span>
+              <h2>题目编辑</h2>
+              <span>编辑当前题目</span>
             </div>
             <div class="editor-tools">
-              <select v-model="activeQuestion.question_type" @change="normalizeActiveQuestionByType">
-                <option value="multiple_choice">选择题</option>
-                <option value="fill_blank">填空题</option>
-                <option value="programming">编程题</option>
-              </select>
-              <button type="button" class="btn ghost small" @click="saveActiveQuestionToBank">保存到题库</button>
+              <button type="button" class="btn primary small" :disabled="saving" @click="saveAssignment">保存</button>
+              <button type="button" class="btn danger small" @click="removeQuestion(activeQuestionIndex)">删除</button>
+              <button type="button" class="btn ghost small" :class="{ active: previewOpen }" @click="previewOpen = !previewOpen">预览</button>
             </div>
           </div>
 
           <div class="editor-grid">
             <section class="editor-fields">
-              <label class="field">
-                <span>题目标题</span>
-                <input v-model="activeQuestion.title" placeholder="请输入题目标题" />
-              </label>
-              <label class="field">
-                <span>题目内容</span>
-                <textarea v-model="activeQuestion.prompt" rows="7" placeholder="请输入题干、要求和必要说明" />
-              </label>
+              <section class="editor-section">
+                <h3>A. 基本信息</h3>
+                <div class="basic-grid">
+                  <label class="field">
+                    <span>题目标题</span>
+                    <input v-model="activeQuestion.title" placeholder="请输入题目标题" />
+                  </label>
+                  <label class="field">
+                    <span>题目类型</span>
+                    <select v-model="activeQuestion.question_type" @change="normalizeActiveQuestionByType">
+                      <option value="multiple_choice">选择题（单选）</option>
+                      <option value="fill_blank">填空题</option>
+                      <option value="programming">编程题</option>
+                    </select>
+                  </label>
+                  <label class="field score-field">
+                    <span>分值</span>
+                    <input value="5" readonly />
+                  </label>
+                </div>
+              </section>
 
-              <div v-if="activeQuestion.question_type === 'multiple_choice'" class="option-editor">
+              <section class="editor-section">
+                <h3>B. 题干</h3>
+                <label class="field">
+                  <textarea v-model="activeQuestion.prompt" rows="5" maxlength="1000" placeholder="请输入题干、要求或题目说明" />
+                  <small>{{ activeQuestion.prompt.length }}/1000</small>
+                </label>
+              </section>
+
+              <div v-if="activeQuestion.question_type === 'multiple_choice'" class="editor-section option-editor">
                 <div class="sub-head">
-                  <strong>选项（单选）</strong>
-                  <button type="button" class="link-btn" @click="addOption(activeQuestion)">新增选项</button>
+                  <h3>C. 选项设置（单选）</h3>
                 </div>
                 <article v-for="(option, index) in activeQuestion.options" :key="option.localKey" class="option-row">
                   <label>
@@ -185,23 +220,26 @@
                     <span>{{ option.key }}</span>
                   </label>
                   <input v-model="option.text" placeholder="选项内容" />
-                  <button type="button" class="icon-danger" @click="removeOption(activeQuestion, index)">×</button>
                 </article>
               </div>
 
-              <label v-if="activeQuestion.question_type === 'fill_blank'" class="field">
-                <span>参考答案</span>
-                <textarea v-model="activeQuestion.answer_text" rows="3" placeholder="可填写一个或多个参考答案，用逗号分隔" />
-              </label>
+              <section v-if="activeQuestion.question_type === 'fill_blank'" class="editor-section">
+                <h3>C. 参考答案</h3>
+                <label class="field">
+                  <textarea v-model="activeQuestion.answer_text" rows="3" placeholder="可填写一个或多个参考答案，用逗号分隔" />
+                </label>
+              </section>
 
               <template v-if="activeQuestion.question_type === 'programming'">
-                <label class="field">
-                  <span>初始代码</span>
-                  <textarea v-model="activeQuestion.starter_code" rows="5" class="code-textarea" placeholder="学生打开题目时默认展示的代码" />
-                </label>
-                <div class="grading-box">
+                <section class="editor-section">
+                  <h3>C. 初始代码</h3>
+                  <label class="field">
+                    <textarea v-model="activeQuestion.starter_code" rows="5" class="code-textarea" placeholder="学生打开题目时默认展示的代码" />
+                  </label>
+                </section>
+                <div class="editor-section grading-box">
                   <div class="sub-head">
-                    <strong>编程题判题</strong>
+                    <h3>D. 编程题判题</h3>
                     <button type="button" class="link-btn" :disabled="testcaseGenerating" @click="generateTestCases(activeQuestion)">
                       {{ testcaseGenerating ? "生成中..." : "AI 生成测试用例" }}
                     </button>
@@ -221,30 +259,43 @@
                 </div>
               </template>
 
-              <label class="field">
-                <span>解析 / AI 判分依据</span>
-                <textarea v-model="activeQuestion.explanation" rows="3" placeholder="给教师和 AI 判分参考的解析，可留空" />
-              </label>
+              <section class="editor-section">
+                <h3>{{ activeQuestion.question_type === "programming" ? "E" : "D" }}. 答案解析（可选）</h3>
+                <label class="field">
+                  <textarea v-model="activeQuestion.explanation" rows="3" maxlength="2000" placeholder="给教师和 AI 判分参考的解析，可留空" />
+                  <small>{{ activeQuestion.explanation.length }}/2000</small>
+                </label>
+              </section>
             </section>
-
-            <aside class="preview-box">
-              <div class="preview-title">
-                <span>预览</span>
-                <strong>{{ activeQuestion.title || "未命名题目" }}</strong>
-              </div>
-              <p>{{ activeQuestion.prompt || "题干将在这里预览。" }}</p>
-              <div v-if="activeQuestion.question_type === 'multiple_choice'" class="preview-options">
-                <div v-for="option in activeQuestion.options" :key="`p-${option.localKey}`">
-                  <span>{{ option.key }}</span>
-                  <p>{{ option.text || "选项内容" }}</p>
-                </div>
-              </div>
-              <div v-if="activeQuestion.question_type === 'fill_blank'" class="blank-preview">学生将在这里填写答案</div>
-              <pre v-if="activeQuestion.question_type === 'programming'" class="code-preview">{{ activeQuestion.starter_code || "public class Main {\\n    public static void main(String[] args) {\\n    }\\n}" }}</pre>
-            </aside>
           </div>
         </section>
       </section>
+
+      <aside v-if="activeQuestion && previewOpen" class="live-preview panel">
+        <div class="preview-head">
+          <h2>实时预览</h2>
+          <label class="student-switch">
+            <span>学生视角</span>
+            <input checked type="checkbox" />
+          </label>
+        </div>
+        <div class="preview-card">
+          <div class="preview-title">
+            <span>{{ activeQuestionIndex + 1 }}</span>
+            <strong>{{ activeQuestion.title || "未命名题目" }}</strong>
+          </div>
+          <p>{{ activeQuestion.prompt || "题干将在这里预览。" }}</p>
+          <div v-if="activeQuestion.question_type === 'multiple_choice'" class="preview-options">
+            <div v-for="option in activeQuestion.options" :key="`p-${option.localKey}`">
+              <span>{{ option.key }}</span>
+              <p>{{ option.text || "选项内容" }}</p>
+            </div>
+          </div>
+          <div v-if="activeQuestion.question_type === 'fill_blank'" class="blank-preview">学生将在这里填写答案</div>
+          <pre v-if="activeQuestion.question_type === 'programming'" class="code-preview">{{ activeQuestion.starter_code || "public class Main {\\n    public static void main(String[] args) {\\n    }\\n}" }}</pre>
+        </div>
+        <p class="preview-note">ⓘ 预览仅供展示，实际样式以学生端为准</p>
+      </aside>
     </main>
   </section>
 </template>
@@ -279,6 +330,8 @@ const testcaseGenerating = ref(false);
 const activeQuestionIndex = ref(0);
 const draggingQuestionIndex = ref(null);
 const dragOverQuestionIndex = ref(null);
+const questionFilter = ref("all");
+const previewOpen = ref(false);
 const generateRequirement = ref("");
 const generateKnowledge = ref("");
 const generateCounts = ref({ multiple_choice: 5, fill_blank: 3, programming: 1 });
@@ -300,6 +353,17 @@ const assignedStudentCount = computed(() =>
   students.value.filter((student) => form.value.class_names.includes(student.class_name)).length,
 );
 const activeQuestion = computed(() => form.value.questions[activeQuestionIndex.value] || null);
+const questionFilterTabs = [
+  { value: "all", label: "全部" },
+  { value: "multiple_choice", label: "选择题" },
+  { value: "fill_blank", label: "填空题" },
+  { value: "programming", label: "编程题" },
+];
+const visibleQuestions = computed(() =>
+  form.value.questions
+    .map((question, index) => ({ question, index }))
+    .filter(({ question }) => questionFilter.value === "all" || question.question_type === questionFilter.value),
+);
 
 onMounted(async () => {
   await loadStudents();
@@ -417,6 +481,10 @@ function selectQuestion(index) {
   activeQuestionIndex.value = index;
 }
 
+function hasQuestionContent(question) {
+  return Boolean(question.title?.trim() && question.prompt?.trim());
+}
+
 function addQuestion(source = {}) {
   form.value.questions.push(normalizeQuestion({
     title: source.title || "",
@@ -436,6 +504,26 @@ function addQuestion(source = {}) {
 function removeQuestion(index) {
   form.value.questions.splice(index, 1);
   activeQuestionIndex.value = Math.min(activeQuestionIndex.value, Math.max(form.value.questions.length - 1, 0));
+}
+
+function duplicateQuestion(index) {
+  const source = form.value.questions[index];
+  if (!source) return;
+  const clone = normalizeQuestion({
+    ...source,
+    id: undefined,
+    localKey: undefined,
+    title: source.title ? `${source.title} 副本` : "",
+    options: source.options.map(({ key, text }) => ({ key, text })),
+    test_cases: source.test_cases.map(({ input_data, expected_output, is_sample, sort_order }) => ({
+      input_data,
+      expected_output,
+      is_sample,
+      sort_order,
+    })),
+  });
+  form.value.questions.splice(index + 1, 0, clone);
+  activeQuestionIndex.value = index + 1;
 }
 
 function startQuestionDrag(index, event) {
@@ -682,10 +770,13 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .assignment-studio {
+  --studio-card-height: min(760px, calc(100vh - 24px));
   display: grid;
   gap: 12px;
   color: #162033;
   font-size: var(--compact-body);
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .studio-hero,
@@ -758,8 +849,20 @@ function handleApiError(error, fallbackMessage) {
   color: #fff;
 }
 
+.btn.danger {
+  border-color: #ffe0e0;
+  background: #fff;
+  color: #dc2626;
+}
+
 .btn.ghost {
   background: #f8fafc;
+}
+
+.btn.ghost.active {
+  border-color: #2563eb;
+  background: #eef5ff;
+  color: #1d4ed8;
 }
 
 .btn.dashed {
@@ -797,17 +900,27 @@ function handleApiError(error, fallbackMessage) {
 
 .studio-grid {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
+  grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.studio-grid.preview-open {
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(300px, 360px);
 }
 
 .question-rail {
   position: sticky;
   top: 12px;
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 14px;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: var(--studio-card-height);
+  min-width: 0;
+  overflow: hidden;
+  padding: 18px;
 }
 
 .panel-head,
@@ -834,25 +947,52 @@ function handleApiError(error, fallbackMessage) {
 
 .question-list {
   display: grid;
-  gap: 7px;
+  gap: 10px;
+  align-content: start;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.question-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.question-tabs button {
+  min-height: 36px;
+  border: 1px solid #e0e8f4;
+  border-radius: 7px;
+  background: #fff;
+  color: #33415a;
+  cursor: pointer;
+  font-weight: 560;
+}
+
+.question-tabs button.active {
+  border-color: #b9d0ff;
+  background: #eef5ff;
+  color: #1d63f0;
 }
 
 .question-card {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) 28px;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
   border: 1px solid #e4eaf3;
   border-radius: 8px;
   background: #fff;
-  padding: 7px;
+  min-height: 88px;
+  padding: 12px 10px;
   transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
 }
 
 .question-card.active {
   border-color: #2563eb;
-  background: #f8fbff;
-  box-shadow: inset 2px 0 0 #2563eb;
+  background: #fbfdff;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.08);
 }
 
 .question-card.dragging {
@@ -913,7 +1053,14 @@ function handleApiError(error, fallbackMessage) {
 .copy {
   display: grid;
   min-width: 0;
-  gap: 5px;
+  gap: 10px;
+}
+
+.question-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .question-title {
@@ -924,7 +1071,39 @@ function handleApiError(error, fallbackMessage) {
 
 .question-title {
   color: #1f2937;
+  font-weight: 650;
+}
+
+.edit-status {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12px;
   font-weight: 540;
+}
+
+.edit-status::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+}
+
+.edit-status.done {
+  color: #0f9f62;
+}
+
+.edit-status.done::before {
+  border: 0;
+  background: #0f9f62;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+
+.edit-status.todo {
+  color: #f59e0b;
 }
 
 .mini-actions {
@@ -950,6 +1129,7 @@ function handleApiError(error, fallbackMessage) {
 
 .rail-actions {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -959,10 +1139,27 @@ function handleApiError(error, fallbackMessage) {
   min-width: 0;
 }
 
+.editor-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.editor-tools .btn {
+  min-width: 72px;
+}
+
 .meta-panel,
 .ai-panel,
-.editor-panel {
+.editor-panel,
+.live-preview {
   padding: 16px;
+  min-width: 0;
+}
+
+.editor-panel,
+.live-preview {
+  height: var(--studio-card-height);
+  overflow: auto;
 }
 
 .meta-grid {
@@ -1008,7 +1205,7 @@ select {
 }
 
 textarea {
-  resize: vertical;
+  resize: none;
 }
 
 .class-row {
@@ -1116,31 +1313,80 @@ textarea {
 
 .editor-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
   margin-top: 14px;
 }
 
 .editor-fields {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  min-width: 0;
+}
+
+.editor-section {
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid #e8eef6;
+  padding-bottom: 16px;
+  min-width: 0;
+}
+
+.editor-section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.editor-section h3,
+.sub-head h3 {
+  margin: 0;
+  color: #15223a;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.editor-section small {
+  justify-self: end;
+  color: #8b99ad;
+  font-size: 12px;
+}
+
+.basic-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(190px, 0.86fr) 100px;
+  gap: 14px;
+}
+
+.score-field {
+  position: relative;
+}
+
+.score-field::after {
+  content: "分";
+  position: absolute;
+  right: 12px;
+  bottom: 11px;
+  color: #8b99ad;
+}
+
+.score-field input {
+  padding-right: 34px;
 }
 
 .option-editor,
 .grading-box {
   display: grid;
   gap: 10px;
-  border: 1px solid #e1eaf7;
-  border-radius: 8px;
-  background: #fbfdff;
-  padding: 12px;
+  border-bottom: 1px solid #e8eef6;
+  background: #fff;
+  padding: 0 0 16px;
 }
 
 .option-row,
 .case-row {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr) 28px;
-  gap: 8px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
 }
 
@@ -1148,13 +1394,25 @@ textarea {
 .case-row label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   font-weight: 560;
 }
 
 .option-row input[type="radio"],
 .case-row input[type="checkbox"] {
   width: auto;
+  accent-color: #2f6ef4;
+}
+
+.option-row label span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #2563eb;
+  font-weight: 700;
 }
 
 .case-row {
@@ -1166,28 +1424,81 @@ textarea {
   font-family: Consolas, "Courier New", monospace;
 }
 
-.preview-box {
+.live-preview {
+  position: sticky;
+  top: 12px;
   display: grid;
-  align-content: start;
+  gap: 18px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  border: 1px solid #dfe8f5;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  padding: 14px;
 }
 
-.preview-title {
-  display: grid;
-  gap: 4px;
+.preview-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
 }
 
-.preview-title span {
-  color: #6d7890;
+.student-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
   font-size: 12px;
   font-weight: 560;
 }
 
-.preview-box p {
+.student-switch input {
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  accent-color: #2563eb;
+}
+
+.preview-card {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-height: 0;
+  border: 1px solid #dfe8f5;
+  border-radius: 8px;
+  background: #fff;
+  overflow: auto;
+  padding: 28px 22px;
+}
+
+.preview-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.preview-title span {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.preview-title strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.preview-card > p {
+  margin: 0;
   white-space: pre-wrap;
   color: #31405a;
   line-height: 1.65;
@@ -1200,23 +1511,29 @@ textarea {
 
 .preview-options div {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
   align-items: start;
   border: 1px solid #e4edf8;
   border-radius: 7px;
-  padding: 8px;
+  min-height: 72px;
+  padding: 13px;
 }
 
 .preview-options span {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 38px;
+  height: 38px;
   place-items: center;
   border-radius: 50%;
   background: #eef4ff;
   color: #2563eb;
   font-weight: 650;
+}
+
+.preview-options p {
+  margin: 7px 0 0;
+  color: #334155;
 }
 
 .blank-preview {
@@ -1235,7 +1552,21 @@ textarea {
   white-space: pre;
 }
 
+.preview-note {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
 @media (max-width: 1440px) {
+  .studio-grid {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  }
+
+  .studio-grid.preview-open {
+    grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) minmax(280px, 320px);
+  }
+
   .ai-controls {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1245,13 +1576,34 @@ textarea {
   }
 }
 
+@media (max-width: 1180px) {
+  .studio-grid {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+
+  .studio-grid.preview-open {
+    grid-template-columns: minmax(190px, 230px) minmax(0, 1fr) minmax(260px, 300px);
+  }
+
+  .question-tabs,
+  .rail-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 900px) {
+  .assignment-studio {
+    --studio-card-height: 640px;
+  }
+
   .studio-grid,
+  .studio-grid.preview-open,
   .editor-grid {
     grid-template-columns: 1fr;
   }
 
-  .question-rail {
+  .question-rail,
+  .live-preview {
     position: static;
   }
 
@@ -1270,11 +1622,17 @@ textarea {
 
   .hero-actions,
   .editor-tools,
+  .basic-grid,
   .meta-grid,
   .ai-controls {
     display: grid;
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .question-tabs,
+  .rail-actions {
+    grid-template-columns: 1fr 1fr;
   }
 
   .case-row,
