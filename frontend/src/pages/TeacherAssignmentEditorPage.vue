@@ -110,36 +110,40 @@
           </button>
         </div>
 
-        <div class="question-list">
+        <VueDraggable
+          v-model="form.questions"
+          class="question-list"
+          handle=".drag-handle"
+          ghost-class="question-card-ghost"
+          chosen-class="question-card-chosen"
+          drag-class="question-card-drag"
+          draggable=".question-card"
+          :direction="verticalDragDirection"
+          :animation="220"
+          :fallback-on-body="true"
+          :swap-threshold="0.65"
+          :disabled="questionFilter !== 'all'"
+          @start="startQuestionSort"
+          @end="endQuestionSort"
+        >
           <article
-            v-for="{ question, index } in visibleQuestions"
+            v-for="question in form.questions"
+            v-show="isQuestionVisible(question)"
             :key="question.localKey"
             class="question-card"
             :class="{
-              active: index === activeQuestionIndex,
-              dragging: index === draggingQuestionIndex,
-              'drag-over': index === dragOverQuestionIndex && index !== draggingQuestionIndex,
+              active: questionIndex(question) === activeQuestionIndex,
+              dragging: question.localKey === draggingQuestionKey,
             }"
-            @dragover.prevent
-            @dragenter.prevent="dragEnterQuestion(index)"
-            @drop.prevent="dropQuestion(index)"
-            @click="selectQuestion(index)"
+            @click="selectQuestion(questionIndex(question))"
           >
-            <button
-              type="button"
-              class="drag-handle"
-              title="拖动排序"
-              draggable="true"
-              @dragstart.stop="startQuestionDrag(index, $event)"
-              @dragend="endQuestionDrag"
-              @click.stop
-            >
+            <span class="drag-handle" title="拖动排序" role="button" aria-label="拖动排序" @click.stop>
               <span></span>
               <span></span>
               <span></span>
-            </button>
+            </span>
             <button type="button" class="question-main">
-              <span class="order">{{ index + 1 }}</span>
+              <span class="order">{{ questionIndex(question) + 1 }}</span>
               <span class="copy">
                 <span class="question-line">
                   <span class="question-title">{{ question.title || "未命名题目" }}</span>
@@ -151,11 +155,11 @@
               </span>
             </button>
             <div class="mini-actions">
-              <button type="button" title="删除" class="danger" @click.stop="removeQuestion(index)">×</button>
+              <button type="button" title="删除" class="danger" @click.stop="removeQuestion(questionIndex(question))">×</button>
             </div>
           </article>
-          <p v-if="!visibleQuestions.length" class="empty-note">当前筛选下暂无题目。</p>
-        </div>
+        </VueDraggable>
+        <p v-if="!visibleQuestions.length" class="empty-note">当前筛选下暂无题目。</p>
 
         <div class="rail-actions">
           <button type="button" class="btn dashed" @click="addQuestion({ question_type: 'multiple_choice' })">+ 选择题</button>
@@ -306,6 +310,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { VueDraggable } from "vue-draggable-plus";
 
 import {
   createTeacherAssignmentApi,
@@ -331,8 +336,7 @@ const saving = ref(false);
 const generating = ref(false);
 const testcaseGenerating = ref(false);
 const activeQuestionIndex = ref(0);
-const draggingQuestionIndex = ref(null);
-const dragOverQuestionIndex = ref(null);
+const draggingQuestionKey = ref(null);
 const questionFilter = ref("all");
 const previewOpen = ref(false);
 const generateRequirement = ref("");
@@ -363,6 +367,7 @@ const questionFilterTabs = [
   { value: "programming", label: "编程题" },
 ];
 const questionTypeTabs = questionFilterTabs.slice(1);
+const verticalDragDirection = () => "vertical";
 const visibleQuestions = computed(() =>
   form.value.questions
     .map((question, index) => ({ question, index }))
@@ -536,34 +541,28 @@ function duplicateQuestion(index) {
   activeQuestionIndex.value = index + 1;
 }
 
-function startQuestionDrag(index, event) {
-  draggingQuestionIndex.value = index;
-  dragOverQuestionIndex.value = index;
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", String(index));
+function startQuestionSort(event) {
+  draggingQuestionKey.value = form.value.questions[event.oldIndex]?.localKey || null;
 }
 
-function dragEnterQuestion(index) {
-  if (draggingQuestionIndex.value === null) return;
-  dragOverQuestionIndex.value = index;
+function endQuestionSort() {
+  const activeKey = activeQuestion.value?.localKey;
+  draggingQuestionKey.value = null;
+  restoreActiveQuestion(activeKey);
 }
 
-function dropQuestion(index) {
-  if (draggingQuestionIndex.value === null) return;
-  moveQuestionTo(draggingQuestionIndex.value, index);
-  endQuestionDrag();
+function restoreActiveQuestion(activeKey) {
+  if (!activeKey) return;
+  const nextIndex = form.value.questions.findIndex((question) => question.localKey === activeKey);
+  if (nextIndex >= 0) activeQuestionIndex.value = nextIndex;
 }
 
-function endQuestionDrag() {
-  draggingQuestionIndex.value = null;
-  dragOverQuestionIndex.value = null;
+function questionIndex(question) {
+  return form.value.questions.findIndex((item) => item.localKey === question.localKey);
 }
 
-function moveQuestionTo(fromIndex, toIndex) {
-  if (fromIndex === toIndex || toIndex < 0 || toIndex >= form.value.questions.length) return;
-  const [item] = form.value.questions.splice(fromIndex, 1);
-  form.value.questions.splice(toIndex, 0, item);
-  activeQuestionIndex.value = toIndex;
+function isQuestionVisible(question) {
+  return questionFilter.value === "all" || question.question_type === questionFilter.value;
 }
 
 function addOption(question) {
@@ -959,9 +958,9 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .question-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-content: start;
   min-height: 0;
   overflow: auto;
   padding-right: 2px;
@@ -990,16 +989,18 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .question-card {
+  flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 28px;
+  grid-template-columns: 12px minmax(0, 1fr) 28px;
   gap: 10px;
   align-items: center;
   border: 1px solid #e4eaf3;
   border-radius: 8px;
   background: #fff;
-  min-height: 88px;
-  padding: 12px 10px;
-  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+  min-height: 70px;
+  padding: 9px 10px;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease, transform 0.18s ease;
+  user-select: none;
 }
 
 .question-card.active {
@@ -1012,21 +1013,41 @@ function handleApiError(error, fallbackMessage) {
   opacity: 0.58;
 }
 
-.question-card.drag-over {
-  border-color: #94a3b8;
+.question-card-chosen {
+  border-color: #9fb8ef;
+}
+
+.question-card-ghost {
+  border-color: #b9c9e2;
   background: #f8fafc;
+  opacity: 0.72;
+}
+
+.question-card-drag {
+  box-shadow: 0 14px 28px rgba(31, 41, 55, 0.16);
+  opacity: 0.95;
+  transform: scale(1.02);
+  z-index: 5;
 }
 
 .drag-handle {
+  position: relative;
   display: grid;
-  gap: 3px;
+  gap: 4px;
   place-items: center;
-  width: 24px;
-  height: 42px;
+  width: 12px;
+  height: 36px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   cursor: grab;
+  touch-action: none;
+}
+
+.drag-handle::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
 }
 
 .drag-handle:active {
@@ -1034,9 +1055,9 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .drag-handle span {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
   background: #9aa7ba;
 }
 
