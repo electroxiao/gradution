@@ -739,7 +739,7 @@ function handleApiError(error, fallbackMessage) {
 .feedback {
   border: 1px solid #e3e8f1;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.98);
+  background: #ffffff;
   box-shadow: 0 10px 28px rgba(23, 37, 60, 0.06);
 }
 
@@ -816,7 +816,7 @@ function handleApiError(error, fallbackMessage) {
 
 .btn.ghost.active {
   border-color: #2563eb;
-  background: #eef5ff;
+  background: #ffffff;
   color: #1d4ed8;
 }
 
@@ -930,7 +930,7 @@ function handleApiError(error, fallbackMessage) {
 
 .question-tabs button.active {
   border-color: #b9d0ff;
-  background: #eef5ff;
+  background: #ffffff;
   color: #1d63f0;
 }
 
@@ -951,7 +951,7 @@ function handleApiError(error, fallbackMessage) {
 
 .question-card.active {
   border-color: #2563eb;
-  background: #fbfdff;
+  background: #ffffff;
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.08);
 }
 
@@ -1418,7 +1418,7 @@ textarea {
 
 .question-type-tabs button.active {
   border-color: #b9d0ff;
-  background: #eef5ff;
+  background: #ffffff;
   color: #1d63f0;
 }
 
@@ -1475,7 +1475,7 @@ textarea {
   height: 32px;
   place-items: center;
   border-radius: 50%;
-  background: #eef4ff;
+  background: #ffffff;
   color: #2563eb;
   font-weight: 400;
 }
@@ -1550,7 +1550,7 @@ textarea {
   height: 46px;
   place-items: center;
   border-radius: 50%;
-  background: #eef4ff;
+  background: #ffffff;
   color: #2563eb;
   font-size: 18px;
   font-weight: 400;
@@ -1592,7 +1592,7 @@ textarea {
   height: 38px;
   place-items: center;
   border-radius: 50%;
-  background: #eef4ff;
+  background: #ffffff;
   color: #2563eb;
   font-weight: 400;
 }

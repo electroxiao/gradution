@@ -518,7 +518,7 @@ function handleApiError(error, fallbackMessage) {
 .feedback {
   border: 1px solid var(--app-line);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   box-shadow: var(--app-shadow);
 }
 
@@ -628,16 +628,16 @@ function handleApiError(error, fallbackMessage) {
   padding: 10px;
   border: 1px solid #e3edf7;
   border-radius: 16px;
-  background: #f8fbff;
+  background: #ffffff;
   color: #6f8297;
   font-size: 13px;
 }
 
 .matrix-scroll {
   overflow: auto;
-  border: 1px solid #e4edf6;
+  border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: #f8fbff;
+  background: #ffffff;
 }
 
 .matrix-grid {
@@ -650,8 +650,8 @@ function handleApiError(error, fallbackMessage) {
 .progress-cell {
   min-height: 58px;
   padding: 8px;
-  border-right: 1px solid #e7eff7;
-  border-bottom: 1px solid #e7eff7;
+  border-right: 1px solid var(--app-line);
+  border-bottom: 1px solid var(--app-line);
 }
 
 .matrix-head {
@@ -765,8 +765,8 @@ function handleApiError(error, fallbackMessage) {
   align-items: flex-start;
   margin: -16px -16px 12px;
   padding: 14px 16px;
-  border-bottom: 1px solid #e4edf6;
-  background: rgba(255, 255, 255, 0.98);
+  border-bottom: 1px solid var(--app-line);
+  background: #ffffff;
 }
 
 .close-button {
@@ -962,7 +962,7 @@ pre {
 .result-card {
   padding: 9px;
   border-radius: 12px;
-  background: #f8fbff;
+  background: #ffffff;
   border: 1px solid #e5eef7;
 }
 

@@ -507,7 +507,7 @@ function handleApiError(error, fallbackMessage) {
 .empty {
   padding: 12px;
   border-radius: 14px;
-  background: var(--app-panel-soft);
+  background: #ffffff;
   color: var(--app-text-muted);
 }
 
@@ -664,7 +664,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .evidence-diagnoses span {
-  background: #eef5ff;
+  background: #ffffff;
   color: #35639f;
 }
 

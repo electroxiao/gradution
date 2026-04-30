@@ -654,7 +654,7 @@ function handleApiError(error, fallbackMessage) {
   min-height: 500px;
   border: 1px solid var(--app-line);
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   box-shadow: var(--app-shadow);
   overflow: hidden;
 }
@@ -773,7 +773,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 10px;
   border: 1px solid #e8eef6;
   border-radius: var(--app-radius-lg);
-  background: var(--app-panel-soft);
+  background: #ffffff;
 }
 
 .recommendation-list strong {
@@ -796,7 +796,7 @@ function handleApiError(error, fallbackMessage) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #eef2f7;
+  border-bottom: 1px solid var(--app-line);
 }
 
 .quiz-header h3 {
@@ -1040,7 +1040,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 14px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
+  background: #ffffff;
   box-shadow: var(--app-shadow);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -1124,7 +1124,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 14px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
+  background: #ffffff;
   box-shadow: var(--app-shadow);
 }
 
@@ -1164,7 +1164,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 36px 18px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
+  background: #ffffff;
   text-align: center;
   box-shadow: var(--app-shadow);
 }

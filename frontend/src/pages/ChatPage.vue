@@ -338,7 +338,7 @@ async function scrollToBottom() {
 <style scoped>
 .app-shell {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 0;
   height: 100%;
   min-height: 0;
@@ -359,6 +359,7 @@ async function scrollToBottom() {
   height: 100%;
   min-height: 0;
   background: transparent;
+  font-size: 13px;
 }
 
 .embedded .chat-stage {
@@ -368,8 +369,8 @@ async function scrollToBottom() {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(28px, 1fr) minmax(0, 760px) minmax(28px, 1fr);
-  padding: 18px 0 10px;
+  grid-template-columns: minmax(58px, 1fr) minmax(0, 608px) minmax(58px, 1fr);
+  padding: 12px 0;
   min-width: 0;
 }
 
@@ -379,19 +380,22 @@ async function scrollToBottom() {
 
 .topbar-copy h1 {
   margin: 0;
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--app-text);
+  text-align: left;
 }
 
 .topbar-copy p {
   margin: 6px 0 0;
   color: var(--app-text-muted);
-  font-size: 13px;
+  font-size: 10px;
 }
 
 .topbar-copy {
-  grid-column: 2;
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding-left: 2ch;
 }
 
 .message-stream {
@@ -425,7 +429,7 @@ async function scrollToBottom() {
 
 .message-row {
   display: grid;
-  grid-template-columns: minmax(28px, 1fr) minmax(0, 760px) minmax(28px, 1fr);
+  grid-template-columns: minmax(58px, 1fr) minmax(0, 608px) minmax(58px, 1fr);
   margin-bottom: 26px;
 }
 
@@ -477,7 +481,7 @@ async function scrollToBottom() {
   align-items: center;
   gap: 10px;
   color: var(--app-text-muted);
-  font-size: 13px;
+  font-size: 10px;
 }
 
 .streaming-flag {
@@ -494,11 +498,11 @@ async function scrollToBottom() {
   background: transparent;
   box-shadow: none;
   color: #1e293b;
-  line-height: 1.9;
+  line-height: 1.7;
 }
 
 .user-body {
-  padding: 14px 18px;
+  padding: 11px 14px;
   width: fit-content;
   max-width: 80%;
   border-radius: 20px;
@@ -509,16 +513,16 @@ async function scrollToBottom() {
 }
 
 .system-body {
-  padding: 14px 18px;
+  padding: 11px 14px;
   border-radius: 20px;
-  background: #f8fbff;
+  background: #ffffff;
   color: #5b6880;
   border: 1px solid var(--app-line);
 }
 
 .plain-text {
   margin: 0;
-  line-height: 1.7;
+  line-height: 1.55;
   white-space: pre-wrap;
 }
 
@@ -547,7 +551,7 @@ async function scrollToBottom() {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: minmax(28px, 1fr) minmax(0, 760px) minmax(28px, 1fr);
+  grid-template-columns: minmax(58px, 1fr) minmax(0, 608px) minmax(58px, 1fr);
   padding: 18px 0 24px;
   pointer-events: none;
   z-index: 4;
@@ -570,7 +574,7 @@ async function scrollToBottom() {
   bottom: 0;
   left: 0;
   height: 120px;
-  background: linear-gradient(180deg, rgba(245, 247, 251, 0) 0%, rgba(245, 247, 251, 0.94) 34%, rgba(245, 247, 251, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.94) 34%, rgba(255, 255, 255, 0.98) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -582,11 +586,11 @@ async function scrollToBottom() {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 13px 16px;
+  gap: 10px;
+  padding: 11px 14px;
   border: 1px solid var(--app-line);
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.98);
+  background: #ffffff;
   box-shadow: var(--app-shadow-strong);
   pointer-events: auto;
   box-sizing: border-box;
@@ -605,7 +609,7 @@ async function scrollToBottom() {
 
 .composer-card textarea {
   width: 100%;
-  min-height: 28px;
+  min-height: 24px;
   max-height: 50vh;
   border: none;
   outline: none;
@@ -614,7 +618,7 @@ async function scrollToBottom() {
   box-shadow: none;
   color: #1f2937;
   overflow-y: auto;
-  line-height: 1.7;
+  line-height: 1.55;
 }
 
 .composer-actions {
@@ -628,8 +632,8 @@ async function scrollToBottom() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border: none;
   border-radius: 50%;
   background: var(--app-primary);
@@ -640,8 +644,8 @@ async function scrollToBottom() {
 }
 
 .composer-submit svg {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
 }
 
 .composer-submit:hover:not(:disabled) {
@@ -650,8 +654,8 @@ async function scrollToBottom() {
 }
 
 .submit-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
 }

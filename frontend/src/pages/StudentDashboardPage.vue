@@ -214,6 +214,10 @@ function handleApiError(error, fallbackMessage, target) {
   flex-shrink: 0;
 }
 
+.dashboard-page .app-button {
+  box-shadow: none;
+}
+
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -337,7 +341,7 @@ function handleApiError(error, fallbackMessage, target) {
   padding: 10px 12px;
   border-radius: 14px;
   border: 1px solid #e6eef7;
-  background: var(--app-panel-soft);
+  background: #ffffff;
 }
 
 .assignment-item {
@@ -391,7 +395,7 @@ function handleApiError(error, fallbackMessage, target) {
   display: inline-flex;
   padding: 3px 8px;
   border-radius: 999px;
-  background: #eef5ff;
+  background: #ffffff;
   color: #37659f;
   font-size: 12px;
   font-weight: 400;

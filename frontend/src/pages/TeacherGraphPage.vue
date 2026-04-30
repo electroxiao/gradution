@@ -1166,7 +1166,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 10px;
   border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   box-shadow: var(--app-shadow);
 }
 
@@ -1214,7 +1214,7 @@ function handleApiError(error, fallbackMessage) {
   overflow-y: auto;
   border: 1px solid #dce8f5;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
+  background: #ffffff;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
 }
 
@@ -1417,7 +1417,7 @@ button:disabled {
   min-height: 0;
   padding: 12px;
   border-radius: 16px;
-  background: #f8fbff;
+  background: #ffffff;
   border: 1px solid #ebf1f7;
   display: grid;
   gap: 10px;
@@ -1452,7 +1452,7 @@ button:disabled {
   display: grid;
   gap: 10px;
   padding-top: 6px;
-  border-top: 1px solid #e6edf5;
+  border-top: 1px solid var(--app-line);
 }
 
 .auto-created-list {
@@ -1512,7 +1512,7 @@ button:disabled {
 }
 
 .batch-chip:hover:not(:disabled) {
-  background: #f8fbff;
+  background: #ffffff;
 }
 
 .batch-chip.active:hover:not(:disabled) {
@@ -1611,7 +1611,7 @@ button:disabled {
 
 .checklist-group {
   padding: 10px;
-  border: 1px solid #e6edf5;
+  border: 1px solid var(--app-line);
   border-radius: 12px;
   background: #fff;
   min-height: 0;
@@ -1649,7 +1649,7 @@ button:disabled {
   display: grid;
   gap: 10px;
   padding-top: 6px;
-  border-top: 1px solid #e6edf5;
+  border-top: 1px solid var(--app-line);
 }
 
 .approval-footer .detail-body {

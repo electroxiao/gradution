@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
 
 .code-editor :deep(.cm-activeLine),
 .code-editor :deep(.cm-activeLineGutter) {
-  background: #f8fbff;
+  background: #ffffff;
 }
 
 .code-editor :deep(.cm-focused) {

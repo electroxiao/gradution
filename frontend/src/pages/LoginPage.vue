@@ -106,7 +106,7 @@ async function submit() {
 .auth-card {
   border: 1px solid var(--app-line);
   border-radius: 30px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   box-shadow: var(--app-shadow);
 }
 
@@ -145,7 +145,7 @@ async function submit() {
 .hero-stats article {
   padding: 18px;
   border-radius: 20px;
-  background: var(--app-panel-soft);
+  background: #ffffff;
   border: 1px solid #e4edf7;
 }
 

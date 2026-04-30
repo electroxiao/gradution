@@ -81,7 +81,7 @@ function logout() {
 <style scoped>
 .console-shell {
   --sidebar-width: 210px;
-  --sidebar-collapsed-width: 72px;
+  --sidebar-collapsed-width: 54px;
   --sidebar-current-width: var(--sidebar-width);
   display: grid;
   grid-template-columns: var(--sidebar-current-width) minmax(0, 1fr);
@@ -98,13 +98,16 @@ function logout() {
   position: sticky;
   top: 0;
   width: var(--sidebar-current-width);
+  min-width: var(--sidebar-current-width);
+  max-width: var(--sidebar-current-width);
   height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 18px 14px 16px;
-  background: rgba(251, 252, 254, 0.96);
+  background: var(--app-sidebar);
   border-right: 1px solid var(--app-line);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 0 1px rgba(0, 0, 0, 0.02);
   backdrop-filter: blur(16px);
   overflow: hidden;
   transition:
@@ -160,11 +163,12 @@ function logout() {
 }
 
 .console-nav a:hover {
-  background: rgba(47, 103, 246, 0.05);
+  background: #ffffff;
 }
 
 .console-nav a.router-link-active {
-  background: #edf3ff;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(47, 103, 246, 0.16);
   color: #1f4fd0;
 }
 
@@ -208,6 +212,7 @@ function logout() {
   min-width: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  background: var(--app-bg);
 }
 
 .console-topbar {
@@ -239,7 +244,7 @@ function logout() {
   height: 34px;
   width: 34px;
   border-radius: 50%;
-  background: #eef2f7;
+  background: #ffffff;
   color: #66788b;
   font-weight: 600;
 }
@@ -253,16 +258,19 @@ function logout() {
   min-width: 0;
   padding: 0 24px 24px;
   font-size: var(--compact-body);
+  background: var(--app-bg);
 }
 
 .console-shell.collapsed .console-sidebar {
-  padding-left: 12px;
-  padding-right: 12px;
+  padding-left: 8px;
+  padding-right: 8px;
+  flex: 0 0 var(--sidebar-current-width);
 }
 
 .console-shell.collapsed .console-brand h1,
 .console-shell.collapsed .nav-copy,
 .console-shell.collapsed .logout-btn {
+  display: none;
   opacity: 0;
   max-width: 0;
   margin: 0;
@@ -274,12 +282,27 @@ function logout() {
 
 .console-shell.collapsed .console-nav a {
   justify-content: center;
+  gap: 0;
   padding-left: 0;
   padding-right: 0;
 }
 
+.console-shell.collapsed .console-nav a.router-link-active {
+  background: transparent;
+  box-shadow: none;
+  position: relative;
+}
+
+.console-shell.collapsed .console-nav a.router-link-active .nav-icon {
+  position: relative;
+  z-index: 1;
+  box-shadow: none;
+}
+
 .console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover {
   width: 210px;
+  min-width: 210px;
+  max-width: 210px;
   z-index: 20;
   box-shadow: var(--app-shadow-strong);
 }
@@ -287,6 +310,7 @@ function logout() {
 .console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .console-brand h1,
 .console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .nav-copy,
 .console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .logout-btn {
+  display: block;
   opacity: 1;
   max-width: 180px;
   transform: translateX(0);
@@ -299,10 +323,15 @@ function logout() {
   padding-right: 14px;
 }
 
+.console-shell.collapsed:not(.auto-collapsed) .console-sidebar:hover .console-nav a.router-link-active {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(47, 103, 246, 0.16);
+}
+
 @media (max-width: 980px) {
   .console-shell {
     --sidebar-width: 176px;
-    --sidebar-collapsed-width: 66px;
+    --sidebar-collapsed-width: 54px;
   }
 
   .console-sidebar {
@@ -320,7 +349,7 @@ function logout() {
 @media (max-width: 640px) {
   .console-shell {
     --sidebar-width: 157px;
-    --sidebar-collapsed-width: 62px;
+    --sidebar-collapsed-width: 54px;
   }
 
   .console-topbar {

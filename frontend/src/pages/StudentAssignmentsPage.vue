@@ -249,7 +249,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .blue .summary-icon {
-  background: #edf3ff;
+  background: #ffffff;
   color: #2f67f6;
 }
 
@@ -287,7 +287,7 @@ function handleApiError(error, fallbackMessage) {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #e8eef6;
+  border: 1px solid var(--app-line);
   border-radius: 14px;
   background: #fff;
 }
@@ -301,19 +301,19 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .assignment-table-head {
-  min-height: 48px;
-  padding: 0 14px;
-  border-bottom: 1px solid #e8eef6;
-  background: #f8fbff;
+  min-height: 36px;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--app-line);
+  background: #ffffff;
   color: #2f3f55;
-  font-size: var(--compact-body);
+  font-size: calc(var(--compact-body) * 0.9375);
   font-weight: 500;
 }
 
 .assignment-row {
-  min-height: 72px;
-  padding: 12px 14px;
-  border-bottom: 1px solid #edf1f6;
+  min-height: 54px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--app-line);
 }
 
 .assignment-row:last-child {
@@ -335,32 +335,53 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .status {
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 10px;
   border-radius: 999px;
-  background: #eef5ff;
-  color: #35639f;
-  font-size: 12px;
-  font-weight: 400;
+  border: 1px solid transparent;
+  background: #eef4ff;
+  color: #2952cc;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.08);
+}
+
+.status.draft {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #c2410c;
+}
+
+.status.published {
+  background: #eaf8ef;
+  border-color: #b7ebc6;
+  color: #0f8a4b;
 }
 
 .status.closed {
-  background: #fff1f1;
-  color: #d34949;
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
 }
 
 .card-copy h2,
 .empty h2 {
-  margin: 0 0 5px;
+  margin: 0 0 4px;
   color: var(--app-text);
-  font-size: var(--compact-card-title);
+  font-size: calc(var(--compact-card-title) * 0.75);
   font-weight: 500;
 }
 
 .card-copy p,
 .empty p {
   margin: 0;
-  font-size: var(--compact-body);
-  line-height: 1.45;
+  font-size: calc(var(--compact-body) * 0.75);
+  line-height: 1.3;
   max-width: 360px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -368,12 +389,12 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .date-line {
-  font-size: var(--compact-caption);
+  font-size: calc(var(--compact-caption) * 0.75);
 }
 
 .number-cell {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 500;
   text-align: center;
 }
@@ -386,7 +407,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .progress-text {
-  font-size: 14px;
+  font-size: 11px;
   text-align: center;
 }
 
@@ -396,10 +417,10 @@ function handleApiError(error, fallbackMessage) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  padding: 0 14px;
+  min-height: 29px;
+  padding: 0 11px;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 11px;
   text-decoration: none;
   cursor: pointer;
 }
@@ -468,7 +489,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .pagination-controls button:disabled {
-  background: #f7f9fc;
+  background: #ffffff;
   color: var(--app-text-soft);
 }
 

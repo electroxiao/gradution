@@ -716,7 +716,7 @@ function handleApiError(error, fallbackMessage) {
 .ai-pane {
   min-width: 0;
   border-right: 1px solid var(--app-line);
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
 }
 
 .problem-pane {
@@ -847,7 +847,7 @@ button:disabled {
 .ai-error {
   padding: 9px 10px;
   border-radius: 12px;
-  background: var(--app-panel-soft);
+  background: #ffffff;
 }
 
 pre {
@@ -884,7 +884,7 @@ pre {
 .editor-toolbar {
   padding: 12px 16px;
   border-bottom: 1px solid var(--app-line);
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
 }
 
 .toolbar-actions {
@@ -899,7 +899,7 @@ pre {
 .result-status {
   padding: 4px 8px;
   border-radius: 999px;
-  background: #eef5ff;
+  background: #ffffff;
   color: #35639f;
   font-size: var(--compact-caption);
 }
@@ -922,7 +922,7 @@ pre {
   min-height: 0;
   overflow: auto;
   padding: 18px;
-  background: #f8fbff;
+  background: #ffffff;
 }
 
 .choice-option {
@@ -952,7 +952,7 @@ pre {
   height: 28px;
   place-items: center;
   border-radius: 50%;
-  background: #eef4ff;
+  background: #ffffff;
   color: #2563eb;
   font-weight: 800;
 }
@@ -976,7 +976,7 @@ pre {
   display: inline-flex;
   margin-bottom: 12px;
   border-radius: 6px;
-  background: #eef4ff;
+  background: #ffffff;
   color: #2563eb;
   padding: 4px 8px;
   font-size: 12px;
@@ -1008,7 +1008,7 @@ pre {
 .result-console {
   overflow: auto;
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
 }
 
 .result-console header {
@@ -1021,13 +1021,13 @@ pre {
   margin-top: 10px;
   padding: 12px;
   border-radius: 14px;
-  background: var(--app-panel-soft);
+  background: #ffffff;
 }
 
 .review-badge {
   padding: 4px 8px;
   border-radius: 999px;
-  background: #eef5ff;
+  background: #ffffff;
   color: #35639f;
   font-size: var(--compact-caption);
 }
@@ -1290,7 +1290,7 @@ textarea {
     height: 100%;
     min-height: 0;
     border-right: none;
-    border-bottom: 1px solid #dfe7ef;
+    border-bottom: 1px solid var(--app-line);
   }
 
   .resize-handle {

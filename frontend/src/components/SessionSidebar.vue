@@ -138,25 +138,26 @@ function confirmDelete() {
   flex-direction: column;
   gap: 16px;
   height: 100vh;
-  padding: 20px 16px;
-  background: rgba(251, 252, 254, 0.98);
+  padding: 16px 12px;
+  background: #ffffff;
   border-right: 1px solid var(--app-line);
   overflow-x: hidden;
+  font-size: 13px;
 }
 
 .brand-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 8px 4px;
+  padding: 6px 6px 2px;
 }
 
 .brand-avatar {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #2f67f6 0%, #7ca7ff 100%);
   color: #fff;
   font-weight: 700;
@@ -164,7 +165,8 @@ function confirmDelete() {
 
 .brand-card h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 400;
   color: var(--app-text);
 }
 
@@ -172,7 +174,7 @@ function confirmDelete() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid var(--app-line);
   border-radius: 16px;
   background: #ffffff;
@@ -185,8 +187,8 @@ function confirmDelete() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: rgba(47, 103, 246, 0.1);
 }
@@ -216,12 +218,13 @@ function confirmDelete() {
 }
 
 .session-row.active {
-  background: var(--app-primary-soft);
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(47, 103, 246, 0.16);
 }
 
 .session-main {
   flex: 1;
-  padding: 12px 40px 12px 14px;
+  padding: 10px 34px 10px 12px;
   border: none;
   border-radius: 16px;
   background: transparent;
@@ -242,11 +245,11 @@ function confirmDelete() {
   right: 8px;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   color: var(--app-text-muted);
   cursor: pointer;
 }
@@ -256,17 +259,17 @@ function confirmDelete() {
   top: calc(100% + 6px);
   right: 8px;
   z-index: 10;
-  min-width: 120px;
+  min-width: 108px;
   padding: 6px;
   border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: #fff;
+  background: #ffffff;
   box-shadow: var(--app-shadow-strong);
 }
 
 .menu-panel button {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -276,7 +279,7 @@ function confirmDelete() {
 }
 
 .menu-panel button:hover {
-  background: var(--app-panel-soft);
+  background: #ffffff;
 }
 
 .menu-panel .danger {
@@ -293,8 +296,8 @@ function confirmDelete() {
 }
 
 .dialog-card {
-  width: min(92vw, 360px);
-  padding: 22px;
+  width: min(92vw, 340px);
+  padding: 18px;
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
@@ -308,13 +311,13 @@ function confirmDelete() {
 .dialog-card p {
   margin: 0 0 16px;
   color: var(--app-text-muted);
-  line-height: 1.6;
+  line-height: 1.45;
 }
 
 .dialog-input {
   width: 100%;
   margin-bottom: 16px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border: 1px solid #d9e2ec;
   border-radius: 14px;
 }
@@ -328,7 +331,7 @@ function confirmDelete() {
 .ghost-btn,
 .primary-btn,
 .danger-btn {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border: none;
   border-radius: 12px;
   cursor: pointer;
