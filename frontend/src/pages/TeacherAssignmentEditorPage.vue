@@ -2,8 +2,8 @@
   <section class="assignment-studio">
     <header class="studio-hero">
       <div>
-        <h1>{{ isNew ? "新建作业" : "编辑作业" }} <span>/ Assignment Studio</span></h1>
-        <p>面向高频布置作业：AI 出题、题库复用、题型编辑和班级发布都在一个工作台完成。</p>
+        <h1>{{ isNew ? "新建作业" : "编辑作业" }} <span v-if="!isNew">/ Assignment Studio</span></h1>
+        <p v-if="!isNew">面向高频布置作业：AI 出题、题库复用、题型编辑和班级发布都在一个工作台完成。</p>
       </div>
       <div class="hero-actions">
         <router-link class="btn ghost" to="/teacher/assignments">返回列表</router-link>
@@ -16,6 +16,78 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
+
+    <section class="meta-panel panel">
+      <div class="panel-head compact">
+        <h2>作业基本信息</h2>
+        <span>{{ selectedClassCount }} 个班级 · {{ assignedStudentCount }} 名学生</span>
+      </div>
+      <div class="meta-grid">
+        <label class="field title-field">
+          <span>作业标题</span>
+          <input v-model="form.title" placeholder="例如：JDBC 事务与资源释放练习" />
+        </label>
+        <label class="field class-field">
+          <span>班级</span>
+          <div class="class-row">
+            <label v-for="className in classOptions" :key="className" class="class-check">
+              <input v-model="form.class_names" type="checkbox" :value="className" />
+              <span>{{ className }}</span>
+            </label>
+          </div>
+        </label>
+        <label class="field">
+          <span>开始时间</span>
+          <input v-model="form.starts_at" type="datetime-local" />
+        </label>
+        <label class="field">
+          <span>截止时间</span>
+          <input v-model="form.due_at" type="datetime-local" />
+        </label>
+      </div>
+    </section>
+
+    <section class="core-row">
+      <section class="ai-panel panel">
+        <div class="panel-head">
+          <div>
+            <h2>智能出题</h2>
+          </div>
+        </div>
+
+        <div class="ai-form">
+          <label class="field">
+            <span>题目要求</span>
+            <textarea
+              v-model="generateRequirement"
+              rows="5"
+              placeholder="例如：围绕 Java 事务、异常回滚和资源释放生成一套分层练习。"
+            />
+          </label>
+          <div class="ai-controls">
+            <label class="field">
+              <span>知识点</span>
+              <input v-model="generateKnowledge" placeholder="例如：JDBC 事务" />
+            </label>
+            <label class="field mini">
+              <span>选择题</span>
+              <input v-model.number="generateCounts.multiple_choice" min="0" max="20" type="number" />
+            </label>
+            <label class="field mini">
+              <span>填空题</span>
+              <input v-model.number="generateCounts.fill_blank" min="0" max="20" type="number" />
+            </label>
+            <label class="field mini">
+              <span>编程题</span>
+              <input v-model.number="generateCounts.programming" min="0" max="10" type="number" />
+            </label>
+            <button type="button" class="btn primary generate-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestions">
+              {{ generating ? "生成中..." : "生成题目" }}
+            </button>
+          </div>
+        </div>
+      </section>
+    </section>
 
     <main class="studio-grid">
       <aside class="question-rail panel">
@@ -75,132 +147,6 @@
       </aside>
 
       <section class="studio-main">
-        <section class="meta-panel panel">
-          <div class="panel-head compact">
-            <h2>作业基本信息</h2>
-            <span>{{ selectedClassCount }} 个班级 · {{ assignedStudentCount }} 名学生</span>
-          </div>
-          <div class="meta-grid">
-            <label class="field title-field">
-              <span>作业标题</span>
-              <input v-model="form.title" placeholder="例如：JDBC 事务与资源释放练习" />
-            </label>
-            <label class="field">
-              <span>开始时间</span>
-              <input v-model="form.starts_at" type="datetime-local" />
-            </label>
-            <label class="field">
-              <span>截止时间</span>
-              <input v-model="form.due_at" type="datetime-local" />
-            </label>
-          </div>
-          <div class="class-row">
-            <label v-for="className in classOptions" :key="className" class="class-check">
-              <input v-model="form.class_names" type="checkbox" :value="className" />
-              <span>{{ className }}</span>
-            </label>
-          </div>
-        </section>
-
-        <section class="core-row">
-          <section class="ai-panel panel">
-            <div class="panel-head">
-              <div>
-                <h2>智能出题与题库复用</h2>
-                <span>AI 会按题型数量生成题目，可直接追加到当前作业并自动入库。</span>
-              </div>
-              <div class="mode-tabs">
-                <button type="button" :class="{ active: coreMode === 'ai' }" @click="coreMode = 'ai'">AI 生成题目</button>
-                <button type="button" :class="{ active: coreMode === 'bank' }" @click="coreMode = 'bank'">复用题库</button>
-              </div>
-            </div>
-
-            <div v-if="coreMode === 'ai'" class="ai-form">
-              <label class="field">
-                <span>题目要求</span>
-                <textarea
-                  v-model="generateRequirement"
-                  rows="5"
-                  placeholder="例如：围绕 Java 事务、异常回滚和资源释放生成一套分层练习。"
-                />
-              </label>
-              <div class="ai-controls">
-                <label class="field">
-                  <span>知识点</span>
-                  <input v-model="generateKnowledge" placeholder="例如：JDBC 事务" />
-                </label>
-                <label class="field mini">
-                  <span>选择题</span>
-                  <input v-model.number="generateCounts.multiple_choice" min="0" max="20" type="number" />
-                </label>
-                <label class="field mini">
-                  <span>填空题</span>
-                  <input v-model.number="generateCounts.fill_blank" min="0" max="20" type="number" />
-                </label>
-                <label class="field mini">
-                  <span>编程题</span>
-                  <input v-model.number="generateCounts.programming" min="0" max="10" type="number" />
-                </label>
-                <button type="button" class="btn primary generate-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestions">
-                  {{ generating ? "生成中..." : "生成题目" }}
-                </button>
-              </div>
-            </div>
-
-            <div v-else class="bank-inline">
-              <div class="bank-filters">
-                <input v-model="bankFilters.keyword" placeholder="搜索题目标题 / 题干 / 知识点" @keydown.enter.prevent="loadQuestionBank" />
-                <select v-model="bankFilters.question_type">
-                  <option value="">全部题型</option>
-                  <option value="multiple_choice">选择题</option>
-                  <option value="fill_blank">填空题</option>
-                  <option value="programming">编程题</option>
-                </select>
-                <select v-model="bankFilters.difficulty">
-                  <option value="">全部难度</option>
-                  <option value="easy">简单</option>
-                  <option value="medium">中等</option>
-                  <option value="hard">困难</option>
-                </select>
-                <button type="button" class="btn ghost" :disabled="bankLoading" @click="loadQuestionBank">
-                  {{ bankLoading ? "搜索中..." : "搜索" }}
-                </button>
-              </div>
-              <div class="bank-list">
-                <article v-for="item in questionBank" :key="item.id" class="bank-item">
-                  <div>
-                    <strong>{{ item.title }}</strong>
-                    <p>{{ item.prompt }}</p>
-                    <span :class="['type-chip', item.question_type]">{{ questionTypeText(item.question_type) }}</span>
-                  </div>
-                  <button type="button" class="btn primary small" @click="reuseBankQuestion(item)">加入作业</button>
-                </article>
-                <p v-if="!questionBank.length && !bankLoading" class="empty-note">暂无可复用题目，保存作业后会自动沉淀到题库。</p>
-              </div>
-            </div>
-          </section>
-
-          <aside class="bank-panel panel">
-            <div class="panel-head compact">
-              <h2>复用题库</h2>
-              <button type="button" class="link-btn" @click="loadQuestionBank">刷新</button>
-            </div>
-            <div class="compact-bank-list">
-              <button
-                v-for="item in questionBank.slice(0, 5)"
-                :key="`compact-${item.id}`"
-                type="button"
-                class="compact-bank-item"
-                @click="reuseBankQuestion(item)"
-              >
-                <span>{{ item.title }}</span>
-                <small>{{ questionTypeText(item.question_type) }}</small>
-              </button>
-              <p v-if="!questionBank.length" class="empty-note">题库为空</p>
-            </div>
-          </aside>
-        </section>
-
         <section v-if="activeQuestion" class="editor-panel panel">
           <div class="editor-head">
             <div>
@@ -313,8 +259,6 @@ import {
   generateAssignmentQuestionsApi,
   generateAssignmentTestCasesApi,
   getTeacherAssignmentApi,
-  listTeacherQuestionBankApi,
-  reuseTeacherQuestionBankItemApi,
   updateTeacherAssignmentApi,
   updateTeacherAssignmentQuestionsApi,
 } from "../api/assignments";
@@ -327,21 +271,17 @@ const isNew = computed(() => route.params.assignmentId === undefined);
 const assignmentId = computed(() => Number(route.params.assignmentId));
 
 const students = ref([]);
-const questionBank = ref([]);
 const errorMessage = ref("");
 const successMessage = ref("");
 const saving = ref(false);
 const generating = ref(false);
 const testcaseGenerating = ref(false);
-const bankLoading = ref(false);
-const coreMode = ref("ai");
 const activeQuestionIndex = ref(0);
 const draggingQuestionIndex = ref(null);
 const dragOverQuestionIndex = ref(null);
 const generateRequirement = ref("");
 const generateKnowledge = ref("");
 const generateCounts = ref({ multiple_choice: 5, fill_blank: 3, programming: 1 });
-const bankFilters = ref({ keyword: "", question_type: "", difficulty: "" });
 const form = ref({
   title: "",
   status: "published",
@@ -362,7 +302,7 @@ const assignedStudentCount = computed(() =>
 const activeQuestion = computed(() => form.value.questions[activeQuestionIndex.value] || null);
 
 onMounted(async () => {
-  await Promise.all([loadStudents(), loadQuestionBank()]);
+  await loadStudents();
   if (!isNew.value) {
     await loadAssignment();
   } else {
@@ -381,18 +321,6 @@ async function loadStudents() {
     students.value = data || [];
   } catch (error) {
     handleApiError(error, "加载学生失败。");
-  }
-}
-
-async function loadQuestionBank() {
-  bankLoading.value = true;
-  try {
-    const { data } = await listTeacherQuestionBankApi({ ...bankFilters.value, limit: 80 });
-    questionBank.value = data || [];
-  } catch (error) {
-    handleApiError(error, "加载题库失败。");
-  } finally {
-    bankLoading.value = false;
   }
 }
 
@@ -610,23 +538,11 @@ async function generateTestCases(question) {
   }
 }
 
-async function reuseBankQuestion(item) {
-  try {
-    const { data } = await reuseTeacherQuestionBankItemApi(item.id);
-    addQuestion(data);
-    successMessage.value = "题库题目已加入当前作业。";
-    await loadQuestionBank();
-  } catch (error) {
-    handleApiError(error, "复用题目失败。");
-  }
-}
-
 async function saveActiveQuestionToBank() {
   if (!activeQuestion.value) return;
   try {
     await createTeacherQuestionBankItemApi(toQuestionPayload(activeQuestion.value, 0));
     successMessage.value = "当前题目已保存到题库。";
-    await loadQuestionBank();
   } catch (error) {
     handleApiError(error, "保存题库失败。");
   }
@@ -661,7 +577,6 @@ async function saveAssignment() {
       applySavedAssignment(data);
       successMessage.value = "作业已保存，题目已同步到题库。";
     }
-    await loadQuestionBank();
   } catch (error) {
     handleApiError(error, "保存作业失败。");
   } finally {
@@ -812,7 +727,6 @@ function handleApiError(error, fallbackMessage) {
 .hero-actions,
 .editor-tools,
 .ai-controls,
-.bank-filters,
 .mini-actions {
   display: flex;
   align-items: center;
@@ -918,9 +832,7 @@ function handleApiError(error, fallbackMessage) {
   letter-spacing: 0;
 }
 
-.question-list,
-.bank-list,
-.compact-bank-list {
+.question-list {
   display: grid;
   gap: 7px;
 }
@@ -1004,9 +916,7 @@ function handleApiError(error, fallbackMessage) {
   gap: 5px;
 }
 
-.question-title,
-.compact-bank-item span,
-.bank-item strong {
+.question-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1051,26 +961,35 @@ function handleApiError(error, fallbackMessage) {
 
 .meta-panel,
 .ai-panel,
-.bank-panel,
 .editor-panel {
   padding: 16px;
 }
 
 .meta-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 190px 190px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.82fr) minmax(220px, 0.82fr);
   gap: 12px;
+}
+
+.title-field {
+  grid-column: 1 / -1;
 }
 
 .field {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   color: #3c4960;
   font-weight: 540;
 }
 
-.field span {
+.field > span {
   font-size: 12px;
+}
+
+.meta-panel .field > span {
+  font-size: 13px;
+  color: #a2adbf;
+  font-weight: 400;
 }
 
 input,
@@ -1095,56 +1014,50 @@ textarea {
 .class-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.class-field {
+  min-width: 0;
 }
 
 .class-check {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #dbe6f6;
+  min-height: 40px;
+  border: 1px solid #d9e3f2;
   border-radius: 7px;
-  background: #f8fafc;
-  padding: 8px 10px;
-  font-weight: 540;
+  background: #fff;
+  padding: 0 12px;
+  color: #a2adbf;
+  font-weight: 400;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
 }
 
 .class-check input {
-  width: auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #2f6ef4;
+}
+
+.class-check span {
+  font-size: 13px;
+  color: #a2adbf;
+  font-weight: 400;
 }
 
 .core-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
 .core-row > *,
 .panel-head > div {
   min-width: 0;
-}
-
-.mode-tabs {
-  display: inline-grid;
-  grid-template-columns: 1fr 1fr;
-  border: 1px solid #d8e3f2;
-  border-radius: 7px;
-  overflow: hidden;
-}
-
-.mode-tabs button {
-  border: 0;
-  background: #fff;
-  padding: 8px 14px;
-  color: #52637d;
-  font-weight: 560;
-  cursor: pointer;
-}
-
-.mode-tabs .active {
-  background: #2563eb;
-  color: #fff;
 }
 
 .ai-form {
@@ -1170,52 +1083,6 @@ textarea {
 .generate-btn {
   align-self: end;
   width: 100%;
-}
-
-.bank-inline {
-  display: grid;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.bank-filters {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) 130px 130px auto;
-}
-
-.bank-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid #e0e9f6;
-  border-radius: 8px;
-  padding: 10px;
-  background: #fbfdff;
-}
-
-.bank-item p {
-  display: -webkit-box;
-  margin: 4px 0 8px;
-  overflow: hidden;
-  color: #6c7890;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.compact-bank-item {
-  display: grid;
-  gap: 4px;
-  border: 1px solid #e0e9f6;
-  border-radius: 8px;
-  background: #fbfdff;
-  padding: 10px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.compact-bank-item small {
-  color: #6d7890;
 }
 
 .link-btn {
@@ -1380,7 +1247,6 @@ textarea {
 
 @media (max-width: 900px) {
   .studio-grid,
-  .core-row,
   .editor-grid {
     grid-template-columns: 1fr;
   }
@@ -1390,8 +1256,7 @@ textarea {
   }
 
   .meta-grid,
-  .ai-controls,
-  .bank-filters {
+  .ai-controls {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -1406,8 +1271,7 @@ textarea {
   .hero-actions,
   .editor-tools,
   .meta-grid,
-  .ai-controls,
-  .bank-filters {
+  .ai-controls {
     display: grid;
     grid-template-columns: 1fr;
     width: 100%;
