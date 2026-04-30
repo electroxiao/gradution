@@ -3,7 +3,6 @@
     <header class="dashboard-hero">
       <div class="app-header-copy">
         <h1 class="app-title">我的薄弱点</h1>
-        <p class="app-subtitle">系统会根据已选路径收敛出最值得优先补齐的 1 到 2 个核心节点，帮助你把复习重点压缩到真正关键的地方。</p>
       </div>
     </header>
 

@@ -14,7 +14,7 @@
       <header class="topbar">
         <div class="topbar-copy">
           <h1><AnimatedTitle :text="activeSessionTitle" /></h1>
-          <p>知识图谱与 AI 助教联合生成</p>
+          <p>知识图谱与 AI 联合生成</p>
         </div>
       </header>
 

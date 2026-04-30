@@ -3,7 +3,6 @@
     <header class="dashboard-hero">
       <div class="app-header-copy">
         <h1 class="app-title">学习工作台</h1>
-        <p class="app-subtitle">先看待完成作业，再按薄弱点和知识图谱继续学习。</p>
       </div>
       <div class="dashboard-hero-actions">
         <router-link class="app-button" :to="continueAssignmentLink">继续学习</router-link>

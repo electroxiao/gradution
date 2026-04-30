@@ -3,7 +3,6 @@
     <header class="app-header">
       <div class="app-header-copy">
         <h2 class="app-title">数据看板</h2>
-        <p class="app-subtitle">汇总全体学生当前被标记最多的薄弱点节点，帮助教师快速定位共性问题。</p>
       </div>
       <div class="app-toolbar">
         <button class="app-button-ghost" @click="loadDashboard">刷新数据</button>

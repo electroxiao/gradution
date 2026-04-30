@@ -3,7 +3,6 @@
     <header class="hero">
       <div>
         <h1>我的作业</h1>
-        <p>查看教师按班级发布的作业，完成选择题、填空题和编程题。</p>
       </div>
     </header>
 

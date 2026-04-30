@@ -3,7 +3,6 @@
     <header class="page-header">
       <div>
         <h2>知识图谱管理</h2>
-        <p class="page-copy">在正式图谱编辑和候选批次审核之间切换，用单主图工作台集中完成管理与审核。</p>
       </div>
     </header>
 

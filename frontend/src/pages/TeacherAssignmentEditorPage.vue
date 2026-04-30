@@ -318,7 +318,6 @@ import { VueDraggable } from "vue-draggable-plus";
 
 import {
   createTeacherAssignmentApi,
-  createTeacherQuestionBankItemApi,
   generateAssignmentQuestionsApi,
   generateAssignmentTestCasesApi,
   getTeacherAssignmentApi,
@@ -326,6 +325,18 @@ import {
   updateTeacherAssignmentQuestionsApi,
 } from "../api/assignments";
 import { listTeacherStudentsApi } from "../api/teacher";
+import {
+  createEmptyTestCase,
+  fromDatetimeLocal,
+  hasQuestionContent,
+  normalizeQuestion,
+  normalizeQuestionByType,
+  questionFilterTabs,
+  questionTypeTabs,
+  questionTypeText,
+  toDatetimeLocal,
+  toQuestionPayload,
+} from "../features/teacher-assignments/editorModel";
 import { clearAuthSession } from "../utils/authStorage";
 
 const route = useRoute();
@@ -368,13 +379,6 @@ const assignedStudentCount = computed(() =>
   students.value.filter((student) => form.value.class_names.includes(student.class_name)).length,
 );
 const activeQuestion = computed(() => form.value.questions[activeQuestionIndex.value] || null);
-const questionFilterTabs = [
-  { value: "all", label: "全部" },
-  { value: "multiple_choice", label: "选择题" },
-  { value: "fill_blank", label: "填空题" },
-  { value: "programming", label: "编程题" },
-];
-const questionTypeTabs = questionFilterTabs.slice(1);
 const verticalDragDirection = () => "vertical";
 const visibleQuestions = computed(() =>
   form.value.questions
@@ -426,90 +430,14 @@ async function loadAssignment() {
   }
 }
 
-function normalizeQuestion(question = {}) {
-  const questionType = normalizeQuestionType(question.question_type);
-  const normalized = {
-    id: question.id,
-    localKey: question.id || `q-${Date.now()}-${Math.random()}`,
-    title: question.title || "",
-    prompt: question.prompt || "",
-    question_type: questionType,
-    options: normalizeOptions(question.options),
-    answer: normalizeAnswer(question.answer, questionType),
-    answer_text: Array.isArray(question.answer) ? question.answer.join(", ") : String(question.answer || ""),
-    explanation: question.explanation || "",
-    starter_code: question.starter_code || "",
-    knowledge_node_ids: Array.isArray(question.knowledge_node_ids) ? question.knowledge_node_ids.map(Number) : [],
-    language: "java",
-    grading_mode: question.grading_mode || "testcase",
-    ai_review_level: question.ai_review_level || "light",
-    ai_grading_rubric: question.ai_grading_rubric || "",
-    ai_grading_focus: question.ai_grading_focus || [],
-    sort_order: question.sort_order || 0,
-    test_cases: (question.test_cases || []).map((item, index) => ({
-      id: item.id,
-      localKey: item.id || `c-${Date.now()}-${index}-${Math.random()}`,
-      input_data: item.input_data || "",
-      expected_output: item.expected_output || "",
-      is_sample: item.is_sample !== false,
-      sort_order: item.sort_order || index,
-    })),
-  };
-  normalizeQuestionByType(normalized);
-  return normalized;
-}
-
-function normalizeQuestionByType(question) {
-  if (question.question_type === "multiple_choice" && !question.options.length) {
-    question.options = ["A", "B", "C", "D"].map((key) => ({ key, text: "", localKey: `o-${key}-${Date.now()}` }));
-    question.answer = "A";
-  }
-  if (question.question_type === "fill_blank") {
-    question.options = [];
-    question.grading_mode = "ai_review";
-  }
-  if (question.question_type === "programming") {
-    question.answer = null;
-    question.answer_text = "";
-    if (!question.test_cases.length) addTestCase(question);
-  }
-}
-
-function normalizeActiveQuestionByType() {
-  if (activeQuestion.value) normalizeQuestionByType(activeQuestion.value);
+function selectQuestion(index) {
+  activeQuestionIndex.value = index;
 }
 
 function setActiveQuestionType(questionType) {
   if (!activeQuestion.value || activeQuestion.value.question_type === questionType) return;
   activeQuestion.value.question_type = questionType;
-  normalizeActiveQuestionByType();
-}
-
-function normalizeOptions(options = []) {
-  if (!Array.isArray(options) || !options.length) return [];
-  return options.map((item, index) => ({
-    key: item.key || String.fromCharCode(65 + index),
-    text: item.text || "",
-    localKey: item.localKey || `o-${Date.now()}-${index}-${Math.random()}`,
-  }));
-}
-
-function normalizeQuestionType(value) {
-  return ["multiple_choice", "fill_blank", "programming"].includes(value) ? value : "programming";
-}
-
-function normalizeAnswer(answer, questionType) {
-  if (questionType === "multiple_choice") return Array.isArray(answer) ? answer[0] : (answer || "A");
-  if (questionType === "fill_blank") return Array.isArray(answer) ? answer : (answer || "");
-  return null;
-}
-
-function selectQuestion(index) {
-  activeQuestionIndex.value = index;
-}
-
-function hasQuestionContent(question) {
-  return Boolean(question.title?.trim() && question.prompt?.trim());
+  if (activeQuestion.value) normalizeQuestionByType(activeQuestion.value);
 }
 
 function addQuestion(source = {}) {
@@ -531,26 +459,6 @@ function addQuestion(source = {}) {
 function removeQuestion(index) {
   form.value.questions.splice(index, 1);
   activeQuestionIndex.value = Math.min(activeQuestionIndex.value, Math.max(form.value.questions.length - 1, 0));
-}
-
-function duplicateQuestion(index) {
-  const source = form.value.questions[index];
-  if (!source) return;
-  const clone = normalizeQuestion({
-    ...source,
-    id: undefined,
-    localKey: undefined,
-    title: source.title ? `${source.title} 副本` : "",
-    options: source.options.map(({ key, text }) => ({ key, text })),
-    test_cases: source.test_cases.map(({ input_data, expected_output, is_sample, sort_order }) => ({
-      input_data,
-      expected_output,
-      is_sample,
-      sort_order,
-    })),
-  });
-  form.value.questions.splice(index + 1, 0, clone);
-  activeQuestionIndex.value = index + 1;
 }
 
 function startQuestionSort(event) {
@@ -680,25 +588,8 @@ function isQuestionVisible(question) {
   return questionFilter.value === "all" || question.question_type === questionFilter.value;
 }
 
-function addOption(question) {
-  const key = String.fromCharCode(65 + question.options.length);
-  question.options.push({ key, text: "", localKey: `o-${Date.now()}-${Math.random()}` });
-  if (!question.answer) question.answer = key;
-}
-
-function removeOption(question, index) {
-  const [removed] = question.options.splice(index, 1);
-  if (removed?.key === question.answer) question.answer = question.options[0]?.key || "";
-}
-
 function addTestCase(question) {
-  question.test_cases.push({
-    localKey: `c-${Date.now()}-${Math.random()}`,
-    input_data: "",
-    expected_output: "",
-    is_sample: true,
-    sort_order: question.test_cases.length,
-  });
+  question.test_cases.push(createEmptyTestCase(question.test_cases.length));
 }
 
 function removeTestCase(question, index) {
@@ -747,16 +638,6 @@ async function generateTestCases(question) {
     handleApiError(error, "生成测试用例失败。");
   } finally {
     testcaseGenerating.value = false;
-  }
-}
-
-async function saveActiveQuestionToBank() {
-  if (!activeQuestion.value) return;
-  try {
-    await createTeacherQuestionBankItemApi(toQuestionPayload(activeQuestion.value, 0));
-    successMessage.value = "当前题目已保存到题库。";
-  } catch (error) {
-    handleApiError(error, "保存题库失败。");
   }
 }
 
@@ -829,56 +710,6 @@ function buildPayload() {
     class_names: form.value.class_names,
     questions: form.value.questions.map(toQuestionPayload),
   };
-}
-
-function toQuestionPayload(question, index = 0) {
-  const questionType = normalizeQuestionType(question.question_type);
-  const answer = questionType === "fill_blank"
-    ? String(question.answer_text || "").split(/[,，\n]/).map((item) => item.trim()).filter(Boolean)
-    : question.answer;
-  return {
-    id: question.id,
-    title: question.title || questionTypeText(questionType),
-    prompt: question.prompt,
-    question_type: questionType,
-    options: questionType === "multiple_choice" ? question.options.map(({ key, text }) => ({ key, text })) : [],
-    answer,
-    explanation: question.explanation || "",
-    starter_code: questionType === "programming" ? question.starter_code || "" : "",
-    knowledge_node_ids: question.knowledge_node_ids || [],
-    language: "java",
-    grading_mode: questionType === "programming" ? question.grading_mode || "testcase" : "ai_review",
-    enable_testcases: questionType === "programming" && question.grading_mode !== "ai_review",
-    ai_review_level: questionType === "programming" && question.grading_mode === "testcase" ? "light" : "deep",
-    ai_grading_rubric: question.ai_grading_rubric || "",
-    ai_grading_focus: question.ai_grading_focus || [],
-    sort_order: index,
-    test_cases: questionType === "programming" ? question.test_cases.map((item, caseIndex) => ({
-      id: item.id,
-      input_data: item.input_data || "",
-      expected_output: item.expected_output || "",
-      is_sample: item.is_sample !== false,
-      sort_order: caseIndex,
-    })) : [],
-  };
-}
-
-function questionTypeText(value) {
-  return { multiple_choice: "选择题", fill_blank: "填空题", programming: "编程题" }[value] || "编程题";
-}
-
-function toDatetimeLocal(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
-}
-
-function fromDatetimeLocal(value) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function handleApiError(error, fallbackMessage) {

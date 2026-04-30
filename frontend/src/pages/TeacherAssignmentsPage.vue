@@ -3,7 +3,6 @@
     <header class="page-header">
       <div>
         <h2>作业管理</h2>
-        <p class="page-copy">统一管理作业发布、题目配置与学生完成情况。</p>
       </div>
       <router-link class="primary-link create-link" to="/teacher/assignments/new">新建作业</router-link>
     </header>

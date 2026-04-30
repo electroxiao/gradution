@@ -3,7 +3,6 @@
     <header class="page-header">
       <div>
         <h2>学生薄弱点</h2>
-        <p class="page-copy">按学生查看当前未掌握节点，以及作业驱动的知识点掌握分数。</p>
       </div>
     </header>
 

@@ -3,7 +3,6 @@
     <header class="progress-toolbar shell-card">
       <div>
         <h2>{{ progress?.title || "作业完成情况" }}</h2>
-        <p>按学生和题目查看最新提交、运行耗时、AI 评审与教师复核结果。</p>
       </div>
       <div class="toolbar-actions">
         <router-link class="secondary-link" :to="`/teacher/assignments/${assignmentId}`">编辑作业</router-link>
