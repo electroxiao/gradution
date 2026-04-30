@@ -169,7 +169,6 @@
           <div class="editor-head">
             <div>
               <h2>题目编辑</h2>
-              <span>编辑当前题目</span>
             </div>
             <div class="editor-tools">
               <button type="button" class="btn primary small" :disabled="saving" @click="saveAssignment">保存</button>
@@ -183,18 +182,22 @@
               <section class="editor-section">
                 <h3>A. 基本信息</h3>
                 <div class="basic-grid">
-                  <label class="field">
-                    <span>题目标题</span>
-                    <input v-model="activeQuestion.title" placeholder="请输入题目标题" />
-                  </label>
-                  <label class="field">
+                  <div class="field">
                     <span>题目类型</span>
-                    <select v-model="activeQuestion.question_type" @change="normalizeActiveQuestionByType">
-                      <option value="multiple_choice">选择题（单选）</option>
-                      <option value="fill_blank">填空题</option>
-                      <option value="programming">编程题</option>
-                    </select>
-                  </label>
+                    <div class="question-type-tabs" role="tablist" aria-label="题目类型">
+                      <button
+                        v-for="tab in questionTypeTabs"
+                        :key="tab.value"
+                        type="button"
+                        role="tab"
+                        :aria-selected="activeQuestion.question_type === tab.value"
+                        :class="{ active: activeQuestion.question_type === tab.value }"
+                        @click="setActiveQuestionType(tab.value)"
+                      >
+                        {{ tab.label }}
+                      </button>
+                    </div>
+                  </div>
                   <label class="field score-field">
                     <span>分值</span>
                     <input value="5" readonly />
@@ -359,6 +362,7 @@ const questionFilterTabs = [
   { value: "fill_blank", label: "填空题" },
   { value: "programming", label: "编程题" },
 ];
+const questionTypeTabs = questionFilterTabs.slice(1);
 const visibleQuestions = computed(() =>
   form.value.questions
     .map((question, index) => ({ question, index }))
@@ -456,6 +460,12 @@ function normalizeQuestionByType(question) {
 
 function normalizeActiveQuestionByType() {
   if (activeQuestion.value) normalizeQuestionByType(activeQuestion.value);
+}
+
+function setActiveQuestionType(questionType) {
+  if (!activeQuestion.value || activeQuestion.value.question_type === questionType) return;
+  activeQuestion.value.question_type = questionType;
+  normalizeActiveQuestionByType();
 }
 
 function normalizeOptions(options = []) {
@@ -799,13 +809,13 @@ function handleApiError(error, fallbackMessage) {
 .studio-hero h1 {
   margin: 0 0 6px;
   font-size: 22px;
-  font-weight: 650;
+  font-weight: 400;
   letter-spacing: 0;
 }
 
 .studio-hero h1 span {
   color: #66738a;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .studio-hero p,
@@ -836,7 +846,7 @@ function handleApiError(error, fallbackMessage) {
   background: #fff;
   color: #20304d;
   padding: 8px 14px;
-  font-weight: 560;
+  font-weight: 400;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
@@ -917,7 +927,10 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   gap: 14px;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  height: var(--studio-card-height);
+  align-self: stretch;
+  height: 0;
+  min-height: 100%;
+  max-height: 100%;
   min-width: 0;
   overflow: hidden;
   padding: 18px;
@@ -941,7 +954,7 @@ function handleApiError(error, fallbackMessage) {
 .editor-head h2 {
   margin: 0 0 4px;
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 400;
   letter-spacing: 0;
 }
 
@@ -967,7 +980,7 @@ function handleApiError(error, fallbackMessage) {
   background: #fff;
   color: #33415a;
   cursor: pointer;
-  font-weight: 560;
+  font-weight: 400;
 }
 
 .question-tabs button.active {
@@ -1047,7 +1060,7 @@ function handleApiError(error, fallbackMessage) {
   background: #eff4ff;
   color: #1d4ed8;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .copy {
@@ -1071,7 +1084,7 @@ function handleApiError(error, fallbackMessage) {
 
 .question-title {
   color: #1f2937;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .edit-status {
@@ -1081,7 +1094,7 @@ function handleApiError(error, fallbackMessage) {
   gap: 6px;
   color: #64748b;
   font-size: 12px;
-  font-weight: 540;
+  font-weight: 400;
 }
 
 .edit-status::before {
@@ -1156,9 +1169,16 @@ function handleApiError(error, fallbackMessage) {
   min-width: 0;
 }
 
-.editor-panel,
+.editor-panel {
+  height: auto;
+  overflow: visible;
+}
+
 .live-preview {
-  height: var(--studio-card-height);
+  align-self: stretch;
+  height: 0;
+  min-height: 100%;
+  max-height: 100%;
   overflow: auto;
 }
 
@@ -1176,7 +1196,7 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   gap: 8px;
   color: #3c4960;
-  font-weight: 540;
+  font-weight: 400;
 }
 
 .field > span {
@@ -1286,7 +1306,7 @@ textarea {
   border: 0;
   background: transparent;
   color: #2563eb;
-  font-weight: 560;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -1298,7 +1318,7 @@ textarea {
   background: #edf4ff;
   color: #2563eb;
   font-size: 12px;
-  font-weight: 560;
+  font-weight: 400;
 }
 
 .type-chip.fill_blank {
@@ -1342,7 +1362,7 @@ textarea {
   margin: 0;
   color: #15223a;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .editor-section small {
@@ -1353,8 +1373,31 @@ textarea {
 
 .basic-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(190px, 0.86fr) 100px;
+  grid-template-columns: minmax(220px, 1fr) 100px;
   gap: 14px;
+}
+
+.question-type-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.question-type-tabs button {
+  min-height: 38px;
+  border: 1px solid #d9e3f2;
+  border-radius: 7px;
+  background: #fff;
+  color: #33415a;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 400;
+}
+
+.question-type-tabs button.active {
+  border-color: #b9d0ff;
+  background: #eef5ff;
+  color: #1d63f0;
 }
 
 .score-field {
@@ -1395,7 +1438,7 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  font-weight: 560;
+  font-weight: 400;
 }
 
 .option-row input[type="radio"],
@@ -1412,7 +1455,7 @@ textarea {
   border-radius: 50%;
   background: #eef4ff;
   color: #2563eb;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .case-row {
@@ -1442,7 +1485,7 @@ textarea {
 .preview-head h2 {
   margin: 0;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .student-switch {
@@ -1451,7 +1494,7 @@ textarea {
   gap: 8px;
   color: #64748b;
   font-size: 12px;
-  font-weight: 560;
+  font-weight: 400;
 }
 
 .student-switch input {
@@ -1488,13 +1531,14 @@ textarea {
   background: #eef4ff;
   color: #2563eb;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .preview-title strong {
   min-width: 0;
   color: #0f172a;
   font-size: 20px;
+  font-weight: 400;
 }
 
 .preview-card > p {
@@ -1528,7 +1572,7 @@ textarea {
   border-radius: 50%;
   background: #eef4ff;
   color: #2563eb;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .preview-options p {
@@ -1605,6 +1649,12 @@ textarea {
   .question-rail,
   .live-preview {
     position: static;
+  }
+
+  .question-rail {
+    height: var(--studio-card-height);
+    min-height: 0;
+    max-height: none;
   }
 
   .meta-grid,
