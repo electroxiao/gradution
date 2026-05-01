@@ -16,6 +16,12 @@
           <h1><AnimatedTitle :text="activeSessionTitle" /></h1>
           <p>知识图谱与 AI 联合生成</p>
         </div>
+        <div class="topbar-user">
+          <span class="auth-pill" :class="authStore.role === 'teacher' ? 'teacher' : 'student'">
+            <span class="auth-dot" />
+            <span>{{ authStore.role === 'teacher' ? '教师已登录' : '学生已登录' }}</span>
+          </span>
+        </div>
       </header>
 
       <section ref="messageScroller" class="message-stream">
@@ -368,8 +374,9 @@ async function scrollToBottom() {
 }
 
 .topbar {
-  display: grid;
-  grid-template-columns: minmax(58px, 1fr) minmax(0, 608px) minmax(58px, 1fr);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 0;
   min-width: 0;
 }
@@ -393,9 +400,44 @@ async function scrollToBottom() {
 }
 
 .topbar-copy {
-  grid-column: 1 / -1;
-  justify-self: start;
+  min-width: 0;
   padding-left: 2ch;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 2ch;
+}
+
+.auth-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--app-line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #405571;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.auth-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0f9f62;
+}
+
+.auth-pill.teacher .auth-dot {
+  background: #1f4fd0;
+}
+
+.auth-pill.student .auth-dot {
+  background: #0f9f62;
 }
 
 .message-stream {
@@ -689,7 +731,8 @@ async function scrollToBottom() {
   }
 
   .topbar {
-    grid-template-columns: 16px minmax(0, 1fr) 16px;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .message-stream {

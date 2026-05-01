@@ -1,10 +1,6 @@
 <template>
   <section class="graph-page">
-    <header class="page-header">
-      <div>
-        <h2>知识图谱管理</h2>
-      </div>
-    </header>
+    <PageHeader title="知识图谱管理" title-tag="h2" />
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
@@ -499,6 +495,7 @@ import {
   updateTeacherEdgeApi,
   updateTeacherNodeApi,
 } from "../api/teacher";
+import PageHeader from "../components/PageHeader.vue";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
@@ -1141,20 +1138,6 @@ function handleApiError(error, fallbackMessage) {
 .graph-page {
   display: grid;
   gap: 14px;
-  font-size: var(--compact-body);
-}
-
-.page-header h2 {
-  margin: 0 0 8px;
-  font-size: var(--compact-page-title);
-  font-weight: 500;
-  color: var(--app-text);
-}
-
-.page-copy {
-  margin: 0;
-  color: var(--app-text-muted);
-  max-width: 760px;
   font-size: var(--compact-body);
 }
 

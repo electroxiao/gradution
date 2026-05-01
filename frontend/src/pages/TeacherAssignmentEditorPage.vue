@@ -1,18 +1,18 @@
 <template>
   <section class="assignment-studio">
-    <header class="studio-hero">
-      <div>
-        <h1>{{ isNew ? "新建作业" : "编辑作业" }} <span v-if="!isNew">/ Assignment Studio</span></h1>
-        <p v-if="!isNew">面向高频布置作业：AI 出题、题库复用、题型编辑和班级发布都在一个工作台完成。</p>
-      </div>
-      <div class="hero-actions">
+    <PageHeader
+      :title="isNew ? '新建作业' : '编辑作业'"
+      title-tag="h1"
+      :subtitle="!isNew ? '面向高频布置作业：AI 出题、题库复用、题型编辑和班级发布都在一个工作台完成。' : ''"
+    >
+      <template #actions>
         <router-link class="btn ghost" to="/teacher/assignments">返回列表</router-link>
         <router-link v-if="!isNew" class="btn ghost" :to="`/teacher/assignments/${assignmentId}/progress`">完成情况</router-link>
         <button type="button" class="btn primary" :disabled="saving" @click="saveAssignment">
           {{ saving ? "保存中..." : "保存作业" }}
         </button>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
@@ -325,6 +325,7 @@ import {
   updateTeacherAssignmentQuestionsApi,
 } from "../api/assignments";
 import { listTeacherStudentsApi } from "../api/teacher";
+import PageHeader from "../components/PageHeader.vue";
 import {
   createEmptyTestCase,
   fromDatetimeLocal,
@@ -734,7 +735,6 @@ function handleApiError(error, fallbackMessage) {
   overflow-x: hidden;
 }
 
-.studio-hero,
 .panel,
 .feedback {
   border: 1px solid #e3e8f1;
@@ -743,44 +743,18 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: 0 10px 28px rgba(23, 37, 60, 0.06);
 }
 
-.studio-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 18px 20px;
-}
-
-.studio-hero h1 {
-  margin: 0 0 6px;
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.studio-hero h1 span {
-  color: #66738a;
-  font-weight: 400;
-}
-
-.studio-hero p,
 .panel-head span,
 .empty-note {
   margin: 0;
   color: #6d7890;
 }
 
-.hero-actions,
 .editor-tools,
 .ai-controls,
 .mini-actions {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.hero-actions {
-  flex-shrink: 0;
 }
 
 .btn {
@@ -1686,13 +1660,11 @@ textarea {
 }
 
 @media (max-width: 720px) {
-  .studio-hero,
   .panel-head,
   .editor-head {
     flex-direction: column;
   }
 
-  .hero-actions,
   .editor-tools,
   .basic-grid,
   .meta-grid,

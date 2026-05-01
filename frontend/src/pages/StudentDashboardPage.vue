@@ -1,14 +1,11 @@
 <template>
   <section class="app-page dashboard-page">
-    <header class="dashboard-hero">
-      <div class="app-header-copy">
-        <h1 class="app-title">学习工作台</h1>
-      </div>
-      <div class="dashboard-hero-actions">
+    <PageHeader title="学习工作台">
+      <template #actions>
         <router-link class="app-button" :to="continueAssignmentLink">继续学习</router-link>
         <router-link class="app-button-ghost" to="/chat">打开学习助手</router-link>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <section class="summary-row">
       <article class="summary-card">
@@ -125,6 +122,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { listStudentAssignmentsApi } from "../api/assignments";
+import PageHeader from "../components/PageHeader.vue";
 import { listWeakPointsApi } from "../api/weakPoints";
 import { clearAuthSession } from "../utils/authStorage";
 
@@ -185,33 +183,6 @@ function handleApiError(error, fallbackMessage, target) {
   display: grid;
   gap: 14px;
   font-size: var(--compact-body);
-}
-
-.dashboard-page .app-title {
-  margin: 0 0 8px;
-  font-size: var(--compact-page-title);
-  line-height: 1.08;
-  font-weight: 500;
-}
-
-.dashboard-page .app-subtitle {
-  margin: 0;
-  font-size: var(--compact-body);
-  line-height: 1.7;
-}
-
-.dashboard-hero {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.dashboard-hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
 }
 
 .dashboard-page .app-button {
@@ -531,11 +502,6 @@ function handleApiError(error, fallbackMessage, target) {
     grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
   }
 
-  .dashboard-hero-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-
   .learning-card-body {
     grid-template-columns: 1fr;
   }
@@ -551,12 +517,6 @@ function handleApiError(error, fallbackMessage, target) {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-hero {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .dashboard-hero-actions,
   .panel-header,
   .assignment-item,
   .item-side,

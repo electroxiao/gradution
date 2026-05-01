@@ -41,15 +41,6 @@
     </aside>
 
     <main class="console-main">
-      <div v-if="!hideSidebar && !isChatRoute" class="console-topbar">
-        <div class="topbar-spacer" />
-        <div class="topbar-user">
-          <span class="bell-dot">•</span>
-          <span class="user-avatar student-avatar">学</span>
-          <span class="user-name">学生</span>
-        </div>
-      </div>
-
       <div class="console-content" :class="{ 'chat-content': isChatRoute, 'assignment-lab-content': isAssignmentDetailRoute }">
         <router-view />
       </div>
@@ -226,47 +217,8 @@ function logout() {
 .console-main {
   min-width: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   background: var(--app-bg);
-}
-
-.console-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 24px 0;
-}
-
-.topbar-user {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-  color: #405571;
-  font-size: 13px;
-}
-
-.bell-dot {
-  color: #8193a8;
-  font-size: 16px;
-}
-
-.user-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 34px;
-  width: 34px;
-  border-radius: 50%;
-  background: #ffffff;
-  color: #66788b;
-  font-weight: 600;
-}
-
-.student-avatar {
-  background: #ffffff;
-  color: #476fcb;
 }
 
 .console-content {
@@ -291,10 +243,6 @@ function logout() {
 .console-shell.assignment-lab-layout .console-main {
   height: 100vh;
   overflow: hidden;
-}
-
-.console-shell.assignment-lab-layout .console-topbar {
-  display: none;
 }
 
 .console-content.assignment-lab-content {
@@ -381,7 +329,6 @@ function logout() {
     padding-bottom: 18px;
   }
 
-  .console-topbar,
   .console-content {
     padding-left: 18px;
     padding-right: 18px;
@@ -392,10 +339,6 @@ function logout() {
   .console-shell {
     --sidebar-width: 141px;
     --sidebar-collapsed-width: 54px;
-  }
-
-  .console-topbar {
-    padding: 14px 14px 0;
   }
 
   .console-content {

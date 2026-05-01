@@ -1,10 +1,6 @@
 <template>
   <section class="student-page">
-    <header class="hero">
-      <div>
-        <h1>我的作业</h1>
-      </div>
-    </header>
+    <PageHeader title="我的作业" />
 
     <section class="summary-row">
       <article class="summary-card blue">
@@ -100,6 +96,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { listStudentAssignmentsApi } from "../api/assignments";
+import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
@@ -176,21 +173,6 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   gap: 14px;
   font-size: var(--compact-body);
-}
-
-.hero h1 {
-  margin: 0 0 8px;
-  font-size: var(--compact-page-title);
-  line-height: 1.08;
-  font-weight: 500;
-  color: var(--app-text);
-}
-
-.hero p {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: var(--compact-body);
-  line-height: 1.7;
 }
 
 .summary-row {

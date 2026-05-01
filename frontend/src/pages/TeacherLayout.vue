@@ -32,14 +32,6 @@
     </aside>
 
     <main class="console-main">
-      <div class="console-topbar">
-        <div class="topbar-spacer" />
-        <div class="topbar-user">
-          <span class="bell-dot">•</span>
-          <span class="user-avatar">教</span>
-          <span class="user-name">教师</span>
-        </div>
-      </div>
       <div class="console-content">
         <router-view />
       </div>
@@ -211,52 +203,13 @@ function logout() {
 .console-main {
   min-width: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   background: var(--app-bg);
-}
-
-.console-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 24px 0;
-}
-
-.topbar-user {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-  color: #405571;
-  font-size: 13px;
-}
-
-.bell-dot {
-  color: #8193a8;
-  font-size: 16px;
-}
-
-.user-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 34px;
-  width: 34px;
-  border-radius: 50%;
-  background: #ffffff;
-  color: #66788b;
-  font-weight: 600;
-}
-
-.user-name {
-  font-size: 14px;
-  font-weight: 500;
 }
 
 .console-content {
   min-width: 0;
-  padding: 0 24px 24px;
+  padding: 14px 24px 24px;
   font-size: var(--compact-body);
   background: var(--app-bg);
 }
@@ -339,8 +292,7 @@ function logout() {
     padding-bottom: 18px;
   }
 
-  .console-content,
-  .console-topbar {
+  .console-content {
     padding-left: 18px;
     padding-right: 18px;
   }
@@ -352,7 +304,7 @@ function logout() {
     --sidebar-collapsed-width: 54px;
   }
 
-  .console-topbar {
+  .console-content {
     padding-top: 14px;
   }
 }

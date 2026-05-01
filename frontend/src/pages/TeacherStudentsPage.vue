@@ -1,10 +1,6 @@
 <template>
   <section class="students-page">
-    <header class="page-header">
-      <div>
-        <h2>学生薄弱点</h2>
-      </div>
-    </header>
+    <PageHeader title="学生薄弱点" title-tag="h2" />
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
@@ -168,6 +164,7 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { getStudentPortraitSummaryApi, listTeacherStudentMasteryApi, listTeacherStudentWeakPointsApi, listTeacherStudentsApi } from "../api/teacher";
+import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
@@ -391,19 +388,6 @@ function handleApiError(error, fallbackMessage) {
 .students-page {
   display: grid;
   gap: 16px;
-  font-size: var(--compact-body);
-}
-
-.page-header h2 {
-  margin: 0 0 8px;
-  font-size: var(--compact-page-title);
-  font-weight: 500;
-  color: var(--app-text);
-}
-
-.page-copy {
-  margin: 0;
-  color: var(--app-text-muted);
   font-size: var(--compact-body);
 }
 

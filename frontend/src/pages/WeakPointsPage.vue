@@ -1,10 +1,6 @@
 <template>
   <section class="app-page weak-page">
-    <header class="dashboard-hero">
-      <div class="app-header-copy">
-        <h1 class="app-title">我的薄弱点</h1>
-      </div>
-    </header>
+    <PageHeader title="我的薄弱点" />
 
     <section class="summary-row">
       <article class="summary-card">
@@ -226,6 +222,7 @@ import {
   listWeakPointsApi,
   markMasteredApi,
 } from "../api/weakPoints";
+import PageHeader from "../components/PageHeader.vue";
 import { streamGenerateQuizApi, streamSubmitAnswerApi } from "../api/quiz";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
@@ -484,28 +481,6 @@ function handleApiError(error, fallbackMessage) {
 .weak-page {
   gap: 14px;
   font-size: var(--compact-body);
-}
-
-.dashboard-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.app-title {
-  margin: 0;
-  font-size: var(--compact-page-title);
-  line-height: 1.08;
-  font-weight: 500;
-}
-
-.app-subtitle {
-  margin: 0;
-  max-width: 700px;
-  color: var(--app-text-muted);
-  font-size: var(--compact-body);
-  line-height: 1.75;
 }
 
 .empty-link {
@@ -1211,10 +1186,6 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 860px) {
-  .dashboard-hero {
-    flex-direction: column;
-  }
-
   .summary-row {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }

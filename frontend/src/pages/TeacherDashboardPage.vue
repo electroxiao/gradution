@@ -1,13 +1,10 @@
 <template>
   <section class="app-page dashboard-page">
-    <header class="app-header">
-      <div class="app-header-copy">
-        <h2 class="app-title">数据看板</h2>
-      </div>
-      <div class="app-toolbar">
+    <PageHeader title="数据看板" title-tag="h2">
+      <template #actions>
         <button class="app-button-ghost" @click="loadDashboard">刷新数据</button>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <div v-if="errorMessage" class="app-feedback error">{{ errorMessage }}</div>
 
@@ -55,6 +52,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { getTeacherDashboardApi } from "../api/teacher";
+import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();

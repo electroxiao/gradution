@@ -1,11 +1,10 @@
 <template>
   <section class="assignment-page">
-    <header class="page-header">
-      <div>
-        <h2>作业管理</h2>
-      </div>
-      <router-link class="primary-link create-link" to="/teacher/assignments/new">新建作业</router-link>
-    </header>
+    <PageHeader title="作业管理" title-tag="h2">
+      <template #actions>
+        <router-link class="primary-link create-link" to="/teacher/assignments/new">新建作业</router-link>
+      </template>
+    </PageHeader>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
@@ -119,6 +118,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import { listTeacherAssignmentsApi } from "../api/assignments";
+import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
@@ -222,26 +222,6 @@ function handleApiError(error, fallbackMessage) {
 .assignment-page {
   display: grid;
   gap: 14px;
-  font-size: var(--compact-body);
-}
-
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.page-header h2 {
-  margin: 0 0 8px;
-  color: var(--app-text);
-  font-size: var(--compact-page-title);
-  font-weight: 500;
-}
-
-.page-copy {
-  margin: 0;
-  color: var(--app-text-muted);
   font-size: var(--compact-body);
 }
 
@@ -614,10 +594,6 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 720px) {
-  .page-header {
-    display: grid;
-  }
-
   .list-head {
     align-items: stretch;
     flex-direction: column;

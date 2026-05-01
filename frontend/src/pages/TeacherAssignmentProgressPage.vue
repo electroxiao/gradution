@@ -1,14 +1,11 @@
 <template>
   <section class="progress-page">
-    <header class="progress-toolbar shell-card">
-      <div>
-        <h2>{{ progress?.title || "作业完成情况" }}</h2>
-      </div>
-      <div class="toolbar-actions">
+    <PageHeader :title="progress?.title || '作业完成情况'" title-tag="h2">
+      <template #actions>
         <router-link class="secondary-link" :to="`/teacher/assignments/${assignmentId}`">编辑作业</router-link>
         <router-link class="secondary-link" to="/teacher/assignments">返回列表</router-link>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
@@ -271,6 +268,7 @@ import {
   listTeacherAssignmentQuestionSubmissionsApi,
   reviewTeacherAssignmentSubmissionApi,
 } from "../api/assignments";
+import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const route = useRoute();
@@ -522,8 +520,6 @@ function handleApiError(error, fallbackMessage) {
   box-shadow: var(--app-shadow);
 }
 
-.progress-toolbar,
-.toolbar-actions,
 .detail-header,
 .panel-header,
 .review-head,
@@ -534,17 +530,6 @@ function handleApiError(error, fallbackMessage) {
   align-items: flex-start;
 }
 
-.progress-toolbar {
-  padding: 14px 16px;
-}
-
-.progress-toolbar h2 {
-  margin: 0 0 8px;
-  color: var(--app-text);
-  font-size: var(--compact-page-title);
-}
-
-.progress-toolbar p,
 .muted {
   margin: 0;
   color: var(--app-text-muted);
@@ -999,8 +984,6 @@ pre {
 }
 
 @media (max-width: 720px) {
-  .progress-toolbar,
-  .toolbar-actions,
   .panel-header,
   .detail-header,
   .review-head,
@@ -1015,7 +998,6 @@ pre {
     grid-template-columns: 1fr;
   }
 
-  .toolbar-actions .secondary-link,
   .review-actions button {
     width: 100%;
   }

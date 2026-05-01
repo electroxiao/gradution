@@ -4,11 +4,11 @@
 
     <main v-if="assignment" class="assignment-lab" :style="labGridStyle">
       <aside class="problem-pane">
-        <header class="problem-header">
-          <router-link class="back-link" to="/assignments">返回作业</router-link>
-          <h1>{{ assignment.title }}</h1>
-          <p>{{ assignment.description || "完成题目后提交代码查看测试结果。" }}</p>
-        </header>
+        <PageHeader :title="assignment.title" title-tag="h1" :subtitle="assignment.description || '完成题目后提交代码查看测试结果。'">
+          <template #actions>
+            <router-link class="back-link" to="/assignments">返回作业</router-link>
+          </template>
+        </PageHeader>
 
         <div class="question-tabs">
           <button
@@ -229,6 +229,7 @@ import {
 } from "../api/assignments";
 import CodeEditor from "../components/CodeEditor.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
+import PageHeader from "../components/PageHeader.vue";
 import { useAuthStore } from "../stores/auth";
 import { clearAuthSession } from "../utils/authStorage";
 
@@ -756,7 +757,6 @@ function handleApiError(error, fallbackMessage) {
   border-right: none;
 }
 
-.problem-header h1,
 .problem-content h2,
 .editor-toolbar h2,
 .ai-header h2,
@@ -765,14 +765,6 @@ function handleApiError(error, fallbackMessage) {
   color: var(--app-text);
 }
 
-.problem-header h1 {
-  margin: 0 0 8px;
-  font-size: var(--compact-page-title);
-  line-height: 1.08;
-  font-weight: 500;
-}
-
-.problem-header p,
 .muted {
   margin: 0;
   color: var(--app-text-muted);
