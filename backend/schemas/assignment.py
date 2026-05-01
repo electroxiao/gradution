@@ -156,7 +156,6 @@ class AssignmentSubmissionResponse(BaseModel):
     teacher_review_note: str | None = None
     trust_label: str | None = None
     trust_score: float | None = None
-    excluded_from_mastery_update: bool = False
     started_at: datetime | None = None
     duration_seconds: int | None = None
     submitted_at: datetime
@@ -287,7 +286,6 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     teacher_review_note: str | None = None
     trust_label: str | None = None
     trust_score: float | None = None
-    excluded_from_mastery_update: bool = False
     reviewed_at: datetime | None = None
     reviewed_by: int | None = None
     reviewed_by_username: str | None = None

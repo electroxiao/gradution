@@ -53,7 +53,14 @@ It is written as a maintenance guide rather than a user guide.
 - Weak-point recommendation APIs can read pending nodes linked to the same anchor.
 - This lets chat-discovered candidates appear again in the weak-point page before teacher approval.
 
-### C. Teacher reviews the batch
+### C. Assignment wrong submissions create weak points
+
+1. Teacher-created assignment questions can be bound to formal knowledge nodes.
+2. After a student submission is saved, any status other than `accepted` marks all bound question knowledge nodes as unmastered weak points for that student.
+3. Assignment submissions do not maintain a separate mastery score table.
+4. AI review diagnoses may still be shown for teacher context, but they are not the source of assignment-driven weak-point updates.
+
+### D. Teacher reviews the batch
 
 1. `TeacherGraphPage` loads:
    - the formal graph from Neo4j

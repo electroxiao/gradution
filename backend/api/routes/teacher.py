@@ -24,7 +24,6 @@ from backend.services.teacher_service import (
     get_pending_graph_batch_detail,
     get_weak_point_dashboard,
     list_knowledge_node_refs,
-    list_student_mastery,
     list_pending_graph_batches,
     list_student_weak_points,
     reject_pending_graph_batch,
@@ -185,35 +184,6 @@ def get_student_weak_points(
     current_user: User = Depends(get_current_teacher),
 ):
     return list_student_weak_points(db, student_id)
-
-
-@router.get("/students/{student_id}/mastery")
-def get_student_mastery(
-    student_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_teacher),
-):
-    return list_student_mastery(db, student_id)
-
-
-@router.get("/students/{student_id}/portrait")
-def get_student_portrait(
-    student_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_teacher),
-):
-    from backend.services.portrait_service import generate_student_portrait
-    return generate_student_portrait(db, student_id)
-
-
-@router.get("/students/{student_id}/portrait/summary")
-def get_student_portrait_summary(
-    student_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_teacher),
-):
-    from backend.services.portrait_service import generate_student_portrait_summary
-    return generate_student_portrait_summary(db, student_id)
 
 
 @router.get("/dashboard/weak-points")

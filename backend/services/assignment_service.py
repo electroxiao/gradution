@@ -19,7 +19,6 @@ from backend.models.assignment import (
     QuestionBankItem,
 )
 from backend.models.knowledge import KnowledgeNode
-from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
 from backend.schemas.assignment import (
     AssignmentAiHelpRequest,
@@ -51,7 +50,7 @@ from backend.schemas.assignment import (
 )
 from backend.services import rag_engine
 from backend.services.chat_service import get_neo4j_driver, get_openai_client
-from backend.services.knowledge_progress_service import get_or_create_knowledge_node, mark_node_mastered, mark_node_weak
+from backend.services.knowledge_progress_service import mark_node_weak
 from backend.services.pending_batch_service import create_pending_batch_from_candidates
 from backend.services.sandbox_service import run_java_submission
 
@@ -578,7 +577,7 @@ def submit_assignment_question(
     status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
     ai_review = _resolve_ai_review_diagnoses(db, student, assignment, question, results, ai_review)
     previous_code = (previous_submission.code or "") if previous_submission else ""
-    trust_label, trust_score, excluded_from_mastery_update = _resolve_submission_trust(status_value, duration_seconds, code, previous_code)
+    trust_label, trust_score = _resolve_submission_trust(status_value, duration_seconds, code, previous_code)
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
         question_id=question.id,
@@ -592,10 +591,22 @@ def submit_assignment_question(
         teacher_review_status="pending" if status_value == "needs_manual_review" else None,
         trust_label=trust_label,
         trust_score=trust_score,
-        excluded_from_mastery_update=excluded_from_mastery_update,
         started_at=started_at,
         duration_seconds=duration_seconds,
         submitted_at=submitted_at,
+    )
+    db.add(submission)
+    db.flush()
+    _mark_wrong_submission_bound_nodes_weak(db, student, question, submission)
+    db.commit()
+    db.refresh(submission)
+    return AssignmentRunResultResponse(
+        submission=_submission_to_response(submission),
+        status=status_value,
+        results=results,
+        ai_review=ai_review,
+        decision_source=decision_source,
+        manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
     )
 
 
@@ -635,14 +646,13 @@ def _submit_objective_assignment_question(
         ai_review_json=ai_review,
         final_decision_source="ai_objective_review",
         teacher_review_status="pending" if status_value == "needs_manual_review" else None,
-        excluded_from_mastery_update=False,
         started_at=started_at,
         duration_seconds=duration_seconds,
         submitted_at=submitted_at,
     )
     db.add(submission)
     db.flush()
-    _apply_submission_mastery_evidence(db, student, question, submission)
+    _mark_wrong_submission_bound_nodes_weak(db, student, question, submission)
     db.commit()
     db.refresh(submission)
     return AssignmentRunResultResponse(
@@ -651,19 +661,6 @@ def _submit_objective_assignment_question(
         results=results,
         ai_review=ai_review,
         decision_source="ai_objective_review",
-        manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
-    )
-    db.add(submission)
-    db.flush()
-    _apply_submission_mastery_evidence(db, student, question, submission)
-    db.commit()
-    db.refresh(submission)
-    return AssignmentRunResultResponse(
-        submission=_submission_to_response(submission),
-        status=status_value,
-        results=results,
-        ai_review=ai_review,
-        decision_source=decision_source,
         manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
     )
 
@@ -836,7 +833,6 @@ def _teacher_submission_detail_response(submission: AssignmentSubmission) -> Ass
         teacher_review_note=submission.teacher_review_note,
         trust_label=submission.trust_label,
         trust_score=submission.trust_score,
-        excluded_from_mastery_update=bool(submission.excluded_from_mastery_update),
         reviewed_at=submission.reviewed_at,
         reviewed_by=submission.reviewed_by,
         reviewed_by_username=submission.reviewer.username if submission.reviewer else None,
@@ -1698,7 +1694,6 @@ def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmi
         teacher_review_note=submission.teacher_review_note,
         trust_label=submission.trust_label,
         trust_score=submission.trust_score,
-        excluded_from_mastery_update=bool(submission.excluded_from_mastery_update),
         started_at=submission.started_at,
         duration_seconds=submission.duration_seconds,
         submitted_at=submission.submitted_at,
@@ -1732,9 +1727,9 @@ def _resolve_submission_started_at(
     return _to_naive_local(client_started_at)
 
 
-def _resolve_submission_trust(status_value: str, duration_seconds: int | None, code: str = "", previous_code: str = "") -> tuple[str, float, bool]:
+def _resolve_submission_trust(status_value: str, duration_seconds: int | None, code: str = "", previous_code: str = "") -> tuple[str, float]:
     if status_value != "accepted":
-        return "normal", 1.0, False
+        return "normal", 1.0
     flags: list[str] = []
     trust = 1.0
 
@@ -1752,8 +1747,8 @@ def _resolve_submission_trust(status_value: str, duration_seconds: int | None, c
 
     if flags:
         label = "suspicious_" + "_".join(flags)
-        return label, max(0.0, trust), trust < 0.5
-    return "normal", 1.0, False
+        return label, max(0.0, trust)
+    return "normal", 1.0
 
 
 def _resolve_ai_review_diagnoses(
@@ -2207,164 +2202,24 @@ def _graph_node_name_exists(node_name: str) -> bool:
         return False
 
 
-def _apply_submission_mastery_evidence(
+def _mark_wrong_submission_bound_nodes_weak(
     db: Session,
     student: User,
     question: AssignmentQuestion,
     submission: AssignmentSubmission,
 ) -> None:
-    if submission.excluded_from_mastery_update:
+    if submission.status == "accepted":
         return
     relations = sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
-    if submission.status != "accepted":
-        target_nodes = _submission_diagnosis_nodes(db, submission)
-    else:
-        target_nodes = [
-            relation.knowledge_node
-            or db.query(KnowledgeNode).filter(KnowledgeNode.id == relation.knowledge_node_id).first()
-            for relation in relations
-        ]
-    target_nodes = [node for node in target_nodes if node]
-    if not target_nodes:
-        return
-
-    ai_confidence = _extract_ai_review_confidence(submission)
-    base_delta = 5 if submission.status == "accepted" else -3
-    delta = _weighted_mastery_delta(base_delta, ai_confidence)
-    positive = 1 if submission.status == "accepted" else 0
-    negative = 0 if submission.status == "accepted" else 1
     seen_node_ids: set[int] = set()
-    for node in target_nodes:
+    for relation in relations:
+        node = relation.knowledge_node or db.query(KnowledgeNode).filter(KnowledgeNode.id == relation.knowledge_node_id).first()
+        if not node:
+            continue
         if node.id in seen_node_ids:
             continue
         seen_node_ids.add(node.id)
-        _apply_time_decay_to_mastery(db, student.id, node.id)
-        mastery = _get_or_create_user_concept_mastery(db, student.id, node.id)
-        mastery.mastery_score = max(0, min(100, int(mastery.mastery_score or 50) + delta))
-        mastery.positive_evidence_count = int(mastery.positive_evidence_count or 0) + positive
-        mastery.negative_evidence_count = int(mastery.negative_evidence_count or 0) + negative
-        mastery.status = _mastery_status_for_score(mastery.mastery_score)
-        mastery.last_source_submission_id = submission.id
-        mastery.last_evaluated_at = datetime.utcnow()
-        _sync_legacy_knowledge_status(db, student, node.node_name, mastery.status)
-
-    if submission.status != "accepted":
-        for node in target_nodes:
-            mark_node_weak(db, student, node.node_name)
-
-
-def _extract_ai_review_confidence(submission: AssignmentSubmission) -> float:
-    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
-    confidence = _safe_float(ai_review.get("confidence"), 0.0)
-    if confidence <= 0:
-        return 0.5
-    return confidence
-
-
-def _weighted_mastery_delta(base_delta: int, ai_confidence: float) -> int:
-    factor = 0.5 + 0.5 * max(0.0, min(ai_confidence, 1.0))
-    weighted = base_delta * factor
-    sign = 1 if base_delta >= 0 else -1
-    magnitude = abs(weighted)
-    clamped = min(max(magnitude, 3), 10)
-    return sign * round(clamped)
-
-
-def _apply_time_decay_to_mastery(db: Session, student_id: int, knowledge_node_id: int) -> None:
-    mastery = (
-        db.query(UserConceptMastery)
-        .filter(
-            UserConceptMastery.student_id == student_id,
-            UserConceptMastery.knowledge_node_id == knowledge_node_id,
-        )
-        .first()
-    )
-    if not mastery or not mastery.last_evaluated_at:
-        return
-    days_since = (datetime.utcnow() - mastery.last_evaluated_at).total_seconds() / 86400.0
-    if days_since < 7:
-        return
-    weeks = days_since / 7.0
-    decay_rate = min(0.10 * weeks, 0.40)
-    current = int(mastery.mastery_score or 50)
-    decayed = int(current - (current - 50) * decay_rate)
-    mastery.mastery_score = max(0, min(100, decayed))
-    mastery.status = _mastery_status_for_score(mastery.mastery_score)
-
-
-def _submission_diagnosis_nodes(db: Session, submission: AssignmentSubmission) -> list[KnowledgeNode]:
-    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
-    diagnoses = ai_review.get("diagnoses")
-    if not isinstance(diagnoses, list):
-        return []
-
-    nodes: list[KnowledgeNode] = []
-    seen_names: set[str] = set()
-    for diagnosis in diagnoses:
-        if not isinstance(diagnosis, dict):
-            continue
-        confidence = _safe_float(diagnosis.get("confidence"), 0.0)
-        resolution = diagnosis.get("graph_resolution") if isinstance(diagnosis.get("graph_resolution"), dict) else {}
-        match_confidence = _safe_float(resolution.get("match_confidence"), 0.0)
-        node_id = _safe_int(resolution.get("node_id"), 0)
-        node_name = str(resolution.get("node_name") or "").strip()
-        if (
-            confidence < DIAGNOSIS_CONFIDENCE_THRESHOLD
-            or resolution.get("status") != "matched_existing"
-            or match_confidence < GRAPH_MATCH_CONFIDENCE_THRESHOLD
-            or node_id <= 0
-            or not node_name
-            or node_name in seen_names
-        ):
-            continue
-        seen_names.add(node_name)
-        node = db.query(KnowledgeNode).filter(KnowledgeNode.id == node_id).first()
-        if node and not _graph_node_name_exists(node.node_name):
-            continue
-        if node:
-            nodes.append(node)
-    return nodes
-
-
-def _get_or_create_user_concept_mastery(db: Session, student_id: int, knowledge_node_id: int) -> UserConceptMastery:
-    mastery = (
-        db.query(UserConceptMastery)
-        .filter(
-            UserConceptMastery.student_id == student_id,
-            UserConceptMastery.knowledge_node_id == knowledge_node_id,
-        )
-        .first()
-    )
-    if mastery:
-        return mastery
-    mastery = UserConceptMastery(
-        student_id=student_id,
-        knowledge_node_id=knowledge_node_id,
-        mastery_score=50,
-        positive_evidence_count=0,
-        negative_evidence_count=0,
-        status="partial",
-    )
-    db.add(mastery)
-    db.flush()
-    return mastery
-
-
-def _mastery_status_for_score(score: int) -> str:
-    if score <= 39:
-        return "weak"
-    if score <= 69:
-        return "partial"
-    return "good"
-
-
-def _sync_legacy_knowledge_status(db: Session, student: User, node_name: str, mastery_status: str) -> None:
-    if mastery_status == "weak":
-        mark_node_weak(db, student, node_name)
-    elif mastery_status == "good":
-        mark_node_mastered(db, student, node_name)
-    else:
-        get_or_create_knowledge_node(db, node_name)
+        mark_node_weak(db, student, node.node_name)
 
 
 def _grade_submission(assignment: Assignment, question: AssignmentQuestion, code: str) -> tuple[str, list[dict], dict | None, str]:

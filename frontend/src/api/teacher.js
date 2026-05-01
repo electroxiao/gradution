@@ -28,12 +28,5 @@ export const listTeacherKnowledgeNodesApi = (params = {}) => http.get("/api/teac
 export const listTeacherStudentsApi = () => http.get("/api/teacher/students");
 export const listTeacherStudentWeakPointsApi = (studentId) =>
   http.get(`/api/teacher/students/${studentId}/weak-points`);
-export const listTeacherStudentMasteryApi = (studentId) =>
-  http.get(`/api/teacher/students/${studentId}/mastery`);
-
-export const getStudentPortraitApi = (studentId) =>
-  http.get(`/api/teacher/students/${studentId}/portrait`);
-export const getStudentPortraitSummaryApi = (studentId) =>
-  http.get(`/api/teacher/students/${studentId}/portrait/summary`);
 
 export const getTeacherDashboardApi = () => http.get("/api/teacher/dashboard/weak-points");

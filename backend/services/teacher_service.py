@@ -2,12 +2,10 @@ import re
 
 from fastapi import HTTPException, status
 from sqlalchemy import and_, func
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from backend.core.config import settings
-from backend.models.assignment import Assignment, AssignmentQuestion, AssignmentSubmission
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
-from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
 from backend.schemas.teacher import (
     DashboardMetricResponse,
@@ -20,8 +18,6 @@ from backend.schemas.teacher import (
     PendingBatchRejectRequest,
     GraphQueryResponse,
     TeacherKnowledgeNodeRefResponse,
-    TeacherStudentMasteryEvidenceResponse,
-    TeacherStudentMasteryResponse,
     TeacherStudentResponse,
     TeacherStudentWeakPointResponse,
 )
@@ -320,133 +316,6 @@ def list_student_weak_points(db: Session, student_id: int) -> list[TeacherStuden
         )
         for weak_point, node in rows
     ]
-
-
-def list_student_mastery(db: Session, student_id: int) -> list[TeacherStudentMasteryResponse]:
-    student = db.query(User).filter(User.id == student_id, User.role == "student").first()
-    if not student:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
-
-    rows = (
-        db.query(UserConceptMastery, KnowledgeNode)
-        .join(KnowledgeNode, UserConceptMastery.knowledge_node_id == KnowledgeNode.id)
-        .filter(UserConceptMastery.student_id == student_id)
-        .order_by(
-            UserConceptMastery.mastery_score.asc(),
-            UserConceptMastery.last_evaluated_at.desc(),
-            KnowledgeNode.node_name.asc(),
-        )
-        .all()
-    )
-    recent_submission_rows = _list_student_recent_submission_rows(db, student_id)
-    return [
-        TeacherStudentMasteryResponse(
-            knowledge_node_id=node.id,
-            node_name=node.node_name,
-            mastery_score=int(mastery.mastery_score or 0),
-            status=mastery.status,
-            positive_evidence_count=int(mastery.positive_evidence_count or 0),
-            negative_evidence_count=int(mastery.negative_evidence_count or 0),
-            last_evaluated_at=mastery.last_evaluated_at,
-            evidence=_list_student_mastery_evidence_from_rows(recent_submission_rows, node.id, node.node_name),
-        )
-        for mastery, node in rows
-    ]
-
-
-def _list_student_recent_submission_rows(
-    db: Session,
-    student_id: int,
-    limit: int = 8,
-) -> list[tuple[AssignmentSubmission, Assignment, AssignmentQuestion]]:
-    return (
-        db.query(AssignmentSubmission, Assignment, AssignmentQuestion)
-        .options(selectinload(AssignmentQuestion.knowledge_nodes))
-        .join(Assignment, AssignmentSubmission.assignment_id == Assignment.id)
-        .join(AssignmentQuestion, AssignmentSubmission.question_id == AssignmentQuestion.id)
-        .filter(AssignmentSubmission.student_id == student_id)
-        .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
-        .limit(max(limit * 5, 40))
-        .all()
-    )
-
-
-def _list_student_mastery_evidence_from_rows(
-    rows: list[tuple[AssignmentSubmission, Assignment, AssignmentQuestion]],
-    knowledge_node_id: int,
-    knowledge_node_name: str,
-    limit: int = 8,
-) -> list[TeacherStudentMasteryEvidenceResponse]:
-    evidence = []
-    for submission, assignment, question in rows:
-        if _submission_matches_mastery_node(submission, question, knowledge_node_id, knowledge_node_name):
-            evidence.append(_mastery_evidence_response(submission, assignment, question))
-        if len(evidence) >= limit:
-            break
-    return evidence
-
-
-def _submission_matches_mastery_node(
-    submission: AssignmentSubmission,
-    question: AssignmentQuestion,
-    knowledge_node_id: int,
-    knowledge_node_name: str,
-) -> bool:
-    if any(relation.knowledge_node_id == knowledge_node_id for relation in question.knowledge_nodes):
-        return True
-    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
-    diagnoses = ai_review.get("diagnoses")
-    if not isinstance(diagnoses, list):
-        return False
-    return any(
-        _diagnosis_matches_mastery_node(item, knowledge_node_id, knowledge_node_name)
-        for item in diagnoses
-    )
-
-
-def _diagnosis_matches_mastery_node(item: dict, knowledge_node_id: int, knowledge_node_name: str) -> bool:
-    if not isinstance(item, dict):
-        return False
-    resolution = item.get("graph_resolution") if isinstance(item.get("graph_resolution"), dict) else {}
-    if int(resolution.get("node_id") or 0) == knowledge_node_id:
-        return True
-    if str(resolution.get("node_name") or "").strip() == knowledge_node_name:
-        return True
-    return str(item.get("knowledge_node") or "").strip() == knowledge_node_name
-
-
-def _mastery_evidence_response(
-    submission: AssignmentSubmission,
-    assignment: Assignment,
-    question: AssignmentQuestion,
-) -> TeacherStudentMasteryEvidenceResponse:
-    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
-    included = not bool(submission.excluded_from_mastery_update)
-    if not included:
-        contribution = "excluded"
-    elif submission.status == "accepted":
-        contribution = "positive"
-    else:
-        contribution = "negative"
-
-    return TeacherStudentMasteryEvidenceResponse(
-        submission_id=submission.id,
-        assignment_id=assignment.id,
-        assignment_title=assignment.title,
-        question_id=question.id,
-        question_title=question.title or "未命名题目",
-        status=submission.status,
-        decision_source=submission.final_decision_source,
-        trust_label=submission.trust_label,
-        included_in_mastery=included,
-        contribution=contribution,
-        duration_seconds=submission.duration_seconds,
-        submitted_at=submission.submitted_at,
-        ai_score=ai_review.get("score") if ai_review else None,
-        ai_confidence=ai_review.get("confidence") if ai_review else None,
-        ai_summary=ai_review.get("summary") if ai_review else None,
-        ai_diagnoses=ai_review.get("diagnoses") if isinstance(ai_review.get("diagnoses"), list) else [],
-    )
 
 
 def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricResponse:

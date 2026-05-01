@@ -128,7 +128,7 @@
             </dl>
 
             <section class="detail-section">
-              <h4>作业画像信息</h4>
+              <h4>薄弱点判定信息</h4>
               <dl class="meta-grid">
                 <div>
                   <dt>证据类型</dt>
@@ -137,10 +137,6 @@
                 <div>
                   <dt>可信度标签</dt>
                   <dd>{{ trustLabelText(selectedSubmission.trust_label) }}</dd>
-                </div>
-                <div>
-                  <dt>计入图谱画像</dt>
-                  <dd>{{ selectedSubmission.excluded_from_mastery_update ? "否" : "是" }}</dd>
                 </div>
               </dl>
               <div v-if="selectedQuestion?.knowledge_nodes?.length" class="tag-list">
@@ -154,9 +150,6 @@
                   <small>({{ formatConfidence(d.confidence) }})</small>
                 </span>
               </div>
-              <p v-if="selectedSubmission.excluded_from_mastery_update" class="muted">
-                该次提交因"{{ trustLabelText(selectedSubmission.trust_label) }}"未计入知识图谱画像更新。
-              </p>
             </section>
 
             <section class="detail-section">
@@ -412,8 +405,7 @@ function isCellInFilter(cell) {
 
 function evidenceText(submission) {
   if (!submission) return "--";
-  if (submission.excluded_from_mastery_update) return "未计入";
-  return submission.status === "accepted" ? "正向证据" : "负向证据";
+  return submission.status === "accepted" ? "通过记录" : "薄弱点证据";
 }
 
 function statusText(status) {

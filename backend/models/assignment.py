@@ -123,7 +123,6 @@ class AssignmentSubmission(Base):
     reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     trust_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
     trust_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    excluded_from_mastery_update: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

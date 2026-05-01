@@ -20,7 +20,6 @@ from backend.models.assignment import (
     AssignmentTestCase,
     QuestionBankItem,
 )
-from backend.models.knowledge_state import UserConceptMastery
 from backend.models.user import User
 
 
@@ -131,15 +130,6 @@ def cleanup_auto_test_data(prefix: str) -> None:
                 ).all()
             )
             submission_ids = sorted({*submission_ids, *extra_submission_ids})
-
-        if user_ids or submission_ids:
-            conditions = []
-            if user_ids:
-                conditions.append(UserConceptMastery.student_id.in_(user_ids))
-            if submission_ids:
-                conditions.append(UserConceptMastery.last_source_submission_id.in_(submission_ids))
-            for condition in conditions:
-                db.execute(delete(UserConceptMastery).where(condition))
 
         if question_ids:
             db.execute(
