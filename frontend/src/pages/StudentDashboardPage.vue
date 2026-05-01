@@ -1,10 +1,6 @@
 <template>
   <section class="app-page dashboard-page">
     <PageHeader title="学习工作台">
-      <template #actions>
-        <router-link class="app-button" :to="continueAssignmentLink">继续学习</router-link>
-        <router-link class="app-button-ghost" to="/chat">打开学习助手</router-link>
-      </template>
     </PageHeader>
 
     <section class="summary-row">
@@ -104,7 +100,7 @@
           <div v-if="weakPoints.length" class="weak-list">
             <article v-for="item in weakPoints.slice(0, 5)" :key="item.id || item.node_id || item.name">
               <strong>{{ item.name || item.node_name || item.title }}</strong>
-              <p>{{ item.reason || item.description || "建议优先补齐这个知识点。" }}</p>
+              <p>{{ item.reason || item.description }}</p>
             </article>
           </div>
           <div v-else class="empty-state compact">
@@ -136,9 +132,6 @@ const pendingAssignments = computed(() => {
   return assignments.value.filter((item) => (item.accepted_count || 0) < (item.question_count || 0));
 });
 const acceptedTotal = computed(() => assignments.value.reduce((sum, item) => sum + (item.accepted_count || 0), 0));
-const continueAssignmentLink = computed(() => {
-  return pendingAssignments.value.length ? `/assignments/${pendingAssignments.value[0].id}` : "/chat";
-});
 
 onMounted(() => {
   loadAssignments();
@@ -380,11 +373,15 @@ function handleApiError(error, fallbackMessage, target) {
 .weak-list article {
   display: grid;
   gap: 6px;
+  justify-items: start;
+  text-align: left;
+  padding-block: 12px;
 }
 
 .weak-list strong {
   color: var(--app-text);
   font-weight: 400;
+  line-height: 1.2;
 }
 
 .learning-card p:last-of-type {

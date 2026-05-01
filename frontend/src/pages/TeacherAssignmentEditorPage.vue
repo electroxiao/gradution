@@ -14,7 +14,92 @@
       </template>
     </PageHeader>
 
-    <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
+    <Teleport to="body">
+      <div v-if="errorMessage" class="dialog-backdrop" role="presentation" @click.self="errorMessage = ''">
+        <section class="error-dialog" role="alertdialog" aria-modal="true" aria-labelledby="assignment-error-title">
+          <div class="error-dialog-icon">!</div>
+          <div class="error-dialog-content">
+            <h2 id="assignment-error-title">操作未完成</h2>
+            <p>{{ errorMessage }}</p>
+          </div>
+          <button type="button" class="dialog-close" aria-label="关闭错误提示" @click="errorMessage = ''">×</button>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="questionBankOpen" class="dialog-backdrop" role="presentation" @click.self="closeQuestionBankDialog">
+        <section class="bank-dialog" role="dialog" aria-modal="true" aria-labelledby="question-bank-title">
+          <div class="bank-dialog-head">
+            <div>
+              <h2 id="question-bank-title">从题库导入</h2>
+              <p>选择题库中的题目追加到当前作业，导入后仍需保存作业。</p>
+            </div>
+            <button type="button" class="dialog-close" aria-label="关闭题库导入" @click="closeQuestionBankDialog">×</button>
+          </div>
+
+          <form class="bank-filters" @submit.prevent="loadQuestionBank">
+            <label class="field">
+              <span>搜索</span>
+              <input v-model="questionBankFilters.keyword" placeholder="搜索题干或标题" />
+            </label>
+            <label class="field">
+              <span>题型</span>
+              <select v-model="questionBankFilters.question_type" @change="loadQuestionBank">
+                <option value="">全部</option>
+                <option value="multiple_choice">选择题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="programming">编程题</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>难度</span>
+              <select v-model="questionBankFilters.difficulty" @change="loadQuestionBank">
+                <option value="">全部</option>
+                <option value="easy">easy</option>
+                <option value="medium">medium</option>
+                <option value="hard">hard</option>
+              </select>
+            </label>
+            <button type="submit" class="btn ghost" :disabled="questionBankLoading">搜索</button>
+          </form>
+
+          <div class="bank-list">
+            <p v-if="questionBankLoading" class="empty-note">正在加载题库...</p>
+            <p v-else-if="!questionBankItems.length" class="empty-note">题库暂无题目，保存作业后题目会同步到题库。</p>
+            <template v-else>
+              <label v-for="item in questionBankItems" :key="item.id" class="bank-item">
+                <input v-model="selectedQuestionBankIds" type="checkbox" :value="item.id" />
+                <span class="bank-item-body">
+                  <span class="bank-item-meta">
+                    <small :class="['type-chip', item.question_type]">{{ questionTypeText(item.question_type) }}</small>
+                    <small>{{ item.difficulty || "medium" }}</small>
+                    <small>复用 {{ item.reuse_count || 0 }} 次</small>
+                  </span>
+                  <strong>{{ item.title || questionTypeText(item.question_type) }}</strong>
+                  <span>{{ item.prompt || "暂无题干" }}</span>
+                </span>
+              </label>
+            </template>
+          </div>
+
+          <div class="bank-dialog-foot">
+            <span>已选择 {{ selectedQuestionBankIds.length }} 题</span>
+            <div>
+              <button type="button" class="btn ghost" @click="closeQuestionBankDialog">取消</button>
+              <button
+                type="button"
+                class="btn primary"
+                :disabled="!selectedQuestionBankIds.length || importingQuestionBank"
+                @click="importSelectedQuestionBankItems"
+              >
+                {{ importingQuestionBank ? "导入中..." : "导入选中题目" }}
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </Teleport>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
 
     <section class="meta-panel panel">
@@ -60,15 +145,55 @@
             <span>题目要求</span>
             <textarea
               v-model="generateRequirement"
-              rows="5"
+              rows="3"
               placeholder="例如：围绕 Java 事务、异常回滚和资源释放生成一套分层练习。"
             />
           </label>
           <div class="ai-controls">
-            <label class="field">
+            <div class="field knowledge-search-field">
               <span>知识点</span>
-              <input v-model="generateKnowledge" placeholder="例如：JDBC 事务" />
-            </label>
+              <div class="knowledge-search-row">
+                <select v-model="selectedKnowledgeChapter" class="knowledge-chapter-select" @change="handleKnowledgeChapterChange">
+                  <option value="">全部章节</option>
+                  <option v-for="chapter in knowledgeChapterOptions" :key="chapter" :value="chapter">{{ chapter }}</option>
+                </select>
+                <div class="knowledge-search-box">
+                  <input
+                    v-model="knowledgeSearchKeyword"
+                    placeholder="搜索正式图谱节点，例如：JDBC 事务"
+                    @input="handleKnowledgeSearchInput"
+                    @focus="handleKnowledgeSearchInput"
+                    @blur="deferHideKnowledgeSuggestions"
+                    @keydown.enter.prevent="selectFirstKnowledgeSuggestion"
+                  />
+                  <div v-if="showKnowledgeSuggestions && knowledgeSuggestions.length" class="knowledge-search-dropdown">
+                    <button
+                      v-for="node in knowledgeSuggestions"
+                      :key="node.id"
+                      type="button"
+                      class="knowledge-search-item"
+                      @mousedown.prevent="selectKnowledgeSuggestion(node)"
+                    >
+                      <strong>{{ node.name }}</strong>
+                      <small v-if="node.desc">{{ node.desc }}</small>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div v-if="selectedKnowledgeNodes.length" class="knowledge-tags" aria-label="已选择知识点">
+                <button
+                  v-for="node in selectedKnowledgeNodes"
+                  :key="node.id || node.name"
+                  type="button"
+                  class="knowledge-tag"
+                  :title="`移除 ${node.name}`"
+                  @click="removeKnowledgeTag(node)"
+                >
+                  {{ node.name }}
+                  <span aria-hidden="true">×</span>
+                </button>
+              </div>
+            </div>
             <label class="field mini">
               <span>选择题</span>
               <input v-model.number="generateCounts.multiple_choice" min="0" max="20" type="number" />
@@ -89,25 +214,18 @@
       </section>
     </section>
 
-    <main class="studio-grid" :class="{ 'preview-open': previewOpen }">
+    <main class="studio-grid" :class="{ 'preview-open': activeQuestion && previewOpen }">
       <aside class="question-rail panel">
         <div class="panel-head">
           <div>
             <h2>题目列表</h2>
-            <span>共 {{ form.questions.length }} 题 · 已选择 {{ activeQuestion ? 1 : 0 }} 题</span>
+            <span>共 {{ form.questions.length }} 题</span>
           </div>
         </div>
 
-        <div class="question-tabs" aria-label="题型筛选">
-          <button
-            v-for="tab in questionFilterTabs"
-            :key="tab.value"
-            type="button"
-            :class="{ active: questionFilter === tab.value }"
-            @click="questionFilter = tab.value"
-          >
-            {{ tab.label }}
-          </button>
+        <div class="question-actions">
+          <button type="button" class="btn primary" @click="addQuestion()">新建题目</button>
+          <button type="button" class="btn ghost" @click="openQuestionBankDialog">导入题目</button>
         </div>
 
         <VueDraggable
@@ -124,13 +242,11 @@
           :force-fallback="true"
           :fallback-on-body="true"
           :swap-threshold="0.65"
-          :disabled="questionFilter !== 'all'"
           @start="startQuestionSort"
           @end="endQuestionSort"
         >
           <article
             v-for="question in form.questions"
-            v-show="isQuestionVisible(question)"
             :key="question.localKey"
             class="question-card"
             :data-question-key="question.localKey"
@@ -141,21 +257,14 @@
             }"
             @click="selectQuestion(questionIndex(question))"
           >
-            <span class="drag-handle" title="拖动排序" role="button" aria-label="拖动排序" @click.stop>
-              <span></span>
-              <span></span>
-              <span></span>
-            </span>
+            <span class="drag-handle" title="拖动排序" role="button" aria-label="拖动排序" @click.stop></span>
             <button type="button" class="question-main">
               <span class="order">{{ questionIndex(question) + 1 }}</span>
               <span class="copy">
                 <span class="question-line">
-                  <span class="question-title">{{ question.title || "未命名题目" }}</span>
+                  <span class="question-title">{{ questionListTitle(question) }}</span>
                   <small :class="['type-chip', question.question_type]">{{ questionTypeText(question.question_type) }}</small>
                 </span>
-                <small :class="['edit-status', hasQuestionContent(question) ? 'done' : 'todo']">
-                  {{ hasQuestionContent(question) ? "已编辑" : "未完成" }}
-                </small>
               </span>
             </button>
             <div class="mini-actions">
@@ -163,13 +272,7 @@
             </div>
           </article>
         </VueDraggable>
-        <p v-if="!visibleQuestions.length" class="empty-note">当前筛选下暂无题目。</p>
 
-        <div class="rail-actions">
-          <button type="button" class="btn dashed" @click="addQuestion({ question_type: 'multiple_choice' })">+ 选择题</button>
-          <button type="button" class="btn dashed" @click="addQuestion({ question_type: 'fill_blank' })">+ 填空题</button>
-          <button type="button" class="btn dashed" @click="addQuestion({ question_type: 'programming' })">+ 编程题</button>
-        </div>
       </aside>
 
       <section class="studio-main">
@@ -179,8 +282,6 @@
               <h2>题目编辑</h2>
             </div>
             <div class="editor-tools">
-              <button type="button" class="btn primary small" :disabled="saving" @click="saveAssignment">保存</button>
-              <button type="button" class="btn danger small" @click="removeQuestion(activeQuestionIndex)">删除</button>
               <button type="button" class="btn ghost small" :class="{ active: previewOpen }" @click="previewOpen = !previewOpen">预览</button>
             </div>
           </div>
@@ -280,6 +381,15 @@
             </section>
           </div>
         </section>
+        <section v-else class="editor-empty panel">
+          <div class="editor-empty-mark">+</div>
+          <h2>暂无题目</h2>
+          <p>添加一道题目后即可继续编辑题干、选项、答案解析和判题设置。</p>
+          <div class="editor-empty-actions">
+            <button type="button" class="btn primary" @click="addQuestion()">新建题目</button>
+            <button type="button" class="btn ghost" @click="openQuestionBankDialog">导入题目</button>
+          </div>
+        </section>
       </section>
 
       <aside v-if="activeQuestion && previewOpen" class="live-preview panel">
@@ -321,18 +431,18 @@ import {
   generateAssignmentQuestionsApi,
   generateAssignmentTestCasesApi,
   getTeacherAssignmentApi,
+  listTeacherQuestionBankApi,
+  reuseTeacherQuestionBankItemApi,
   updateTeacherAssignmentApi,
   updateTeacherAssignmentQuestionsApi,
 } from "../api/assignments";
-import { listTeacherStudentsApi } from "../api/teacher";
+import { getTeacherGraphApi, listTeacherStudentsApi } from "../api/teacher";
 import PageHeader from "../components/PageHeader.vue";
 import {
   createEmptyTestCase,
   fromDatetimeLocal,
-  hasQuestionContent,
   normalizeQuestion,
   normalizeQuestionByType,
-  questionFilterTabs,
   questionTypeTabs,
   questionTypeText,
   toDatetimeLocal,
@@ -351,17 +461,33 @@ const successMessage = ref("");
 const saving = ref(false);
 const generating = ref(false);
 const testcaseGenerating = ref(false);
+const questionBankOpen = ref(false);
+const questionBankLoading = ref(false);
+const importingQuestionBank = ref(false);
+const questionBankItems = ref([]);
+const selectedQuestionBankIds = ref([]);
+const questionBankFilters = ref({
+  keyword: "",
+  question_type: "",
+  difficulty: "",
+});
 const activeQuestionIndex = ref(0);
 const draggingQuestionKey = ref(null);
 const settlingQuestionKey = ref(null);
-const questionFilter = ref("all");
 const previewOpen = ref(false);
 const generateRequirement = ref("");
 const generateKnowledge = ref("");
+const knowledgeSearchKeyword = ref("");
+const knowledgeSuggestions = ref([]);
+const selectedKnowledgeNodes = ref([]);
+const showKnowledgeSuggestions = ref(false);
+const selectedKnowledgeChapter = ref("");
+const knowledgeChapterOptions = ref([]);
 const generateCounts = ref({ multiple_choice: 5, fill_blank: 3, programming: 1 });
 let questionSettleTimer = null;
 let questionFlightAnimation = null;
 let questionDragPointerOffset = null;
+let knowledgeSuggestTimer = null;
 const form = ref({
   title: "",
   status: "published",
@@ -381,14 +507,9 @@ const assignedStudentCount = computed(() =>
 );
 const activeQuestion = computed(() => form.value.questions[activeQuestionIndex.value] || null);
 const verticalDragDirection = () => "vertical";
-const visibleQuestions = computed(() =>
-  form.value.questions
-    .map((question, index) => ({ question, index }))
-    .filter(({ question }) => questionFilter.value === "all" || question.question_type === questionFilter.value),
-);
 
 onMounted(async () => {
-  await loadStudents();
+  await Promise.all([loadStudents(), loadKnowledgeChapterOptions()]);
   if (!isNew.value) {
     await loadAssignment();
   } else {
@@ -399,6 +520,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearQuestionSettleState();
+  if (knowledgeSuggestTimer) clearTimeout(knowledgeSuggestTimer);
 });
 
 watch(() => activeQuestion.value?.question_type, () => {
@@ -431,6 +553,17 @@ async function loadAssignment() {
   }
 }
 
+async function loadKnowledgeChapterOptions() {
+  try {
+    const { data } = await getTeacherGraphApi({ keyword: "", limit: 2000 });
+    knowledgeChapterOptions.value = [...new Set((data.nodes || []).map((node) => node.chapter).filter(Boolean))].sort((left, right) =>
+      left.localeCompare(right, "zh-Hans-CN"),
+    );
+  } catch (error) {
+    knowledgeChapterOptions.value = [];
+  }
+}
+
 function selectQuestion(index) {
   activeQuestionIndex.value = index;
 }
@@ -443,6 +576,8 @@ function setActiveQuestionType(questionType) {
 
 function addQuestion(source = {}) {
   form.value.questions.push(normalizeQuestion({
+    ...source,
+    id: source.id,
     title: source.title || "",
     prompt: source.prompt || "",
     question_type: source.question_type || "multiple_choice",
@@ -455,6 +590,69 @@ function addQuestion(source = {}) {
     test_cases: source.test_cases || [],
   }));
   activeQuestionIndex.value = form.value.questions.length - 1;
+}
+
+function openQuestionBankDialog() {
+  questionBankOpen.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+  selectedQuestionBankIds.value = [];
+  loadQuestionBank();
+}
+
+function closeQuestionBankDialog() {
+  if (importingQuestionBank.value) return;
+  questionBankOpen.value = false;
+}
+
+async function loadQuestionBank() {
+  questionBankLoading.value = true;
+  try {
+    const { data } = await listTeacherQuestionBankApi({
+      keyword: questionBankFilters.value.keyword.trim(),
+      question_type: questionBankFilters.value.question_type,
+      difficulty: questionBankFilters.value.difficulty,
+      limit: 50,
+    });
+    questionBankItems.value = Array.isArray(data) ? data : [];
+    const availableIds = new Set(questionBankItems.value.map((item) => item.id));
+    selectedQuestionBankIds.value = selectedQuestionBankIds.value.filter((id) => availableIds.has(id));
+  } catch (error) {
+    handleApiError(error, "加载题库失败。");
+  } finally {
+    questionBankLoading.value = false;
+  }
+}
+
+async function importSelectedQuestionBankItems() {
+  const selectedIds = new Set(selectedQuestionBankIds.value);
+  const selectedItems = questionBankItems.value.filter((item) => selectedIds.has(item.id));
+  if (!selectedItems.length) return;
+
+  importingQuestionBank.value = true;
+  try {
+    const firstImportedIndex = form.value.questions.length;
+    selectedItems.forEach((item) => addQuestion(toImportedQuestion(item)));
+    activeQuestionIndex.value = firstImportedIndex;
+    await Promise.all(selectedItems.map((item) => reuseTeacherQuestionBankItemApi(item.id)));
+    successMessage.value = `已导入 ${selectedItems.length} 道题目，保存作业后生效。`;
+    questionBankOpen.value = false;
+  } catch (error) {
+    handleApiError(error, "导入题库题目失败。");
+  } finally {
+    importingQuestionBank.value = false;
+  }
+}
+
+function toImportedQuestion(item) {
+  return {
+    ...item,
+    id: undefined,
+    test_cases: (item.test_cases || []).map((testCase) => ({
+      ...testCase,
+      id: undefined,
+    })),
+  };
 }
 
 function removeQuestion(index) {
@@ -470,7 +668,6 @@ function startQuestionSort(event) {
 }
 
 function endQuestionSort(event) {
-  const activeKey = activeQuestion.value?.localKey;
   const draggedKey = draggingQuestionKey.value;
   const pointer = getEventPointer(event);
   const flightSource = event?.item?.cloneNode(true);
@@ -479,7 +676,7 @@ function endQuestionSort(event) {
   settlingQuestionKey.value = draggedKey;
 
   nextTick(() => animateQuestionReturn(draggedKey, pointer, flightSource));
-  restoreActiveQuestion(activeKey);
+  selectQuestionByKey(draggedKey);
 }
 
 function clearQuestionSettleState() {
@@ -575,9 +772,9 @@ function finishQuestionReturn(draggedKey, delay = 0) {
   }, delay);
 }
 
-function restoreActiveQuestion(activeKey) {
-  if (!activeKey) return;
-  const nextIndex = form.value.questions.findIndex((question) => question.localKey === activeKey);
+function selectQuestionByKey(localKey) {
+  if (!localKey) return;
+  const nextIndex = form.value.questions.findIndex((question) => question.localKey === localKey);
   if (nextIndex >= 0) activeQuestionIndex.value = nextIndex;
 }
 
@@ -585,8 +782,8 @@ function questionIndex(question) {
   return form.value.questions.findIndex((item) => item.localKey === question.localKey);
 }
 
-function isQuestionVisible(question) {
-  return questionFilter.value === "all" || question.question_type === questionFilter.value;
+function questionListTitle(question) {
+  return question.prompt?.trim() || question.title?.trim() || "未命名题目";
 }
 
 function addTestCase(question) {
@@ -595,6 +792,75 @@ function addTestCase(question) {
 
 function removeTestCase(question, index) {
   question.test_cases.splice(index, 1);
+}
+
+function handleKnowledgeSearchInput() {
+  if (knowledgeSuggestTimer) clearTimeout(knowledgeSuggestTimer);
+  const query = knowledgeSearchKeyword.value.trim();
+  if (!query && !selectedKnowledgeChapter.value) {
+    knowledgeSuggestions.value = [];
+    showKnowledgeSuggestions.value = false;
+    return;
+  }
+  knowledgeSuggestTimer = setTimeout(() => {
+    fetchKnowledgeSuggestions(query);
+  }, 180);
+}
+
+async function fetchKnowledgeSuggestions(query) {
+  try {
+    const { data } = await getTeacherGraphApi({ keyword: query, chapter: selectedKnowledgeChapter.value, limit: 50 });
+    knowledgeSuggestions.value = (data.nodes || []).filter(
+      (node) => !selectedKnowledgeNodes.value.some((selected) => isSameKnowledgeNode(selected, node)),
+    );
+    showKnowledgeSuggestions.value = knowledgeSuggestions.value.length > 0;
+  } catch (error) {
+    knowledgeSuggestions.value = [];
+    showKnowledgeSuggestions.value = false;
+  }
+}
+
+function handleKnowledgeChapterChange() {
+  handleKnowledgeSearchInput();
+}
+
+function selectKnowledgeSuggestion(node) {
+  if (!selectedKnowledgeNodes.value.some((selected) => isSameKnowledgeNode(selected, node))) {
+    selectedKnowledgeNodes.value.push({
+      id: node.id,
+      name: node.name,
+      desc: node.desc || "",
+    });
+    syncGenerateKnowledge();
+  }
+  knowledgeSearchKeyword.value = "";
+  knowledgeSuggestions.value = [];
+  showKnowledgeSuggestions.value = false;
+}
+
+function selectFirstKnowledgeSuggestion() {
+  if (knowledgeSuggestions.value.length) {
+    selectKnowledgeSuggestion(knowledgeSuggestions.value[0]);
+  }
+}
+
+function removeKnowledgeTag(node) {
+  selectedKnowledgeNodes.value = selectedKnowledgeNodes.value.filter((item) => !isSameKnowledgeNode(item, node));
+  syncGenerateKnowledge();
+}
+
+function syncGenerateKnowledge() {
+  generateKnowledge.value = selectedKnowledgeNodes.value.map((node) => node.name).join("、");
+}
+
+function isSameKnowledgeNode(left, right) {
+  return String(left.id || left.name) === String(right.id || right.name);
+}
+
+function deferHideKnowledgeSuggestions() {
+  setTimeout(() => {
+    showKnowledgeSuggestions.value = false;
+  }, 120);
 }
 
 async function generateQuestions() {
@@ -690,7 +956,6 @@ function applySavedAssignment(data) {
 }
 
 function validateForm() {
-  if (!form.value.title.trim()) return "请填写作业标题。";
   if (!form.value.class_names.length) return "请选择发布班级。";
   if (!form.value.questions.length) return "请至少添加一道题目。";
   const invalidIndex = form.value.questions.findIndex((question) => !question.prompt.trim());
@@ -720,7 +985,22 @@ function handleApiError(error, fallbackMessage) {
     router.push("/login");
     return;
   }
-  errorMessage.value = error?.response?.data?.detail || fallbackMessage;
+  errorMessage.value = formatApiErrorDetail(error?.response?.data?.detail, fallbackMessage);
+}
+
+function formatApiErrorDetail(detail, fallbackMessage) {
+  if (typeof detail === "string") return detail;
+  if (!Array.isArray(detail)) return fallbackMessage;
+
+  return detail
+    .map((item) => {
+      const field = Array.isArray(item?.loc) ? item.loc[item.loc.length - 1] : "";
+      if (field === "title" && item?.type === "string_too_short") return "作业标题不能为空。";
+      if (field === "prompt" && item?.type === "string_too_short") return "题目内容不能为空。";
+      return item?.msg || fallbackMessage;
+    })
+    .filter(Boolean)
+    .join("；");
 }
 </script>
 
@@ -827,6 +1107,217 @@ function handleApiError(error, fallbackMessage) {
   background: #f4fff7;
 }
 
+:global(.dialog-backdrop) {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 20px;
+  z-index: 10000;
+}
+
+:global(.error-dialog) {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 14px;
+  width: min(440px, 100%);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  padding: 20px 48px 20px 20px;
+}
+
+:global(.error-dialog-icon) {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #b42318;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+:global(.error-dialog-content) {
+  min-width: 0;
+}
+
+:global(.error-dialog h2) {
+  margin: 0 0 8px;
+  color: #172033;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+:global(.error-dialog p) {
+  margin: 0;
+  color: #b42318;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+:global(.dialog-close) {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #f3d5d5;
+  border-radius: 6px;
+  background: #fff;
+  color: #9f1d1d;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+:global(.dialog-close:hover) {
+  background: #fff7f7;
+}
+
+.bank-dialog {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 16px;
+  width: min(860px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  border: 1px solid #e3e8f1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  padding: 22px;
+}
+
+.bank-dialog-head {
+  padding-right: 42px;
+}
+
+.bank-dialog-head h2 {
+  margin: 0 0 6px;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.bank-dialog-head p {
+  margin: 0;
+  color: #6d7890;
+  line-height: 1.6;
+}
+
+.bank-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 140px auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.bank-list {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 220px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.bank-list > .empty-note {
+  align-self: center;
+  justify-self: center;
+  text-align: center;
+}
+
+.bank-item {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border: 1px solid #e4eaf3;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.bank-item:hover {
+  border-color: #b9d0ff;
+  background: #fbfdff;
+}
+
+.bank-item input {
+  width: 16px;
+  height: 16px;
+  margin: 4px 0 0;
+  accent-color: #2563eb;
+}
+
+.bank-item-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bank-item-body strong {
+  overflow: hidden;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bank-item-body > span:last-child {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #4b5870;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.bank-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bank-item-meta small:not(.type-chip) {
+  border-radius: 5px;
+  background: #f5f7fb;
+  color: #7a879d;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+.bank-dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #e8eef6;
+  padding-top: 14px;
+  color: #6d7890;
+}
+
+.bank-dialog-foot > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .studio-grid {
   display: grid;
   grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
@@ -886,39 +1377,27 @@ function handleApiError(error, fallbackMessage) {
   padding-right: 2px;
 }
 
-.question-tabs {
+.question-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.question-tabs button {
-  min-height: 36px;
-  border: 1px solid #e0e8f4;
-  border-radius: 7px;
-  background: #fff;
-  color: #33415a;
-  cursor: pointer;
-  font-weight: 400;
-}
-
-.question-tabs button.active {
-  border-color: #b9d0ff;
-  background: #ffffff;
-  color: #1d63f0;
+.question-actions .btn {
+  width: 100%;
 }
 
 .question-card {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 12px minmax(0, 1fr) 28px;
-  gap: 10px;
+  grid-template-columns: 8px minmax(0, 1fr) 30px;
+  gap: 6px;
   align-items: center;
   border: 1px solid #e4eaf3;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fff;
-  min-height: 70px;
-  padding: 9px 10px;
+  min-height: 54px;
+  padding: 8px 9px 8px 6px;
   transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
   user-select: none;
 }
@@ -961,11 +1440,11 @@ function handleApiError(error, fallbackMessage) {
 
 :global(.question-card-fallback) {
   display: grid !important;
-  grid-template-columns: 12px minmax(0, 1fr) 28px !important;
-  gap: 10px !important;
+  grid-template-columns: 8px minmax(0, 1fr) 30px !important;
+  gap: 6px !important;
   align-items: center !important;
-  min-height: 70px !important;
-  padding: 9px 10px !important;
+  min-height: 54px !important;
+  padding: 8px 9px 8px 6px !important;
   color: #162033;
   font-size: 13px !important;
   opacity: 1 !important;
@@ -976,11 +1455,11 @@ function handleApiError(error, fallbackMessage) {
   position: fixed !important;
   box-sizing: border-box;
   display: grid !important;
-  grid-template-columns: 12px minmax(0, 1fr) 28px !important;
-  gap: 10px !important;
+  grid-template-columns: 8px minmax(0, 1fr) 30px !important;
+  gap: 6px !important;
   align-items: center !important;
-  min-height: 70px !important;
-  padding: 9px 10px !important;
+  min-height: 54px !important;
+  padding: 8px 9px 8px 6px !important;
   color: #162033;
   font-size: 13px !important;
   margin: 0 !important;
@@ -1007,16 +1486,15 @@ function handleApiError(error, fallbackMessage) {
 
 .drag-handle {
   position: relative;
-  display: grid;
-  gap: 4px;
-  place-items: center;
   width: 12px;
-  height: 36px;
+  height: 24px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   cursor: grab;
+  opacity: 0.72;
   touch-action: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
 .drag-handle::before {
@@ -1025,21 +1503,32 @@ function handleApiError(error, fallbackMessage) {
   inset: -6px;
 }
 
-.drag-handle:active {
-  cursor: grabbing;
+.drag-handle::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 1px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #8a96aa;
+  box-shadow: 0 6px 0 #8a96aa, 0 12px 0 #8a96aa, 6px 0 0 #8a96aa, 6px 6px 0 #8a96aa, 6px 12px 0 #8a96aa;
 }
 
-.drag-handle span {
-  width: 12px;
-  height: 2px;
-  border-radius: 999px;
-  background: #9aa7ba;
+.drag-handle:active {
+  cursor: grabbing;
+  opacity: 1;
+  transform: scale(0.96);
+}
+
+.question-card:hover .drag-handle {
+  opacity: 1;
 }
 
 .question-main {
   display: flex;
   width: 100%;
-  gap: 10px;
+  gap: 6px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1049,70 +1538,43 @@ function handleApiError(error, fallbackMessage) {
 
 .order {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
   place-items: center;
-  border-radius: 7px;
+  border-radius: 6px;
   background: #eff4ff;
   color: #1d4ed8;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 400;
 }
 
 .copy {
   display: grid;
   min-width: 0;
-  gap: 10px;
 }
 
 .question-line {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .question-title {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.question-line .type-chip {
+  flex: 0 0 auto;
+}
+
 .question-title {
   color: #1f2937;
   font-weight: 400;
-}
-
-.edit-status {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.edit-status::before {
-  content: "";
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-}
-
-.edit-status.done {
-  color: #0f9f62;
-}
-
-.edit-status.done::before {
-  border: 0;
-  background: #0f9f62;
-  box-shadow: inset 0 0 0 3px #fff;
-}
-
-.edit-status.todo {
-  color: #f59e0b;
 }
 
 .mini-actions {
@@ -1121,25 +1583,50 @@ function handleApiError(error, fallbackMessage) {
 
 .mini-actions button,
 .icon-danger {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #d9e3f2;
-  border-radius: 6px;
+  border-radius: 7px;
   background: #fff;
   color: #51617c;
+  display: grid;
+  place-items: center;
   cursor: pointer;
+  padding: 0;
   line-height: 1;
 }
 
 .mini-actions .danger,
 .icon-danger {
   color: #dc2626;
+  font-size: 20px;
 }
 
-.rail-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+.mini-actions .danger {
+  position: relative;
+  color: transparent;
+  font-size: 0;
+}
+
+.mini-actions .danger::before,
+.mini-actions .danger::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: #dc2626;
+  transform-origin: center;
+}
+
+.mini-actions .danger::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.mini-actions .danger::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 .studio-main {
@@ -1168,6 +1655,51 @@ function handleApiError(error, fallbackMessage) {
 .editor-panel {
   height: auto;
   overflow: visible;
+}
+
+.editor-empty {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 12px;
+  min-height: 320px;
+  padding: 36px 24px;
+  text-align: center;
+}
+
+.editor-empty-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px dashed #9fb8ef;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #2563eb;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.editor-empty h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+.editor-empty p {
+  max-width: 420px;
+  margin: 0;
+  color: #6d7890;
+  line-height: 1.7;
+}
+
+.editor-empty-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(440px, 100%);
+  margin-top: 6px;
 }
 
 .live-preview {
@@ -1289,6 +1821,112 @@ textarea {
   grid-column: 1 / -1;
 }
 
+.knowledge-search-field {
+  position: relative;
+  align-content: start;
+}
+
+.knowledge-search-row {
+  display: grid;
+  grid-template-columns: minmax(128px, 0.28fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.knowledge-chapter-select {
+  min-height: 40px;
+}
+
+.knowledge-search-box {
+  position: relative;
+}
+
+.knowledge-search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid #dce8f5;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+  padding: 8px;
+}
+
+.knowledge-search-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  border: 1px solid #d8e7f6;
+  border-radius: 7px;
+  background: #fff;
+  color: #214666;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.knowledge-search-item strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-search-item small {
+  overflow: hidden;
+  color: #73869a;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-search-item:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.knowledge-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 28px;
+}
+
+.knowledge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  border: 1px solid #cfe0ff;
+  border-radius: 7px;
+  background: #f8fbff;
+  color: #1d4ed8;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.knowledge-tag span {
+  color: #6d7890;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.knowledge-tag:hover {
+  border-color: #9fb8ef;
+  background: #edf4ff;
+}
+
 .field.mini input {
   text-align: center;
 }
@@ -1309,11 +1947,11 @@ textarea {
 .type-chip {
   display: inline-flex;
   width: fit-content;
-  border-radius: 6px;
-  padding: 3px 7px;
+  border-radius: 5px;
+  padding: 1px 5px;
   background: #edf4ff;
   color: #2563eb;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 400;
 }
 
@@ -1625,8 +2263,7 @@ textarea {
     grid-template-columns: minmax(190px, 230px) minmax(0, 1fr) minmax(260px, 300px);
   }
 
-  .question-tabs,
-  .rail-actions {
+  .editor-empty-actions {
     grid-template-columns: 1fr 1fr;
   }
 }
@@ -1660,6 +2297,19 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  .bank-dialog {
+    max-height: calc(100vh - 24px);
+    padding: 18px;
+  }
+
+  .bank-filters,
+  .bank-dialog-foot,
+  .bank-dialog-foot > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
   .panel-head,
   .editor-head {
     flex-direction: column;
@@ -1674,9 +2324,12 @@ textarea {
     width: 100%;
   }
 
-  .question-tabs,
-  .rail-actions {
+  .editor-empty-actions {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .knowledge-search-row {
+    grid-template-columns: 1fr;
   }
 
   .case-row,

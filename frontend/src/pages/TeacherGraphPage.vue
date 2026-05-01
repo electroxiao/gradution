@@ -27,6 +27,10 @@
           </button>
         </div>
       </div>
+      <select v-model="selectedGraphChapter" class="toolbar-select" @change="searchGraph">
+        <option value="">全部章节</option>
+        <option v-for="chapter in graphChapterOptions" :key="chapter" :value="chapter">{{ chapter }}</option>
+      </select>
       <span class="graph-meta">节点 {{ graph.nodes.length }} / 边 {{ graph.edges.length }}</span>
       <button class="ghost" @click="searchGraph">搜索</button>
       <button class="ghost" @click="toggleFullscreen">全屏</button>
@@ -511,6 +515,7 @@ const fullGraph = ref({ nodes: [], edges: [] });
 const graph = ref({ nodes: [], edges: [] });
 const graphSuggestions = ref([]);
 const showGraphSuggestions = ref(false);
+const selectedGraphChapter = ref("");
 const pendingBatches = ref([]);
 const selectedBatchId = ref("");
 const selectedBatchDetail = ref(null);
@@ -541,6 +546,10 @@ const showEdgeNodeDropdown = reactive({ source: false, target: false });
 
 const selectedNode = computed(() => graph.value.nodes.find((node) => node.id === selectedNodeId.value) || null);
 const selectedEdge = computed(() => graph.value.edges.find((edge) => edge.id === selectedEdgeId.value) || null);
+const graphChapterOptions = computed(() => {
+  const chapters = fullGraph.value.nodes.map((node) => node.chapter).filter(Boolean);
+  return [...new Set(chapters)].sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
+});
 const autoCreatedNodes = computed(() =>
   autoCreatedNodeNames.value
     .map((name) => graph.value.nodes.find((node) => node.name === name))
@@ -709,8 +718,10 @@ function resolveReviewNodeName(nodeId) {
 
 async function reloadGraphAfterMutation() {
   const query = keyword.value.trim();
+  const chapter = selectedGraphChapter.value;
   const fullGraphRequest = getTeacherGraphApi({ keyword: "", limit: 2000 });
-  const visibleGraphRequest = query ? getTeacherGraphApi({ keyword: query, limit: 2000 }) : fullGraphRequest;
+  const visibleGraphRequest =
+    query || chapter ? getTeacherGraphApi({ keyword: query, chapter, limit: 2000 }) : fullGraphRequest;
 
   const [fullGraphResponse, visibleGraphResponse] = await Promise.all([
     fullGraphRequest,
@@ -946,7 +957,8 @@ async function deleteEdge() {
 
 async function searchGraph() {
   const query = keyword.value.trim();
-  if (!query) {
+  const chapter = selectedGraphChapter.value;
+  if (!query && !chapter) {
     graph.value = fullGraph.value;
     clearSelection();
     showGraphSuggestions.value = false;
@@ -954,7 +966,7 @@ async function searchGraph() {
   }
   try {
     isGraphLoading.value = true;
-    const { data } = await getTeacherGraphApi({ keyword: query, limit: 2000 });
+    const { data } = await getTeacherGraphApi({ keyword: query, chapter, limit: 2000 });
     graph.value = data;
     clearSelection();
     showGraphSuggestions.value = false;
@@ -975,8 +987,14 @@ function handleGraphKeywordInput() {
   if (!query) {
     graphSuggestions.value = [];
     showGraphSuggestions.value = false;
-    graph.value = fullGraph.value;
-    clearSelection();
+    if (!selectedGraphChapter.value) {
+      graph.value = fullGraph.value;
+      clearSelection();
+    } else {
+      graphSuggestTimer = setTimeout(() => {
+        searchGraph();
+      }, 180);
+    }
     return;
   }
   graphSuggestTimer = setTimeout(() => {
@@ -988,7 +1006,7 @@ async function fetchGraphSuggestions(query) {
   if (!query || activeMode.value !== "graph") return;
   isGraphSuggesting.value = true;
   try {
-    const { data } = await getTeacherGraphApi({ keyword: query, limit: 50 });
+    const { data } = await getTeacherGraphApi({ keyword: query, chapter: selectedGraphChapter.value, limit: 50 });
     graphSuggestions.value = data.nodes || [];
     showGraphSuggestions.value = graphSuggestions.value.length > 0;
   } catch (error) {
@@ -1176,6 +1194,16 @@ function handleApiError(error, fallbackMessage) {
 
 .toolbar-input {
   min-width: 0;
+}
+
+.toolbar-select {
+  min-width: 140px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  background: #fff;
+  color: #214666;
+  font: inherit;
 }
 
 .graph-meta {

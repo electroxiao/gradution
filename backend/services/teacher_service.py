@@ -491,22 +491,26 @@ def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricRes
     )
 
 
-def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
+def get_graph(keyword: str = "", chapter: str = "", limit: int = 1000) -> GraphQueryResponse:
     driver = get_neo4j_driver()
     raw_nodes = []
     node_rows = []
     edge_rows = []
     node_id_map: dict[str, str] = {}
     terms = _split_search_terms(keyword)
+    chapter_filter = chapter.strip()
     candidate_limit = _resolve_candidate_limit(limit)
     query = """
     MATCH (n:Knowledge)
-    WHERE size($terms) = 0
-       OR any(term IN $terms WHERE
-           toLower(n.name) CONTAINS term
-           OR toLower(coalesce(properties(n)["desc"], "")) CONTAINS term
-           OR toLower(coalesce(properties(n)["chapter"], "")) CONTAINS term
-       )
+    WHERE ($chapter = "" OR coalesce(properties(n)["chapter"], "") = $chapter)
+      AND (
+        size($terms) = 0
+        OR any(term IN $terms WHERE
+            toLower(n.name) CONTAINS term
+            OR toLower(coalesce(properties(n)["desc"], "")) CONTAINS term
+            OR toLower(coalesce(properties(n)["chapter"], "")) CONTAINS term
+        )
+      )
     RETURN n.name AS name,
            coalesce(properties(n)["desc"], "") AS desc,
            coalesce(properties(n)["node_type"], "") AS node_type,
@@ -514,7 +518,7 @@ def get_graph(keyword: str = "", limit: int = 1000) -> GraphQueryResponse:
     LIMIT $candidate_limit
     """
     with driver.session(database=settings.neo4j_db_name) as session:
-        for record in session.run(query, terms=terms, candidate_limit=candidate_limit):
+        for record in session.run(query, terms=terms, chapter=chapter_filter, candidate_limit=candidate_limit):
             node_name = record["name"]
             raw_nodes.append(
                 {
