@@ -103,6 +103,12 @@ def get_teacher_assignment_detail(db: Session, teacher: User, assignment_id: int
     return _assignment_detail(db, assignment, teacher_view=True, student=None)
 
 
+def delete_assignment(db: Session, teacher: User, assignment_id: int) -> None:
+    assignment = _get_teacher_assignment(db, teacher, assignment_id)
+    db.delete(assignment)
+    db.commit()
+
+
 def update_assignment(
     db: Session,
     teacher: User,

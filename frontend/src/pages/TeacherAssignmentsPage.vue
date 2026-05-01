@@ -83,6 +83,7 @@
           <div class="assignment-actions">
             <router-link class="open-link compact-link" :to="`/teacher/assignments/${item.id}/progress`">查看完成情况</router-link>
             <router-link class="primary-link compact-link" :to="`/teacher/assignments/${item.id}`">编辑</router-link>
+            <button type="button" class="danger-link compact-link" @click="openDeleteConfirm(item)">删除</button>
           </div>
         </article>
       </div>
@@ -105,7 +106,22 @@
       <div v-else class="empty-filter">当前筛选下没有作业。</div>
     </section>
 
-    <div v-else-if="!errorMessage" class="empty shell-card">
+    <Teleport to="body">
+      <div v-if="deleteTarget" class="dialog-backdrop" @click.self="closeDeleteConfirm">
+        <div class="dialog-card">
+          <h4>删除作业</h4>
+          <p>确定删除作业「{{ deleteTarget.title }}」吗？删除后相关题目、提交记录和统计数据将无法恢复。</p>
+          <div class="dialog-actions">
+            <button type="button" class="ghost-btn" @click="closeDeleteConfirm">取消</button>
+            <button type="button" class="danger-btn" :disabled="deletingAssignmentId === deleteTarget.id" @click="confirmDelete">
+              确认删除
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <div v-if="!errorMessage && !assignments.length" class="empty shell-card">
       <strong>还没有作业</strong>
       <p>新建一份 Java 编程作业后，可以在这里跟踪发布和提交情况。</p>
       <router-link class="primary-link" to="/teacher/assignments/new">创建第一份作业</router-link>
@@ -117,13 +133,15 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
-import { listTeacherAssignmentsApi } from "../api/assignments";
+import { deleteTeacherAssignmentApi, listTeacherAssignmentsApi } from "../api/assignments";
 import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
 const assignments = ref([]);
 const errorMessage = ref("");
+const deleteTarget = ref(null);
+const deletingAssignmentId = ref(null);
 const activeFilter = ref("all");
 const currentPage = ref(1);
 const pageSize = 10;
@@ -169,6 +187,29 @@ async function loadAssignments() {
     assignments.value = data;
   } catch (error) {
     handleApiError(error, "加载作业失败。");
+  }
+}
+
+function openDeleteConfirm(item) {
+  deleteTarget.value = item;
+}
+
+function closeDeleteConfirm() {
+  if (deletingAssignmentId.value !== null) return;
+  deleteTarget.value = null;
+}
+
+async function confirmDelete() {
+  if (!deleteTarget.value) return;
+  deletingAssignmentId.value = deleteTarget.value.id;
+  try {
+    await deleteTeacherAssignmentApi(deleteTarget.value.id);
+    deleteTarget.value = null;
+    await loadAssignments();
+  } catch (error) {
+    handleApiError(error, "删除作业失败。");
+  } finally {
+    deletingAssignmentId.value = null;
   }
 }
 
@@ -384,12 +425,12 @@ function handleApiError(error, fallbackMessage) {
 
 .assignment-copy p {
   margin: 0;
-  font-size: calc(var(--compact-body) * 0.75);
+  font-size: calc(var(--compact-body) * 0.75 + 1px);
   line-height: 1.3;
 }
 
 .date-line {
-  font-size: calc(var(--compact-caption) * 0.75);
+  font-size: calc(var(--compact-caption) * 0.75 + 1px);
 }
 
 .description-line {
@@ -481,6 +522,7 @@ function handleApiError(error, fallbackMessage) {
 .assignment-row > :not(.col-name) {
   justify-self: center;
   text-align: center;
+  transform: translateX(-15px);
 }
 
 .col-name {
@@ -502,11 +544,92 @@ function handleApiError(error, fallbackMessage) {
   min-width: 0;
 }
 
+.assignment-actions > * {
+  flex: 1 1 0;
+}
+
 .compact-link {
+  width: 100%;
   min-height: 29px;
   padding: 0 11px;
   border-radius: 8px;
   font-size: 11px;
+  white-space: nowrap;
+}
+
+.danger-link {
+  width: 100%;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #c53030;
+  cursor: pointer;
+}
+
+.danger-link:hover {
+  background: #ffecec;
+}
+
+.danger-link:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: rgba(9, 19, 33, 0.46);
+}
+
+.dialog-card {
+  width: min(92vw, 380px);
+  padding: 18px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+}
+
+.dialog-card h4 {
+  margin: 0 0 10px;
+  color: var(--app-text);
+}
+
+.dialog-card p {
+  margin: 0 0 16px;
+  color: var(--app-text-muted);
+  line-height: 1.45;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ghost-btn,
+.danger-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.ghost-btn {
+  background: #f4f7fb;
+  color: #475569;
+}
+
+.danger-btn {
+  background: #ef4444;
+  color: #fff;
+}
+
+.danger-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .pagination-bar {

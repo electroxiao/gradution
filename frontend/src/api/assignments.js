@@ -4,6 +4,7 @@ import { getAccessToken } from "../utils/authStorage";
 export const listTeacherAssignmentsApi = () => http.get("/api/teacher/assignments");
 export const createTeacherAssignmentApi = (payload) => http.post("/api/teacher/assignments", payload);
 export const getTeacherAssignmentApi = (assignmentId) => http.get(`/api/teacher/assignments/${assignmentId}`);
+export const deleteTeacherAssignmentApi = (assignmentId) => http.delete(`/api/teacher/assignments/${assignmentId}`);
 export const getTeacherAssignmentProgressApi = (assignmentId) =>
   http.get(`/api/teacher/assignments/${assignmentId}/progress`);
 export const getTeacherAssignmentSubmissionApi = (assignmentId, submissionId) =>

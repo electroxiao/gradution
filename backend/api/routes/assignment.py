@@ -21,6 +21,7 @@ from backend.services.assignment_service import (
     assignment_ai_help_stream,
     create_assignment,
     create_question_bank_item,
+    delete_assignment,
     generate_assignment_focus,
     generate_assignment_question,
     generate_assignment_questions,
@@ -174,6 +175,16 @@ def get_teacher_assignment(
     current_user: User = Depends(get_current_teacher),
 ):
     return get_teacher_assignment_detail(db, current_user, assignment_id)
+
+
+@teacher_router.delete("/{assignment_id}")
+def delete_teacher_assignment(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    delete_assignment(db, current_user, assignment_id)
+    return {"detail": "作业已删除"}
 
 
 @teacher_router.patch("/{assignment_id}")
