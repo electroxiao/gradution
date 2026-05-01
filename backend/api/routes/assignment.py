@@ -100,12 +100,12 @@ def post_generate_assignment_focus(
 def get_question_bank(
     keyword: str = "",
     question_type: str = "",
-    difficulty: str = "",
+    chapter: str = "",
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return list_question_bank_items(db, current_user, keyword, question_type, difficulty, limit)
+    return list_question_bank_items(db, current_user, keyword, question_type, chapter, limit)
 
 
 @teacher_router.post("/question-bank")

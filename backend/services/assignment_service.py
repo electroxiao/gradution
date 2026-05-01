@@ -491,7 +491,7 @@ def list_question_bank_items(
     teacher: User,
     keyword: str = "",
     question_type: str = "",
-    difficulty: str = "",
+    chapter: str = "",
     limit: int = 50,
 ) -> list[QuestionBankItemResponse]:
     query = db.query(QuestionBankItem).filter(QuestionBankItem.teacher_id == teacher.id)
@@ -500,17 +500,22 @@ def list_question_bank_items(
         query = query.filter((QuestionBankItem.title.like(like)) | (QuestionBankItem.prompt.like(like)))
     if question_type.strip():
         query = query.filter(QuestionBankItem.question_type == _normalize_question_type(question_type))
-    if difficulty.strip():
-        query = query.filter(QuestionBankItem.difficulty == difficulty.strip())
-    rows = query.order_by(QuestionBankItem.updated_at.desc(), QuestionBankItem.id.desc()).limit(limit).all()
-    return [_question_bank_item_response(row) for row in rows]
+    ordered_query = query.order_by(QuestionBankItem.updated_at.desc(), QuestionBankItem.id.desc())
+    chapter_filter = chapter.strip()
+    if chapter_filter:
+        rows = ordered_query.all()
+        rows = [row for row in rows if chapter_filter in _question_bank_item_chapters(db, row)]
+        rows = rows[:limit]
+    else:
+        rows = ordered_query.limit(limit).all()
+    return [_question_bank_item_response(row, db) for row in rows]
 
 
 def create_question_bank_item(db: Session, teacher: User, payload: QuestionBankItemCreateRequest) -> QuestionBankItemResponse:
     row = _upsert_question_bank_item(db, teacher, payload, source=payload.source or "manual", increment_reuse=False)
     db.commit()
     db.refresh(row)
-    return _question_bank_item_response(row)
+    return _question_bank_item_response(row, db)
 
 
 def reuse_question_bank_item(db: Session, teacher: User, item_id: int) -> QuestionBankItemResponse:
@@ -520,7 +525,7 @@ def reuse_question_bank_item(db: Session, teacher: User, item_id: int) -> Questi
     row.reuse_count = int(row.reuse_count or 0) + 1
     db.commit()
     db.refresh(row)
-    return _question_bank_item_response(row)
+    return _question_bank_item_response(row, db)
 
 
 def list_student_assignments(db: Session, student: User) -> list[AssignmentSummaryResponse]:
@@ -1556,7 +1561,41 @@ def _question_bank_content_hash(teacher_id: int, question_type: str, title: str,
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def _question_bank_item_response(row: QuestionBankItem) -> QuestionBankItemResponse:
+def _question_bank_item_knowledge_node_ids(row: QuestionBankItem) -> list[int]:
+    return [
+        int(item)
+        for item in (row.knowledge_node_ids_json if isinstance(row.knowledge_node_ids_json, list) else [])
+        if str(item).strip()
+    ]
+
+
+def _question_bank_item_knowledge_nodes(db: Session | None, row: QuestionBankItem) -> list[dict]:
+    node_ids = _question_bank_item_knowledge_node_ids(row)
+    if not db or not node_ids:
+        return []
+    rows = db.query(KnowledgeNode).filter(KnowledgeNode.id.in_(node_ids)).all()
+    by_id = {node.id: node for node in rows}
+    return [
+        {
+            "id": node.id,
+            "node_name": node.node_name,
+            "chapter": node.chapter or "",
+        }
+        for node_id in node_ids
+        if (node := by_id.get(node_id))
+    ]
+
+
+def _question_bank_item_chapters(db: Session, row: QuestionBankItem) -> set[str]:
+    return {
+        str(item.get("chapter") or "").strip()
+        for item in _question_bank_item_knowledge_nodes(db, row)
+        if str(item.get("chapter") or "").strip()
+    }
+
+
+def _question_bank_item_response(row: QuestionBankItem, db: Session | None = None) -> QuestionBankItemResponse:
+    knowledge_node_ids = _question_bank_item_knowledge_node_ids(row)
     return QuestionBankItemResponse(
         id=row.id,
         title=row.title,
@@ -1577,7 +1616,8 @@ def _question_bank_item_response(row: QuestionBankItem) -> QuestionBankItemRespo
             for item in (row.test_cases_json if isinstance(row.test_cases_json, list) else [])
             if isinstance(item, dict)
         ],
-        knowledge_node_ids=[int(item) for item in (row.knowledge_node_ids_json if isinstance(row.knowledge_node_ids_json, list) else []) if str(item).strip()],
+        knowledge_node_ids=knowledge_node_ids,
+        knowledge_nodes=_question_bank_item_knowledge_nodes(db, row),
         difficulty=row.difficulty or "medium",
         source=row.source or "assignment",
         reuse_count=int(row.reuse_count or 0),

@@ -53,12 +53,10 @@
               </select>
             </label>
             <label class="field">
-              <span>难度</span>
-              <select v-model="questionBankFilters.difficulty" @change="loadQuestionBank">
-                <option value="">全部</option>
-                <option value="easy">easy</option>
-                <option value="medium">medium</option>
-                <option value="hard">hard</option>
+              <span>章节</span>
+              <select v-model="questionBankFilters.chapter" @change="loadQuestionBank">
+                <option value="">全部章节</option>
+                <option v-for="chapter in knowledgeChapterOptions" :key="chapter" :value="chapter">{{ chapter }}</option>
               </select>
             </label>
             <button type="submit" class="btn ghost" :disabled="questionBankLoading">搜索</button>
@@ -73,7 +71,7 @@
                 <span class="bank-item-body">
                   <span class="bank-item-meta">
                     <small :class="['type-chip', item.question_type]">{{ questionTypeText(item.question_type) }}</small>
-                    <small>{{ item.difficulty || "medium" }}</small>
+                    <small>{{ questionBankItemChapterText(item) }}</small>
                     <small>复用 {{ item.reuse_count || 0 }} 次</small>
                   </span>
                   <strong>{{ item.title || questionTypeText(item.question_type) }}</strong>
@@ -196,18 +194,54 @@
             </div>
             <label class="field mini">
               <span>选择题</span>
-              <input v-model.number="generateCounts.multiple_choice" min="0" max="20" type="number" />
+              <div class="count-stepper">
+                <button type="button" :disabled="generateCounts.multiple_choice <= 0" aria-label="减少选择题数量" @click="adjustGenerateCount('multiple_choice', -1, 0, 20)">
+                  −
+                </button>
+                <input v-model.number="generateCounts.multiple_choice" aria-label="选择题数量" min="0" max="20" type="number" />
+                <button type="button" :disabled="generateCounts.multiple_choice >= 20" aria-label="增加选择题数量" @click="adjustGenerateCount('multiple_choice', 1, 0, 20)">
+                  +
+                </button>
+              </div>
             </label>
             <label class="field mini">
               <span>填空题</span>
-              <input v-model.number="generateCounts.fill_blank" min="0" max="20" type="number" />
+              <div class="count-stepper">
+                <button type="button" :disabled="generateCounts.fill_blank <= 0" aria-label="减少填空题数量" @click="adjustGenerateCount('fill_blank', -1, 0, 20)">
+                  −
+                </button>
+                <input v-model.number="generateCounts.fill_blank" aria-label="填空题数量" min="0" max="20" type="number" />
+                <button type="button" :disabled="generateCounts.fill_blank >= 20" aria-label="增加填空题数量" @click="adjustGenerateCount('fill_blank', 1, 0, 20)">
+                  +
+                </button>
+              </div>
             </label>
             <label class="field mini">
               <span>编程题</span>
-              <input v-model.number="generateCounts.programming" min="0" max="10" type="number" />
+              <div class="count-stepper">
+                <button type="button" :disabled="generateCounts.programming <= 0" aria-label="减少编程题数量" @click="adjustGenerateCount('programming', -1, 0, 10)">
+                  −
+                </button>
+                <input v-model.number="generateCounts.programming" aria-label="编程题数量" min="0" max="10" type="number" />
+                <button type="button" :disabled="generateCounts.programming >= 10" aria-label="增加编程题数量" @click="adjustGenerateCount('programming', 1, 0, 10)">
+                  +
+                </button>
+              </div>
             </label>
             <button type="button" class="btn primary generate-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestions">
-              {{ generating ? "生成中..." : "生成题目" }}
+              <span class="generate-btn-content">
+                <svg class="generate-btn-icon" viewBox="0 0 28 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M12.2 2.4l1.55 4.78 4.78 1.55-4.78 1.55-1.55 4.78-1.55-4.78-4.78-1.55 4.78-1.55 1.55-4.78z"
+                    fill="currentColor"
+                  />
+                  <path
+                    d="M21.2 1.7l.68 2.08 2.08.68-2.08.68-.68 2.08-.68-2.08-2.08-.68 2.08-.68.68-2.08z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span>{{ generating ? "生成中..." : "生成题目" }}</span>
+              </span>
             </button>
           </div>
         </div>
@@ -219,7 +253,6 @@
         <div class="panel-head">
           <div>
             <h2>题目列表</h2>
-            <span>共 {{ form.questions.length }} 题</span>
           </div>
         </div>
 
@@ -469,7 +502,7 @@ const selectedQuestionBankIds = ref([]);
 const questionBankFilters = ref({
   keyword: "",
   question_type: "",
-  difficulty: "",
+  chapter: "",
 });
 const activeQuestionIndex = ref(0);
 const draggingQuestionKey = ref(null);
@@ -611,7 +644,7 @@ async function loadQuestionBank() {
     const { data } = await listTeacherQuestionBankApi({
       keyword: questionBankFilters.value.keyword.trim(),
       question_type: questionBankFilters.value.question_type,
-      difficulty: questionBankFilters.value.difficulty,
+      chapter: questionBankFilters.value.chapter,
       limit: 50,
     });
     questionBankItems.value = Array.isArray(data) ? data : [];
@@ -653,6 +686,11 @@ function toImportedQuestion(item) {
       id: undefined,
     })),
   };
+}
+
+function questionBankItemChapterText(item) {
+  const chapters = [...new Set((item.knowledge_nodes || []).map((node) => node.chapter).filter(Boolean))];
+  return chapters.length ? chapters.join("、") : "未绑定章节";
 }
 
 function removeQuestion(index) {
@@ -784,6 +822,12 @@ function questionIndex(question) {
 
 function questionListTitle(question) {
   return question.prompt?.trim() || question.title?.trim() || "未命名题目";
+}
+
+function adjustGenerateCount(key, delta, min, max) {
+  const current = Number(generateCounts.value[key]) || 0;
+  const next = Math.min(max, Math.max(min, current + delta));
+  generateCounts.value[key] = next;
 }
 
 function addTestCase(question) {
@@ -1023,7 +1067,6 @@ function formatApiErrorDetail(detail, fallbackMessage) {
   box-shadow: 0 10px 28px rgba(23, 37, 60, 0.06);
 }
 
-.panel-head span,
 .empty-note {
   margin: 0;
   color: #6d7890;
@@ -1737,6 +1780,18 @@ function formatApiErrorDetail(detail, fallbackMessage) {
   font-weight: 400;
 }
 
+.ai-panel .field > span {
+  font-size: 13px;
+  color: #a2adbf;
+  font-weight: 400;
+}
+
+.editor-section .field > span {
+  font-size: 13px;
+  color: #a2adbf;
+  font-weight: 400;
+}
+
 input,
 textarea,
 select {
@@ -1808,7 +1863,7 @@ textarea {
 .ai-form {
   display: grid;
   gap: 12px;
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 .ai-controls {
@@ -1819,6 +1874,10 @@ textarea {
 
 .ai-controls > .field:first-child {
   grid-column: 1 / -1;
+}
+
+.field.mini {
+  align-content: start;
 }
 
 .knowledge-search-field {
@@ -1927,13 +1986,98 @@ textarea {
   background: #edf4ff;
 }
 
-.field.mini input {
+.count-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: stretch;
+  min-height: 40px;
+  border: 1px solid #d9e3f2;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.count-stepper button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #5472b5;
+  cursor: pointer;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.count-stepper button:hover:not(:disabled) {
+  background: #f5f9ff;
+  color: #2563eb;
+}
+
+.count-stepper button:disabled {
+  color: #c4cfde;
+  cursor: not-allowed;
+}
+
+.count-stepper input {
+  border: 0;
+  border-left: 1px solid #dfe7f3;
+  border-right: 1px solid #dfe7f3;
+  border-radius: 0;
+  background: #fff;
+  color: #17233b;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  padding: 0;
   text-align: center;
+  -moz-appearance: textfield;
+}
+
+.count-stepper input::-webkit-outer-spin-button,
+.count-stepper input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }
 
 .generate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   align-self: end;
   width: 100%;
+  min-height: 38px;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.generate-btn-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 0 auto;
+  transform: translateX(-8px);
+}
+
+.generate-btn-content > span {
+  transform: translateX(-6px);
+}
+
+.generate-btn-icon {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  transform: translateY(2px);
+}
+
+.generate-btn span {
+  line-height: 1;
 }
 
 .link-btn {
@@ -2251,6 +2395,7 @@ textarea {
 
   .generate-btn {
     grid-column: 1 / -1;
+    min-height: 38px;
   }
 }
 

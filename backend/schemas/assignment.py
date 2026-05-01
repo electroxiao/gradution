@@ -328,6 +328,7 @@ class QuestionBankItemResponse(BaseModel):
     ai_grading_confidence_threshold: float = 0.85
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
     knowledge_node_ids: list[int] = Field(default_factory=list)
+    knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
     difficulty: str = "medium"
     source: str = "assignment"
     reuse_count: int = 0
