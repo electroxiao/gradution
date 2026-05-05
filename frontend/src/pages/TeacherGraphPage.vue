@@ -37,25 +37,7 @@
       <button class="ghost" @click="refreshGraph">刷新布局</button>
     </div>
 
-    <div class="mode-switch">
-      <button
-        type="button"
-        :class="['mode-tab', { active: activeMode === 'graph' }]"
-        @click="switchMode('graph')"
-      >
-        正式图谱
-      </button>
-      <button
-        type="button"
-        :class="['mode-tab', { active: activeMode === 'review' }]"
-        :disabled="!selectedBatchDetail"
-        @click="switchMode('review')"
-      >
-        候选审核
-      </button>
-    </div>
-
-    <div v-if="activeMode === 'graph'" class="graph-mode-layout">
+    <div class="graph-mode-layout">
       <section ref="graphViewport" class="graph-panel formal-panel">
         <div class="graph-panel-head">
           <div>
@@ -204,183 +186,6 @@
       </aside>
     </div>
 
-    <section v-else class="review-workbench">
-      <div class="review-header-strip">
-        <div class="panel-card review-strip-card">
-          <div class="panel-head">
-            <h3>候选批次</h3>
-            <span>{{ pendingBatches.length }} 批次</span>
-          </div>
-
-          <div v-if="isPendingLoading" class="empty-detail compact">
-            <p>候选批次加载中...</p>
-          </div>
-          <template v-else-if="pendingBatches.length">
-            <div class="review-batch-list">
-              <button
-                v-for="batch in pendingBatches"
-                :key="batch.id"
-                type="button"
-                :class="['batch-chip', { active: batch.id === selectedBatchId }]"
-                @click="selectPendingBatch(batch.id)"
-              >
-                <strong>{{ batch.anchor_name }}</strong>
-                <small>{{ batch.source_type }} · {{ batch.pending_node_count }} 个结点</small>
-              </button>
-            </div>
-          </template>
-          <div v-else class="empty-detail compact">
-            <p>当前没有待教师确认的候选知识子图。</p>
-          </div>
-        </div>
-
-        <div class="panel-card review-current-card">
-          <div class="panel-head">
-            <h3>当前批次</h3>
-            <span>{{ selectedBatchDetail?.batch.source_type || "未选择" }}</span>
-          </div>
-
-          <div v-if="selectedBatchDetail" class="review-current-body">
-            <div class="review-meta">
-              <span>锚点：{{ selectedBatchDetail.batch.anchor_name }}</span>
-              <span>锚点状态：{{ selectedBatchDetail.batch.anchor_status }}</span>
-              <span>待审结点：{{ selectedNodeDrafts.length }}</span>
-              <span>建议关系：{{ selectedEdgeDrafts.length }}</span>
-              <span v-if="selectedBatchDetail.batch.source_weak_point">薄弱点：{{ selectedBatchDetail.batch.source_weak_point }}</span>
-            </div>
-            <p class="review-summary-text">
-              {{ selectedBatchDetail.batch.question_excerpt || "该批次没有额外问题摘要。" }}
-            </p>
-          </div>
-
-          <div v-else class="empty-detail compact">
-            <p>请先选择一个候选批次开始审核。</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="review-mode-layout">
-        <section ref="graphViewport" class="graph-panel review-graph-panel">
-          <div class="graph-panel-head">
-            <div>
-              <h3>{{ selectedBatchDetail?.batch.anchor_name || "候选批次审核" }}</h3>
-            </div>
-            <span class="graph-mode-copy">审核当前批次的候选结点、建议关系与锚点上下文</span>
-          </div>
-
-          <div v-if="isReviewLoading" class="graph-state">候选批次图加载中...</div>
-          <div v-else-if="!reviewGraph.nodes.length" class="graph-state">当前批次没有可展示的候选结点。</div>
-
-          <KnowledgeGraphCanvas
-            v-if="reviewGraph.nodes.length && !isReviewLoading"
-            ref="reviewCanvas"
-            :nodes="reviewGraph.nodes"
-            :edges="reviewGraph.edges"
-            :selected-node-id="selectedReviewNodeId"
-            :selected-edge-id="selectedReviewEdgeId"
-            @select-node="handleSelectReviewNode"
-            @select-edge="handleSelectReviewEdge"
-            @clear-selection="clearReviewSelection"
-          />
-        </section>
-
-        <aside class="review-side-panel">
-          <div class="panel-card detail-card">
-            <div class="panel-head">
-              <h3>审核详情</h3>
-              <span>{{ selectedReviewNode ? selectedReviewNode.name : selectedReviewEdge ? selectedReviewEdge.relation : "请选择图中元素" }}</span>
-            </div>
-
-            <div v-if="selectedReviewNode && editableReviewNode" class="detail-body">
-              <label>
-                节点名
-                <input v-model="editableReviewNode.name" :disabled="isContextNode(selectedReviewNode)" />
-              </label>
-              <label>
-                描述
-                <textarea v-model="editableReviewNode.desc" rows="4" :disabled="isContextNode(selectedReviewNode)"></textarea>
-              </label>
-              <label>
-                提议原因
-                <textarea :value="selectedReviewNode.reason || '无'" rows="3" disabled />
-              </label>
-              <label v-if="!isContextNode(selectedReviewNode)" class="checkbox-row">
-                <input v-model="editableReviewNode.keep" type="checkbox" />
-                保留该待审结点
-              </label>
-            </div>
-
-            <div v-else-if="selectedReviewEdge && editableReviewEdge" class="detail-body">
-              <label>
-                关系
-                <input :value="reviewEdgeLabel(selectedReviewEdge)" disabled />
-              </label>
-              <label class="checkbox-row">
-                <input v-model="editableReviewEdge.keep" type="checkbox" />
-                保留该建议关系
-              </label>
-            </div>
-
-            <div v-else class="empty-detail compact">
-              <p>点击候选审核图中的节点或关系，在这里查看详情并决定是否保留。</p>
-            </div>
-          </div>
-
-          <div class="panel-card approval-card">
-            <div class="panel-head">
-              <h3>勾选与审批</h3>
-              <span>保留需要并入正式图谱的内容</span>
-            </div>
-            <div class="review-checklists">
-              <div class="checklist-group">
-                <div class="panel-head sub-head">
-                  <h4>待审结点</h4>
-                  <span>{{ selectedNodeDrafts.length }} 项</span>
-                </div>
-                <label
-                  v-for="node in selectedNodeDrafts"
-                  :key="node.id"
-                  class="check-item"
-                  @click="handleSelectReviewNode(node.id)"
-                >
-                  <input v-model="node.keep" type="checkbox" />
-                  <span>{{ node.name }}</span>
-                </label>
-              </div>
-
-              <div class="checklist-group">
-                <div class="panel-head sub-head">
-                  <h4>建议关系</h4>
-                  <span>{{ selectedEdgeDrafts.length }} 项</span>
-                </div>
-                <label
-                  v-for="edge in selectedEdgeDrafts"
-                  :key="edge.id"
-                  class="check-item"
-                  @click="handleSelectReviewEdge(edge.id)"
-                >
-                  <input v-model="edge.keep" type="checkbox" />
-                  <span>{{ reviewEdgeLabel(edge) }}</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="approval-footer">
-              <label class="detail-body reject-note">
-                驳回备注
-                <textarea v-model="batchRejectNote" rows="2" placeholder="可选，记录驳回原因"></textarea>
-              </label>
-
-              <div class="detail-actions">
-                <button @click="approveSelectedBatch" :disabled="!selectedBatchDetail">通过所选内容并入图</button>
-                <button class="danger" @click="rejectSelectedBatch" :disabled="!selectedBatchDetail">驳回整批</button>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </section>
-
     <div v-if="isCreatingNode" class="modal-overlay" @click.self="cancelCreateNode">
       <div class="modal-card">
         <h3>新增节点</h3>
@@ -486,16 +291,12 @@ import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import {
-  approvePendingTeacherBatchApi,
   createTeacherEdgeApi,
   createTeacherNodeApi,
   deleteTeacherEdgeApi,
   deleteTeacherNodeApi,
   generateTeacherNodeDescriptionApi,
-  getPendingTeacherBatchDetailApi,
   getTeacherGraphApi,
-  listPendingTeacherBatchesApi,
-  rejectPendingTeacherBatchApi,
   updateTeacherEdgeApi,
   updateTeacherNodeApi,
 } from "../api/teacher";
@@ -506,29 +307,19 @@ import { clearAuthSession } from "../utils/authStorage";
 const router = useRouter();
 const keyword = ref("");
 const errorMessage = ref("");
-const activeMode = ref("graph");
 const isGraphLoading = ref(false);
 const isGraphSuggesting = ref(false);
-const isPendingLoading = ref(false);
-const isReviewLoading = ref(false);
 const fullGraph = ref({ nodes: [], edges: [] });
 const graph = ref({ nodes: [], edges: [] });
 const graphSuggestions = ref([]);
 const showGraphSuggestions = ref(false);
 const selectedGraphChapter = ref("");
-const pendingBatches = ref([]);
-const selectedBatchId = ref("");
-const selectedBatchDetail = ref(null);
-const batchRejectNote = ref("");
 
 const selectedNodeId = ref("");
 const selectedEdgeId = ref("");
-const selectedReviewNodeId = ref("");
-const selectedReviewEdgeId = ref("");
 
 const graphViewport = ref(null);
 const graphCanvas = ref(null);
-const reviewCanvas = ref(null);
 
 const isCreatingNode = ref(false);
 const isCreatingEdge = ref(false);
@@ -539,8 +330,6 @@ const autoCreatedNodeNames = ref([]);
 
 const nodeForm = reactive({ name: "", desc: "", chapter: "" });
 const edgeForm = reactive({ source: "", relation: "DEPENDS_ON", target: "" });
-const reviewNodeDrafts = reactive({});
-const reviewEdgeDrafts = reactive({});
 const edgeNodeSuggestions = reactive({ source: [], target: [] });
 const showEdgeNodeDropdown = reactive({ source: false, target: false });
 
@@ -555,46 +344,11 @@ const autoCreatedNodes = computed(() =>
     .map((name) => graph.value.nodes.find((node) => node.name === name))
     .filter(Boolean),
 );
-// The review canvas reuses the shared graph component, so pending-batch detail
-// is normalized into the same node/edge shape as the formal graph here.
-const reviewGraph = computed(() => ({
-  nodes: (selectedBatchDetail.value?.nodes || []).map((node) => ({
-    id: node.id,
-    name: node.name,
-    label: node.name,
-    desc: node.desc || "",
-    status: node.status,
-  })),
-  edges: (selectedBatchDetail.value?.edges || []).map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    relation: edge.relation,
-  })),
-}));
-const selectedReviewNode = computed(() =>
-  (selectedBatchDetail.value?.nodes || []).find((node) => node.id === selectedReviewNodeId.value) || null,
-);
-const selectedReviewEdge = computed(() =>
-  (selectedBatchDetail.value?.edges || []).find((edge) => edge.id === selectedReviewEdgeId.value) || null,
-);
-const selectedNodeDrafts = computed(() =>
-  (selectedBatchDetail.value?.nodes || [])
-    .filter((node) => !isContextNode(node))
-    .map((node) => reviewNodeDrafts[node.id])
-    .filter(Boolean),
-);
-const selectedEdgeDrafts = computed(() =>
-  (selectedBatchDetail.value?.edges || []).map((edge) => reviewEdgeDrafts[edge.id]).filter(Boolean),
-);
-const editableReviewNode = computed(() => (selectedReviewNode.value ? reviewNodeDrafts[selectedReviewNode.value.id] : null));
-const editableReviewEdge = computed(() => (selectedReviewEdge.value ? reviewEdgeDrafts[selectedReviewEdge.value.id] : null));
-const isActiveGraphLoading = computed(() => activeMode.value === "graph" ? isGraphLoading.value : isReviewLoading.value);
 let graphSuggestTimer = null;
 const edgeSearchTimers = { source: null, target: null };
 
 onMounted(async () => {
-  await Promise.all([loadGraph(), loadPendingBatches()]);
+  await loadGraph();
 });
 
 async function loadGraph() {
@@ -610,112 +364,6 @@ async function loadGraph() {
   }
 }
 
-async function loadPendingBatches() {
-  isPendingLoading.value = true;
-  try {
-    const { data } = await listPendingTeacherBatchesApi();
-    pendingBatches.value = data || [];
-    if (selectedBatchId.value && !pendingBatches.value.some((item) => item.id === selectedBatchId.value)) {
-      selectedBatchId.value = "";
-      selectedBatchDetail.value = null;
-      clearReviewSelection();
-      if (activeMode.value === "review") {
-        activeMode.value = "graph";
-      }
-    }
-    if (!selectedBatchId.value && pendingBatches.value.length) {
-      await selectPendingBatch(pendingBatches.value[0].id, { switchModeToReview: false });
-    }
-  } catch (error) {
-    handleApiError(error, "加载候选批次失败。");
-  } finally {
-    isPendingLoading.value = false;
-  }
-}
-
-async function selectPendingBatch(batchId, options = {}) {
-  const { switchModeToReview = true } = options;
-  selectedBatchId.value = batchId;
-  clearReviewSelection();
-  batchRejectNote.value = "";
-  isReviewLoading.value = true;
-  try {
-    const { data } = await getPendingTeacherBatchDetailApi(batchId);
-    selectedBatchDetail.value = data;
-    hydrateReviewDrafts(data);
-    const firstPendingNode = data.nodes.find((node) => !isContextNode(node));
-    if (firstPendingNode) {
-      selectedReviewNodeId.value = firstPendingNode.id;
-    }
-    if (switchModeToReview) {
-      activeMode.value = "review";
-      await nextTick();
-      reviewCanvas.value?.restartLayout?.();
-    }
-  } catch (error) {
-    handleApiError(error, "加载候选批次详情失败。");
-  } finally {
-    isReviewLoading.value = false;
-  }
-}
-
-function hydrateReviewDrafts(detail) {
-  // Drafts intentionally decouple teacher edits and keep-flags from the raw API
-  // payload, which makes partial approval and UI rollbacks much easier to reason about.
-  Object.keys(reviewNodeDrafts).forEach((key) => delete reviewNodeDrafts[key]);
-  Object.keys(reviewEdgeDrafts).forEach((key) => delete reviewEdgeDrafts[key]);
-
-  (detail.nodes || []).forEach((node) => {
-    reviewNodeDrafts[node.id] = {
-      id: node.id,
-      name: node.name,
-      desc: node.desc || "",
-      node_type: "",
-      keep: node.is_selected_default && !isContextNode(node),
-      status: node.status,
-      reason: node.reason || "",
-    };
-  });
-  (detail.edges || []).forEach((edge) => {
-    reviewEdgeDrafts[edge.id] = {
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      relation: edge.relation,
-      keep: !!edge.is_selected_default,
-    };
-  });
-}
-
-function switchMode(mode) {
-  if (mode === "review" && !selectedBatchDetail.value) return;
-  activeMode.value = mode;
-  nextTick(() => {
-    // Each mode has a different visual layout, so the canvas gets a fresh
-    // layout pass after switching to avoid stale viewport sizing.
-    if (mode === "graph") {
-      graphCanvas.value?.restartLayout?.();
-    } else {
-      reviewCanvas.value?.restartLayout?.();
-    }
-  });
-}
-
-function isContextNode(node) {
-  return node?.status === "context_existing" || node?.status === "anchor_existing";
-}
-
-function reviewEdgeLabel(edge) {
-  const source = resolveReviewNodeName(edge.source);
-  const target = resolveReviewNodeName(edge.target);
-  return `${source} -> ${target} (${edge.relation})`;
-}
-
-function resolveReviewNodeName(nodeId) {
-  const node = (selectedBatchDetail.value?.nodes || []).find((item) => item.id === nodeId);
-  return node?.name || nodeId;
-}
-
 async function reloadGraphAfterMutation() {
   const query = keyword.value.trim();
   const chapter = selectedGraphChapter.value;
@@ -726,7 +374,6 @@ async function reloadGraphAfterMutation() {
   const [fullGraphResponse, visibleGraphResponse] = await Promise.all([
     fullGraphRequest,
     visibleGraphRequest,
-    loadPendingBatches(),
   ]);
 
   fullGraph.value = fullGraphResponse.data;
@@ -738,15 +385,11 @@ async function refreshGraph(options = {}) {
   if (preserveSearch) {
     await reloadGraphAfterMutation();
   } else {
-    await Promise.all([loadGraph(), loadPendingBatches()]);
+    await loadGraph();
   }
   await nextTick();
   if (restartLayout) {
-    if (activeMode.value === "graph") {
-      graphCanvas.value?.restartLayout?.();
-    } else {
-      reviewCanvas.value?.restartLayout?.();
-    }
+    graphCanvas.value?.restartLayout?.();
   }
 }
 
@@ -762,11 +405,6 @@ async function toggleFullscreen() {
 function clearSelection() {
   selectedNodeId.value = "";
   selectedEdgeId.value = "";
-}
-
-function clearReviewSelection() {
-  selectedReviewNodeId.value = "";
-  selectedReviewEdgeId.value = "";
 }
 
 function handleSelectNode(nodeId) {
@@ -787,16 +425,6 @@ function handleSelectEdge(edgeId) {
   edgeForm.source = edge.source_name || edge.source;
   edgeForm.relation = edge.relation || "DEPENDS_ON";
   edgeForm.target = edge.target_name || edge.target;
-}
-
-function handleSelectReviewNode(nodeId) {
-  selectedReviewNodeId.value = nodeId;
-  selectedReviewEdgeId.value = "";
-}
-
-function handleSelectReviewEdge(edgeId) {
-  selectedReviewEdgeId.value = edgeId;
-  selectedReviewNodeId.value = "";
 }
 
 function startCreateNode() {
@@ -1003,7 +631,7 @@ function handleGraphKeywordInput() {
 }
 
 async function fetchGraphSuggestions(query) {
-  if (!query || activeMode.value !== "graph") return;
+  if (!query) return;
   isGraphSuggesting.value = true;
   try {
     const { data } = await getTeacherGraphApi({ keyword: query, chapter: selectedGraphChapter.value, limit: 50 });
@@ -1082,63 +710,6 @@ async function focusAutoCreatedNode(nodeId) {
   selectedEdgeId.value = "";
   await nextTick();
   graphCanvas.value?.focusNodes?.([nodeId]);
-}
-
-async function approveSelectedBatch() {
-  if (!selectedBatchId.value || !selectedBatchDetail.value) return;
-  // The approval payload only carries items still checked in the local drafts,
-  // which is how the teacher can partially approve a candidate subgraph.
-  const nodes = selectedNodeDrafts.value
-    .filter((item) => item.keep)
-    .map((item) => ({
-      id: item.id,
-      name: item.name,
-      desc: item.desc,
-      node_type: item.node_type || "",
-    }));
-  if (!nodes.length) {
-    errorMessage.value = "至少保留一个待审结点。";
-    return;
-  }
-  const edges = selectedEdgeDrafts.value
-    .filter((item) => item.keep)
-    .map((item) => ({
-      id: item.id,
-      source: resolveReviewNodeName(item.source),
-      target: resolveReviewNodeName(item.target),
-      relation: item.relation,
-    }));
-  try {
-    await approvePendingTeacherBatchApi(selectedBatchId.value, { nodes, edges });
-    await loadPendingBatches();
-    await loadGraph();
-    if (selectedBatchId.value && !pendingBatches.value.some((item) => item.id === selectedBatchId.value)) {
-      if (pendingBatches.value.length) {
-        await selectPendingBatch(pendingBatches.value[0].id, { switchModeToReview: true });
-      } else {
-        activeMode.value = "graph";
-      }
-    }
-  } catch (error) {
-    handleApiError(error, "通过候选批次失败。");
-  }
-}
-
-async function rejectSelectedBatch() {
-  if (!selectedBatchId.value) return;
-  try {
-    const rejectedBatchId = selectedBatchId.value;
-    await rejectPendingTeacherBatchApi(rejectedBatchId, { note: batchRejectNote.value });
-    await loadPendingBatches();
-    if (!pendingBatches.value.length) {
-      activeMode.value = "graph";
-      return;
-    }
-    const nextBatch = pendingBatches.value.find((item) => item.id !== rejectedBatchId) || pendingBatches.value[0];
-    await selectPendingBatch(nextBatch.id, { switchModeToReview: true });
-  } catch (error) {
-    handleApiError(error, "驳回候选批次失败。");
-  }
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -1298,51 +869,9 @@ button:disabled {
   background: #d8e6fa;
 }
 
-.mode-switch {
-  display: inline-flex;
-  gap: 8px;
-  padding: 4px;
-  width: fit-content;
-  border: 1px solid #e2ebf4;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.05);
-}
-
-.mode-tab {
-  min-width: 104px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: transparent;
-  color: #526b84;
-}
-
-.mode-tab.active {
-  background: #10283d;
-  color: #fff;
-}
-
 .graph-mode-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
-  gap: 14px;
-  align-items: start;
-}
-
-.review-workbench {
-  display: grid;
-  gap: 12px;
-}
-
-.review-header-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
-  gap: 14px;
-}
-
-.review-mode-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.94fr) minmax(320px, 0.86fr);
   gap: 14px;
   align-items: start;
 }
@@ -1366,15 +895,6 @@ button:disabled {
 .formal-panel :deep(.graph-canvas) {
   height: 660px;
   min-height: 660px;
-}
-
-.review-graph-panel {
-  min-height: 590px;
-}
-
-.review-graph-panel :deep(.graph-canvas) {
-  height: 470px;
-  min-height: 470px;
 }
 
 .graph-panel-head {
@@ -1417,13 +937,6 @@ button:disabled {
   grid-template-rows: auto minmax(440px, 1fr);
 }
 
-.review-side-panel {
-  min-height: 590px;
-  display: grid;
-  grid-template-rows: minmax(250px, 0.9fr) minmax(320px, 1.1fr);
-  gap: 14px;
-}
-
 .panel-card {
   min-height: 0;
   padding: 12px;
@@ -1439,12 +952,6 @@ button:disabled {
   grid-template-rows: auto 1fr;
 }
 
-.approval-card {
-  grid-template-rows: auto 1fr auto;
-}
-
-.review-strip-card,
-.review-current-card,
 .action-card {
   align-content: start;
 }
@@ -1494,52 +1001,6 @@ button:disabled {
 .auto-created-chip.active small,
 .auto-created-chip:hover small {
   color: rgba(255, 255, 255, 0.8);
-}
-
-.review-batch-list {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(190px, 220px);
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.batch-chip {
-  min-height: 62px;
-  text-align: left;
-  padding: 9px 10px;
-  border: 1px solid #d9e6f3;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #10283d;
-  display: grid;
-  gap: 6px;
-}
-
-.batch-chip.active {
-  border-color: #8b5cf6;
-  background: #f6f1ff;
-}
-
-.batch-chip:hover:not(:disabled) {
-  background: #ffffff;
-}
-
-.batch-chip.active:hover:not(:disabled) {
-  background: #f6f1ff;
-}
-
-.batch-chip small,
-.review-meta span {
-  color: #6f8297;
-  font-size: 12px;
-}
-
-.review-current-body {
-  display: grid;
-  gap: 10px;
-  align-content: start;
 }
 
 .panel-head {
@@ -1595,77 +1056,8 @@ button:disabled {
   background: #ea580c;
 }
 
-.review-meta {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.review-summary-text {
-  margin: 4px 0 0;
-  color: #5f7287;
-  line-height: 1.45;
-  font-size: 13px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.review-checklists {
-  display: grid;
-  gap: 10px;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.checklist-group {
-  padding: 10px;
-  border: 1px solid var(--app-line);
-  border-radius: 12px;
-  background: #fff;
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: 8px;
-}
-
 .sub-head {
   margin-bottom: 8px;
-}
-
-.check-item,
-.checkbox-row {
-  display: flex !important;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.check-item + .check-item {
-  margin-top: 10px;
-}
-
-.check-item input,
-.checkbox-row input {
-  width: auto;
-}
-
-.reject-note {
-  margin-top: 0;
-}
-
-.approval-footer {
-  display: grid;
-  gap: 10px;
-  padding-top: 6px;
-  border-top: 1px solid var(--app-line);
-}
-
-.approval-footer .detail-body {
-  overflow: visible;
-  padding-right: 0;
 }
 
 .empty-detail {
@@ -1723,9 +1115,7 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
-  .graph-mode-layout,
-  .review-header-strip,
-  .review-mode-layout {
+  .graph-mode-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1738,17 +1128,7 @@ button:disabled {
     min-height: 560px;
   }
 
-  .review-graph-panel {
-    min-height: 540px;
-  }
-
-  .review-graph-panel :deep(.graph-canvas) {
-    height: 440px;
-    min-height: 440px;
-  }
-
-  .graph-side-panel,
-  .review-side-panel {
+  .graph-side-panel {
     min-height: auto;
     grid-template-rows: auto auto;
   }
@@ -1768,16 +1148,5 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .review-batch-list {
-    grid-auto-columns: minmax(180px, 78vw);
-  }
-
-  .mode-switch {
-    width: 100%;
-  }
-
-  .mode-tab {
-    flex: 1;
-  }
 }
 </style>

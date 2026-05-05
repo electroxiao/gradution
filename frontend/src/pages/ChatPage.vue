@@ -288,18 +288,6 @@ async function sendMessage() {
           await loadSessions();
           await scrollToBottom();
         },
-        async onPendingNotice(data) {
-          messages.value.push({
-            tempId: `pending-${Date.now()}`,
-            role: "system",
-            content: data.message || "系统已提交候选知识结点，等待教师审核。",
-            facts: [],
-            reasoning_trace: [],
-            retrieval_trace: [],
-            streaming: false,
-          });
-          await scrollToBottom();
-        },
       },
     );
   } catch (error) {

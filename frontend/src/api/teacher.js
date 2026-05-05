@@ -16,13 +16,6 @@ export const updateTeacherEdgeApi = (edgeId, payload) =>
   http.patch(`/api/teacher/graph/edges/${encodeURIComponent(edgeId)}`, payload);
 export const deleteTeacherEdgeApi = (edgeId) =>
   http.delete(`/api/teacher/graph/edges/${encodeURIComponent(edgeId)}`);
-export const listPendingTeacherBatchesApi = () => http.get("/api/teacher/graph/pending-batches");
-export const getPendingTeacherBatchDetailApi = (batchId) =>
-  http.get(`/api/teacher/graph/pending-batches/${encodeURIComponent(batchId)}`);
-export const approvePendingTeacherBatchApi = (batchId, payload) =>
-  http.post(`/api/teacher/graph/pending-batches/${encodeURIComponent(batchId)}/approve`, payload);
-export const rejectPendingTeacherBatchApi = (batchId, payload) =>
-  http.post(`/api/teacher/graph/pending-batches/${encodeURIComponent(batchId)}/reject`, payload);
 
 export const listTeacherKnowledgeNodesApi = (params = {}) => http.get("/api/teacher/knowledge-nodes", { params });
 export const listTeacherStudentsApi = () => http.get("/api/teacher/students");

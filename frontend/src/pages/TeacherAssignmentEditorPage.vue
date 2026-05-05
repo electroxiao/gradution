@@ -428,10 +428,6 @@
       <aside v-if="activeQuestion && previewOpen" class="live-preview panel">
         <div class="preview-head">
           <h2>实时预览</h2>
-          <label class="student-switch">
-            <span>学生视角</span>
-            <input checked type="checkbox" />
-          </label>
         </div>
         <div class="preview-card">
           <div class="preview-title">
@@ -2264,22 +2260,6 @@ textarea {
   margin: 0;
   font-size: 18px;
   font-weight: 400;
-}
-
-.student-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.student-switch input {
-  width: 36px;
-  height: 20px;
-  padding: 0;
-  accent-color: #2563eb;
 }
 
 .preview-card {

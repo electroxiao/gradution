@@ -14,8 +14,6 @@ from backend.schemas.teacher import (
     GraphNodeBatchChapterRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
-    PendingBatchApproveRequest,
-    PendingBatchRejectRequest,
     GraphQueryResponse,
     TeacherKnowledgeNodeRefResponse,
     TeacherStudentResponse,
@@ -23,12 +21,6 @@ from backend.schemas.teacher import (
 )
 from backend.services.chat_service import get_neo4j_driver
 from backend.services.chat_service import get_openai_client
-from backend.services.pending_batch_service import (
-    approve_pending_batch,
-    get_pending_batch_detail,
-    list_pending_batches,
-    reject_pending_batch,
-)
 
 
 RELATION_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -456,35 +448,6 @@ def get_graph(keyword: str = "", chapter: str = "", limit: int = 1000) -> GraphQ
                 edge_index += 1
 
     return GraphQueryResponse(nodes=node_rows, edges=edge_rows)
-
-
-def list_pending_graph_batches(db: Session):
-    return list_pending_batches(db)
-
-
-def get_pending_graph_batch_detail(
-    db: Session,
-    batch_id: str,
-):
-    return get_pending_batch_detail(db, batch_id)
-
-
-def approve_pending_graph_batch(
-    db: Session,
-    current_user: User,
-    batch_id: str,
-    payload: PendingBatchApproveRequest,
-):
-    return approve_pending_batch(db, current_user, batch_id, payload)
-
-
-def reject_pending_graph_batch(
-    db: Session,
-    current_user: User,
-    batch_id: str,
-    payload: PendingBatchRejectRequest,
-):
-    return reject_pending_batch(db, current_user, batch_id, payload)
 
 
 def create_graph_node(payload: GraphNodeCreateRequest) -> dict:

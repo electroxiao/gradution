@@ -10,10 +10,6 @@ const TYPE_COLOR_MAP = {
 const STATUS_COLOR_MAP = {
   weak: "#ef4444",
   recommended: "#2563eb",
-  pending: "#8b5cf6",
-  anchor_pending: "#f97316",
-  anchor_existing: "#64748b",
-  context_existing: "#cbd5e1",
   mastered: "#22c55e",
   learning: "#f59e0b",
 };

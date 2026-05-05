@@ -14,7 +14,7 @@
 主要业务模块：
 
 - 学生端聊天问答、薄弱点识别、弱点推荐图谱、针对性训练
-- 教师端正式图谱维护、pending 候选批次审核、学生与班级管理
+- 教师端正式图谱维护、学生与班级管理
 - 编程作业发布、题目知识点绑定、学生代码提交、Docker 沙箱测试、AI 作业辅导
 - 同一浏览器多角色并存，登录态按标签页隔离
 
@@ -27,7 +27,7 @@ docs/      维护文档
 tests/     后端集成测试
 ```
 
-维护教师图谱审核相关逻辑前，先阅读：
+维护教师图谱相关逻辑前，先阅读：
 
 - `docs/teacher-graph-maintenance.md`
 
@@ -123,9 +123,8 @@ pytest
 - 后端入口是 `backend/main.py`。
 - 路由、模型、schema、服务层分别放在 `backend/api/`、`backend/models/`、`backend/schemas/`、`backend/services/`。
 - 启动时会执行数据库表结构检查和种子数据初始化，包括教师账号。
-- MySQL 负责用户、会话、薄弱点、pending 审核批次、作业与题目知识点绑定等结构化数据。
+- MySQL 负责用户、会话、薄弱点、作业与题目知识点绑定等结构化数据。
 - Neo4j 只保存正式知识图谱。
-- 不要绕过教师审核流程把 pending 候选直接写入 Neo4j。
 - 学生 Java 代码运行必须经过 Docker 沙箱，沙箱默认无网络并限制内存、CPU 和超时时间。
 
 ## 前端约定
@@ -134,15 +133,12 @@ pytest
 - 页面主要位于 `frontend/src/pages/`，API 封装位于 `frontend/src/api/`。
 - 登录态必须通过 `frontend/src/utils/authStorage.js` 访问，不要直接操作 `localStorage`。
 - 图谱展示使用 `@neo4j-nvl/*`，当前图谱标签采用 NVL 的 `node.html` 方案显示文字。
-- TeacherGraphPage 已区分正式图谱模式和候选审核模式，改动时要同时考虑两种状态。
+- TeacherGraphPage 只维护 Neo4j 正式图谱，不再包含候选审核模式。
 
 ## 业务边界
 
-- 系统存在两类图谱数据：
-  - 正式图谱：存储在 Neo4j，用于聊天检索、弱点推荐和图谱展示。
-  - pending batch：存储在 MySQL，来自聊天或弱点推荐中的大模型候选子图，需教师审核后才可并入正式图谱。
-- Chat 触发的 pending 候选会复用到弱点页和教师审核页。
-- 教师审核、弱点推荐、聊天检索之间存在数据流关系，修改其中任一处时要检查其他页面是否受影响。
+- 系统图谱数据以 Neo4j 正式图谱为准，用于聊天检索、弱点推荐和图谱展示。
+- Chat 和 Weak Points 不再生成或展示 pending 候选知识结点。
 - 作业模块涉及教师布置 Java 编程作业、题目绑定知识点、学生提交代码、Docker 沙箱执行和 AI 辅导，不要把代码执行逻辑改成非隔离运行。
 - 作业错题的薄弱点更新只依赖题目绑定知识点：提交状态不是 `accepted` 时，将该题绑定的所有知识点标记为未掌握薄弱点；不要恢复 `UserConceptMastery` 掌握度分数或 AI 诊断驱动的掌握度累计逻辑。
 
@@ -150,7 +146,7 @@ pytest
 
 - 优先沿用现有后端分层、前端页面/API 封装模式，不要为小改动引入新的框架或全局抽象。
 - 改动共享接口时，同时检查后端 schema、前端 API 封装和相关页面调用。
-- 涉及图谱审核或 pending 数据流时，阅读 `docs/teacher-graph-maintenance.md` 后再改。
+- 涉及教师图谱维护数据流时，阅读 `docs/teacher-graph-maintenance.md` 后再改。
 - 涉及登录态时，只改 `authStorage` 及其调用方，不要新增直接读写浏览器存储的路径。
 - 涉及 Docker 沙箱时，保留无网络、资源限制和超时控制。
 - 保持 `.env`、密钥、数据库密码、LLM API Key 不入库。

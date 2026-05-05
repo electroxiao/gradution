@@ -51,7 +51,6 @@ from backend.schemas.assignment import (
 from backend.services import rag_engine
 from backend.services.chat_service import get_neo4j_driver, get_openai_client
 from backend.services.knowledge_progress_service import mark_node_weak
-from backend.services.pending_batch_service import create_pending_batch_from_candidates
 from backend.services.sandbox_service import run_java_submission
 
 
@@ -1766,9 +1765,6 @@ def _resolve_ai_review_diagnoses(
         return ai_review
 
     resolved_diagnoses = []
-    pending_nodes = []
-    anchor_name = _diagnosis_anchor_name(question, diagnoses)
-    question_excerpt = _diagnosis_question_excerpt(assignment, question)
     context = _diagnosis_resolution_context(question, results)
 
     for diagnosis in diagnoses:
@@ -1778,28 +1774,8 @@ def _resolve_ai_review_diagnoses(
         resolution = resolve_diagnosis_to_graph(db, question, resolved, context)
         resolved["graph_resolution"] = resolution
         resolved_diagnoses.append(resolved)
-        if resolution.get("status") in ("needs_teacher_review", "low_confidence_unmatched"):
-            node_name = str(resolved.get("knowledge_node") or "").strip()
-            if node_name and node_name.lower() != "unknown":
-                pending_nodes.append(
-                    {
-                        "name": node_name,
-                        "desc": _diagnosis_pending_desc(resolved),
-                        "reason": _diagnosis_pending_reason(resolved),
-                        "node_type": "concept",
-                        "is_selected_default": True,
-                    }
-                )
 
     ai_review["diagnoses"] = resolved_diagnoses
-    if pending_nodes:
-        _create_assignment_diagnosis_pending_batch(
-            db,
-            student,
-            anchor_name,
-            question_excerpt,
-            pending_nodes,
-        )
     return ai_review
 
 
@@ -1887,7 +1863,7 @@ def resolve_diagnosis_to_graph(
             "match_type": "neo4j_unavailable",
         }
     return {
-        "status": "needs_teacher_review",
+        "status": "unmatched",
         "node_id": None,
         "node_name": raw_name,
         "match_confidence": merged_candidate["score"] if merged_candidate else best_candidate["score"] if best_candidate else 0.0,
@@ -2091,100 +2067,6 @@ def _ensure_existing_graph_node_ref(db: Session, node_name: str) -> KnowledgeNod
     db.add(node)
     db.flush()
     return node
-
-
-def _diagnosis_anchor_name(question: AssignmentQuestion, diagnoses: list[dict]) -> str:
-    for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id)):
-        if relation.knowledge_node and relation.knowledge_node.node_name:
-            return relation.knowledge_node.node_name
-    for diagnosis in diagnoses:
-        if isinstance(diagnosis, dict):
-            node_name = str(diagnosis.get("knowledge_node") or "").strip()
-            if node_name and node_name.lower() != "unknown":
-                return node_name
-    return question.title or "作业诊断候选知识点"
-
-
-def _diagnosis_question_excerpt(assignment: Assignment, question: AssignmentQuestion) -> str:
-    text = f"{assignment.title} / {question.title or '未命名题目'}：{question.prompt or ''}"
-    compact = " ".join(text.split())
-    return compact[:180] + ("..." if len(compact) > 180 else "")
-
-
-def _diagnosis_pending_desc(diagnosis: dict) -> str:
-    node_name = str(diagnosis.get("knowledge_node") or "候选知识点").strip()
-    feedback = str(diagnosis.get("student_feedback") or "").strip()
-    reason = str(diagnosis.get("reason") or "").strip()
-    detail = feedback or reason or "来源于作业提交 AI 诊断。"
-    return f"{node_name}：{detail}"
-
-
-def _diagnosis_pending_reason(diagnosis: dict) -> str:
-    parts = [
-        str(diagnosis.get("reason") or "").strip(),
-        str(diagnosis.get("evidence") or "").strip(),
-        str(diagnosis.get("student_feedback") or "").strip(),
-    ]
-    return "；".join(part for part in parts if part) or "作业提交 AI 诊断认为该概念可能是学生薄弱点。"
-
-
-def _create_assignment_diagnosis_pending_batch(
-    db: Session,
-    student: User,
-    anchor_name: str,
-    question_excerpt: str,
-    pending_nodes: list[dict],
-) -> None:
-    anchor_exists = _graph_node_name_exists(anchor_name)
-    seen = set()
-    nodes = []
-    edges = []
-    if not anchor_exists and anchor_name:
-        nodes.append(
-            {
-                "name": anchor_name,
-                "desc": f"{anchor_name}：来源于作业提交 AI 诊断的候选锚点。",
-                "reason": "作业提交 AI 诊断提出该概念，但当前图谱中未找到可自动关联的已有节点。",
-                "node_type": "concept",
-                "is_anchor": True,
-                "is_selected_default": True,
-            }
-        )
-        seen.add(anchor_name)
-    for node in pending_nodes:
-        name = str(node.get("name") or "").strip()
-        if not name or name in seen:
-            continue
-        seen.add(name)
-        nodes.append(node)
-        edges.append(
-            {
-                "source": name,
-                "target": anchor_name,
-                "relation": "DEPENDS_ON",
-                "direction": "out",
-                "is_selected_default": True,
-            }
-        )
-    if not nodes:
-        return
-    try:
-        create_pending_batch_from_candidates(
-            db,
-            source_type="assignment_diagnosis",
-            source_user_id=student.id,
-            source_chat_session_id=None,
-            source_weak_point_id=None,
-            anchor_name=anchor_name,
-            anchor_status="existing" if anchor_exists else "pending",
-            question_excerpt=question_excerpt,
-            nodes=nodes,
-            edges=edges,
-        )
-    except Exception:
-        # Pending graph suggestions are advisory; submission grading must not fail
-        # when Neo4j or the review queue is unavailable.
-        return
 
 
 def _graph_node_name_exists(node_name: str) -> bool:
@@ -2606,7 +2488,7 @@ def _normalize_graph_resolution(value) -> dict:
     if not isinstance(value, dict):
         return {}
     status_value = str(value.get("status") or "").strip()
-    if status_value not in {"matched_existing", "needs_teacher_review", "unresolved", "skipped_low_confidence"}:
+    if status_value not in {"matched_existing", "unmatched", "unresolved", "skipped_low_confidence", "low_confidence_unmatched"}:
         status_value = "unresolved"
     return {
         "status": status_value,

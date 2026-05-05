@@ -5,7 +5,7 @@
 - 大模型问答与讲解
 - Neo4j 知识图谱检索与推荐
 - 薄弱点识别与针对性训练
-- 教师端知识图谱维护与候选知识子图审核
+- 教师端正式知识图谱维护
 
 前端使用 Vue 3 + Vite，后端使用 FastAPI，数据层同时使用 MySQL 和 Neo4j。
 
@@ -13,9 +13,9 @@
 
 - 学生端聊天问答：基于图谱检索和大模型回答编程问题
 - 薄弱点识别：根据对话、弱点训练和作业错题记录学生薄弱点
-- 弱点推荐图谱：围绕薄弱点展示推荐学习结点与待审核候选结点
-- 针对性训练：支持正式推荐结点与 pending 候选结点的做题练习
-- 教师图谱管理：正式图谱编辑、候选批次审核、知识结点补充入图
+- 弱点推荐图谱：围绕薄弱点展示正式图谱中的推荐学习结点
+- 针对性训练：支持正式推荐结点的做题练习
+- 教师图谱管理：正式图谱编辑、知识结点补充入图
 - 作业管理：教师布置 Java 编程作业、绑定知识点、选择学生发布、Docker 沙箱运行学生提交并提供 AI 辅导
 - 同浏览器多角色并存：前端登录态按标签页隔离，教师和学生可同时在线
 
@@ -39,7 +39,7 @@
 
 ### 数据存储
 
-- MySQL：用户、会话、薄弱点、pending 审核批次、作业与题目知识点绑定等结构化数据
+- MySQL：用户、会话、薄弱点、作业与题目知识点绑定等结构化数据
 - Neo4j：正式知识图谱
 
 ## 项目结构
@@ -194,19 +194,11 @@ npm --prefix frontend run dev
 
 这意味着项目会在启动时自动检查数据库表结构，并初始化部分种子数据，例如教师账号。
 
-## 系统中的两类图谱数据
-
-### 1. 正式图谱
+## 系统图谱数据
 
 - 存在 Neo4j
 - 由教师端正式维护
 - 会被聊天检索、弱点推荐、图谱展示等功能使用
-
-### 2. 候选批次（pending batch）
-
-- 存在 MySQL
-- 来源于聊天或弱点推荐过程中，大模型提议出的候选知识子图
-- 需要教师审核通过后，才会并入 Neo4j 正式图谱
 
 ## 作业错题与薄弱点
 
@@ -221,20 +213,19 @@ npm --prefix frontend run dev
 ### 学生端
 
 - Chat：编程问答与图谱辅助解释
-- Weak Points：薄弱点、推荐学习路径、pending 候选学习点
+- Weak Points：薄弱点、推荐学习路径、针对性训练
 - Assignments：查看作业、提交 Java 代码、查看测试结果、向作业助教提问
 
 ### 教师端
 
-- TeacherGraphPage：正式图谱维护与候选批次审核
+- TeacherGraphPage：正式图谱维护
 - TeacherDashboard / TeacherStudents：学生与班级薄弱点概览
 - TeacherAssignmentsPage：创建和维护编程作业、发布给指定学生
 
 ## 维护建议
 
-- 不要把 pending 候选直接写进 Neo4j，必须走教师审核
 - 登录态统一通过 `frontend/src/utils/authStorage.js` 访问，不要直接操作 `localStorage`
-- 修改教师图谱审核逻辑前，先看：
+- 修改教师图谱维护逻辑前，先看：
   - [docs/teacher-graph-maintenance.md](docs/teacher-graph-maintenance.md)
 
 ## 常用检查命令
@@ -254,10 +245,8 @@ npm --prefix frontend run build
 ## 当前已知特点
 
 - 前端图谱标签目前使用 NVL 的 `node.html` 方案显示文字
-- TeacherGraphPage 已经区分：
-  - 正式图谱模式
-  - 候选审核模式
-- Chat 触发的 pending 候选会复用到弱点页与教师审核页
+- TeacherGraphPage 只维护 Neo4j 正式知识图谱
+- Chat 和 Weak Points 不再生成或展示 pending 候选知识结点
 
 ## License
 
