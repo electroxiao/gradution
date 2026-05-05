@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from backend.core.config import settings
+from backend.db.session import SessionLocal
 from backend.models.assignment import (
     Assignment,
     AssignmentAssignee,
@@ -23,6 +24,7 @@ from backend.models.user import User
 from backend.schemas.assignment import (
     AssignmentAiHelpRequest,
     AssignmentAiHelpResponse,
+    AssignmentBulkSubmitRequest,
     AssignmentCreateRequest,
     AssignmentDetailResponse,
     AssignmentGeneratedFocusResponse,
@@ -609,6 +611,151 @@ def submit_assignment_question(
     )
 
 
+def submit_assignment(
+    db: Session,
+    student: User,
+    assignment_id: int,
+    payload: AssignmentBulkSubmitRequest,
+) -> dict:
+    assignment = _get_student_assignment(db, student, assignment_id)
+    questions = sorted(assignment.questions, key=lambda item: (item.sort_order, item.id))
+    question_by_id = {question.id: question for question in questions}
+    answer_by_question_id = {item.question_id: item for item in payload.answers}
+    unknown_ids = [question_id for question_id in answer_by_question_id if question_id not in question_by_id]
+    if unknown_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="提交内容包含不属于当前作业的题目。")
+    missing_ids = [question.id for question in questions if question.id not in answer_by_question_id]
+    if missing_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请完成所有题目后再提交作业。")
+
+    submitted_at = datetime.now()
+    submissions: list[AssignmentSubmission] = []
+    for question in questions:
+        item = answer_by_question_id.get(question.id)
+        if not item:
+            continue
+        question_type = _normalize_question_type(question.question_type)
+        if question_type == "programming":
+            code = (item.code or "").strip()
+            if not code:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"请完成题目“{question.title or question.id}”。")
+            answer = None
+        else:
+            code = ""
+            answer = _normalize_answer(item.answer)
+            if _answer_is_empty(answer):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"请完成题目“{question.title or question.id}”。")
+
+        previous_submission = _get_previous_submission(db, student.id, assignment.id, question.id)
+        started_at = _resolve_submission_started_at(item.started_at, previous_submission)
+        submission = AssignmentSubmission(
+            assignment_id=assignment.id,
+            question_id=question.id,
+            student_id=student.id,
+            code=code,
+            answer_json=answer,
+            status="submitted",
+            results_json=[
+                {
+                    "case_index": 1,
+                    "status": "submitted",
+                    "check_mode": "background",
+                    "summary": "已提交，系统正在后台判题。",
+                }
+            ],
+            ai_review_json=None,
+            final_decision_source="background_pending",
+            teacher_review_status=None,
+            started_at=started_at,
+            duration_seconds=_duration_seconds(started_at, submitted_at),
+            submitted_at=submitted_at,
+        )
+        db.add(submission)
+        db.flush()
+        submissions.append(submission)
+
+    db.commit()
+    return {
+        "detail": "提交成功，系统将在后台完成判题。",
+        "submission_ids": [submission.id for submission in submissions],
+        "submitted_count": len(submissions),
+    }
+
+
+def grade_assignment_submissions_in_background(submission_ids: list[int]) -> None:
+    if not submission_ids:
+        return
+    db = SessionLocal()
+    try:
+        for submission_id in submission_ids:
+            _grade_pending_assignment_submission(db, submission_id)
+    finally:
+        db.close()
+
+
+def _grade_pending_assignment_submission(db: Session, submission_id: int) -> None:
+    submission = db.query(AssignmentSubmission).filter(AssignmentSubmission.id == submission_id).first()
+    if not submission or submission.status != "submitted":
+        return
+    assignment = submission.assignment
+    question = submission.question
+    student = submission.student
+    try:
+        question_type = _normalize_question_type(question.question_type)
+        if question_type == "programming":
+            status_value, results, ai_review, decision_source = _grade_submission(assignment, question, submission.code or "")
+            ai_review = _resolve_ai_review_diagnoses(db, student, assignment, question, results, ai_review)
+            previous_submission = _get_previous_submission_before(db, submission)
+            previous_code = (previous_submission.code or "") if previous_submission else ""
+            trust_label, trust_score = _resolve_submission_trust(
+                status_value,
+                submission.duration_seconds,
+                submission.code or "",
+                previous_code,
+            )
+            submission.trust_label = trust_label
+            submission.trust_score = trust_score
+        elif question_type == "multiple_choice":
+            status_value, results, ai_review, decision_source = _grade_multiple_choice_locally(question, submission.answer_json)
+        else:
+            normalized_answer = _normalize_answer(submission.answer_json)
+            ai_review = _run_ai_objective_review(assignment, question, normalized_answer)
+            status_value = _resolve_ai_only_status(question, ai_review)
+            results = [
+                {
+                    "case_index": 1,
+                    "status": status_value,
+                    "check_mode": "ai_objective_review",
+                    "summary": ai_review.get("summary") if isinstance(ai_review, dict) else "",
+                }
+            ]
+            decision_source = "ai_objective_review"
+
+        submission.status = status_value
+        submission.results_json = results
+        submission.ai_review_json = ai_review
+        submission.final_decision_source = decision_source
+        submission.teacher_review_status = "pending" if status_value == "needs_manual_review" else None
+        _mark_wrong_submission_bound_nodes_weak(db, student, question, submission)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        submission = db.query(AssignmentSubmission).filter(AssignmentSubmission.id == submission_id).first()
+        if not submission:
+            return
+        submission.status = "sandbox_error"
+        submission.results_json = [
+            {
+                "case_index": 1,
+                "status": "sandbox_error",
+                "check_mode": "background",
+                "summary": f"后台判题失败：{error}",
+            }
+        ]
+        submission.final_decision_source = "background_error"
+        db.commit()
+
+
 def _submit_objective_assignment_question(
     db: Session,
     student: User,
@@ -624,16 +771,20 @@ def _submit_objective_assignment_question(
     started_at = _resolve_submission_started_at(started_at, previous_submission)
     duration_seconds = _duration_seconds(started_at, submitted_at)
     normalized_answer = _normalize_answer(answer)
-    ai_review = _run_ai_objective_review(assignment, question, normalized_answer)
-    status_value = _resolve_ai_only_status(question, ai_review)
-    results = [
-        {
-            "case_index": 1,
-            "status": status_value,
-            "check_mode": "ai_objective_review",
-            "summary": ai_review.get("summary") if isinstance(ai_review, dict) else "",
-        }
-    ]
+    if _normalize_question_type(question.question_type) == "multiple_choice":
+        status_value, results, ai_review, decision_source = _grade_multiple_choice_locally(question, normalized_answer)
+    else:
+        ai_review = _run_ai_objective_review(assignment, question, normalized_answer)
+        status_value = _resolve_ai_only_status(question, ai_review)
+        results = [
+            {
+                "case_index": 1,
+                "status": status_value,
+                "check_mode": "ai_objective_review",
+                "summary": ai_review.get("summary") if isinstance(ai_review, dict) else "",
+            }
+        ]
+        decision_source = "ai_objective_review"
     submission = AssignmentSubmission(
         assignment_id=assignment.id,
         question_id=question.id,
@@ -643,7 +794,7 @@ def _submit_objective_assignment_question(
         status=status_value,
         results_json=results,
         ai_review_json=ai_review,
-        final_decision_source="ai_objective_review",
+        final_decision_source=decision_source,
         teacher_review_status="pending" if status_value == "needs_manual_review" else None,
         started_at=started_at,
         duration_seconds=duration_seconds,
@@ -659,7 +810,7 @@ def _submit_objective_assignment_question(
         status=status_value,
         results=results,
         ai_review=ai_review,
-        decision_source="ai_objective_review",
+        decision_source=decision_source,
         manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
     )
 
@@ -1717,6 +1868,21 @@ def _get_previous_submission(
     )
 
 
+def _get_previous_submission_before(db: Session, submission: AssignmentSubmission) -> AssignmentSubmission | None:
+    return (
+        db.query(AssignmentSubmission)
+        .filter(
+            AssignmentSubmission.student_id == submission.student_id,
+            AssignmentSubmission.assignment_id == submission.assignment_id,
+            AssignmentSubmission.question_id == submission.question_id,
+            AssignmentSubmission.id != submission.id,
+            AssignmentSubmission.submitted_at <= submission.submitted_at,
+        )
+        .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
+        .first()
+    )
+
+
 def _resolve_submission_started_at(
     client_started_at: datetime | None,
     previous_submission: AssignmentSubmission | None,
@@ -2292,6 +2458,50 @@ def _local_objective_review(question: AssignmentQuestion, answer) -> dict:
         "diagnoses": [],
         "manual_review_required": not is_match,
     }
+
+
+def _grade_multiple_choice_locally(question: AssignmentQuestion, answer) -> tuple[str, list[dict], dict, str]:
+    expected = _normalize_answer(question.answer_json)
+    normalized_answer = _normalize_answer(answer)
+    accepted = _normalized_answer_text(normalized_answer) == _normalized_answer_text(expected)
+    status_value = "accepted" if accepted else "wrong_answer"
+    review = {
+        "decision": status_value,
+        "score": 100 if accepted else 0,
+        "confidence": 1.0,
+        "summary": "选择与标准答案一致。" if accepted else "选择与标准答案不一致。",
+        "issues": [] if accepted else ["选择题答案错误。"],
+        "strengths": ["答案匹配。"] if accepted else [],
+        "diagnoses": [],
+        "manual_review_required": False,
+    }
+    results = [
+        {
+            "case_index": 1,
+            "status": status_value,
+            "check_mode": "local_multiple_choice",
+            "summary": review["summary"],
+        }
+    ]
+    return status_value, results, review, "local_multiple_choice"
+
+
+def _normalized_answer_text(value) -> str:
+    if isinstance(value, (list, dict)):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True).strip().lower().replace(" ", "")
+    return str(value or "").strip().lower().replace(" ", "")
+
+
+def _answer_is_empty(value) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, list):
+        return not value or all(_answer_is_empty(item) for item in value)
+    if isinstance(value, dict):
+        return not value or all(_answer_is_empty(item) for item in value.values())
+    return False
 
 
 def _enrich_prompt_with_graph_context(question: AssignmentQuestion) -> list[str]:

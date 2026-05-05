@@ -91,6 +91,17 @@ class AssignmentSubmitRequest(BaseModel):
     started_at: datetime | None = None
 
 
+class AssignmentBulkQuestionSubmitRequest(BaseModel):
+    question_id: int
+    code: str = Field(default="")
+    answer: Any = None
+    started_at: datetime | None = None
+
+
+class AssignmentBulkSubmitRequest(BaseModel):
+    answers: list[AssignmentBulkQuestionSubmitRequest] = Field(min_length=1)
+
+
 class AssignmentAiHelpRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     code: str = Field(default="")

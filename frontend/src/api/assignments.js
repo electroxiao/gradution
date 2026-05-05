@@ -38,6 +38,8 @@ export const listStudentAssignmentSubmissionsApi = (assignmentId) =>
   http.get(`/api/assignments/${assignmentId}/submissions`);
 export const submitAssignmentQuestionApi = (assignmentId, questionId, payload) =>
   http.post(`/api/assignments/${assignmentId}/questions/${questionId}/submit`, payload);
+export const submitAssignmentApi = (assignmentId, payload) =>
+  http.post(`/api/assignments/${assignmentId}/submit`, payload);
 export const askAssignmentAiHelpApi = (assignmentId, questionId, payload) =>
   http.post(`/api/assignments/${assignmentId}/questions/${questionId}/ai-help`, payload);
 

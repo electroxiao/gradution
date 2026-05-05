@@ -1,13 +1,14 @@
 <template>
   <div class="detail-page" :class="{ 'ai-open': showAiPanel }">
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
+    <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
 
     <main v-if="assignment" class="assignment-lab" :style="labGridStyle">
       <aside class="problem-pane">
         <PageHeader
           :title="assignment.title"
           title-tag="h1"
-          :subtitle="assignment.description || '完成题目后提交代码查看测试结果。'"
+          :subtitle="assignment.description || '完成全部题目后提交作业。'"
           :show-status="false"
         >
           <template #actions>
@@ -58,8 +59,8 @@
             <button type="button" class="secondary-btn" :disabled="loadingPreviousResult" @click="showPreviousSubmissionResult">
               {{ loadingPreviousResult ? "加载中..." : "查看上次提交" }}
             </button>
-            <button type="button" class="primary-btn" :disabled="submitting || !canSubmitAnswer" @click="submitAnswer">
-              {{ submitting ? "提交中..." : submitButtonText }}
+            <button type="button" class="primary-btn" :disabled="submitting || !canSubmitAssignment" @click="submitAssignment">
+              {{ submitting ? "提交中..." : "提交作业" }}
             </button>
           </div>
         </header>
@@ -70,7 +71,6 @@
         <div v-else-if="isMultipleChoiceQuestion" class="objective-shell">
           <section class="objective-card">
             <div class="objective-card-head">
-              <span class="objective-icon" aria-hidden="true">▦</span>
               <strong>单选题</strong>
             </div>
             <div class="objective-prompt">
@@ -93,7 +93,6 @@
         <div v-else class="objective-shell">
           <section class="objective-card fill-card">
             <div class="objective-card-head">
-              <span class="objective-icon" aria-hidden="true">▦</span>
               <strong>填空题</strong>
             </div>
             <div class="blank-inline-card">
@@ -256,8 +255,8 @@ import { useRoute, useRouter } from "vue-router";
 import {
   getStudentAssignmentApi,
   listStudentAssignmentSubmissionsApi,
+  submitAssignmentApi,
   streamAssignmentAiHelpApi,
-  submitAssignmentQuestionApi,
 } from "../api/assignments";
 import CodeEditor from "../components/CodeEditor.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
@@ -273,6 +272,7 @@ const STARTER_CODE = `public class Main {
 }
 `;
 const DRAFT_PREFIX = "assignment-code-draft";
+const ANSWER_DRAFT_PREFIX = "assignment-answer-draft";
 const STARTED_AT_PREFIX = "assignment-started-at";
 
 const route = useRoute();
@@ -292,6 +292,7 @@ const aiReasoningTrace = ref([]);
 const aiRetrievalTrace = ref([]);
 const aiHelpError = ref("");
 const errorMessage = ref("");
+const successMessage = ref("");
 const submitting = ref(false);
 const asking = ref(false);
 const loadingPreviousResult = ref(false);
@@ -307,7 +308,6 @@ const isProgrammingQuestion = computed(() => (activeQuestion.value?.question_typ
 const isMultipleChoiceQuestion = computed(() => activeQuestion.value?.question_type === "multiple_choice");
 const isFillBlankQuestion = computed(() => activeQuestion.value?.question_type === "fill_blank");
 const answerPaneTitle = computed(() => isProgrammingQuestion.value ? "Main.java" : "作答区");
-const submitButtonText = computed(() => isProgrammingQuestion.value ? "提交运行" : "提交答案");
 const fillBlankSegments = computed(() => {
   const prompt = activeQuestion.value?.prompt || "";
   if (!isFillBlankQuestion.value) return [prompt];
@@ -328,16 +328,11 @@ const objectiveAnswer = computed({
   set(value) {
     if (!activeQuestion.value) return;
     answerByQuestion.value[activeQuestion.value.id] = value;
+    saveAnswerDraft(activeQuestion.value.id, value);
   },
 });
-const canSubmitAnswer = computed(() => {
-  if (!activeQuestion.value) return false;
-  if (isProgrammingQuestion.value) return activeCode.value.trim();
-  if (isFillBlankQuestion.value) {
-    return fillBlankAnswers().some((item) => item.trim());
-  }
-  return String(objectiveAnswer.value || "").trim();
-});
+const canSubmitAssignment = computed(() => assignment.value?.questions?.length
+  && assignment.value.questions.every((question) => isQuestionAnswered(question)));
 const aiConcepts = computed(() => {
   const names = new Set(aiKeywords.value.map((item) => String(item)).filter(Boolean));
   for (const fact of aiFacts.value) {
@@ -400,6 +395,7 @@ async function loadAssignment() {
   try {
     const { data } = await getStudentAssignmentApi(route.params.assignmentId);
     assignment.value = data;
+    initializeQuestionDrafts(data.questions || []);
     if (data.questions?.length) {
       selectQuestion(data.questions[0]);
     }
@@ -414,7 +410,7 @@ function selectQuestion(question) {
     codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? resolveStarterCode(question);
   }
   if ((question.question_type || "programming") !== "programming" && !(question.id in answerByQuestion.value)) {
-    answerByQuestion.value[question.id] = question.question_type === "fill_blank" ? [] : "";
+    answerByQuestion.value[question.id] = loadAnswerDraft(question.id) ?? (question.question_type === "fill_blank" ? [] : "");
   }
   if (!startedAtByQuestion.value[question.id]) {
     const startedAt = loadStartedAt(question.id) || new Date().toISOString();
@@ -422,7 +418,25 @@ function selectQuestion(question) {
     saveStartedAt(question.id, startedAt);
   }
   aiMessage.value = "";
+  successMessage.value = "";
   clearAiHelp();
+}
+
+function initializeQuestionDrafts(questions) {
+  for (const question of questions) {
+    const questionType = question.question_type || "programming";
+    if (questionType === "programming" && !(question.id in codeByQuestion.value)) {
+      codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? resolveStarterCode(question);
+    }
+    if (questionType !== "programming" && !(question.id in answerByQuestion.value)) {
+      answerByQuestion.value[question.id] = loadAnswerDraft(question.id) ?? (questionType === "fill_blank" ? [] : "");
+    }
+    if (!startedAtByQuestion.value[question.id]) {
+      const startedAt = loadStartedAt(question.id) || new Date().toISOString();
+      startedAtByQuestion.value[question.id] = startedAt;
+      saveStartedAt(question.id, startedAt);
+    }
+  }
 }
 
 function blankPattern() {
@@ -449,34 +463,67 @@ function updateFillBlankAnswer(index, value) {
   }
   answers[index] = value;
   answerByQuestion.value[activeQuestion.value.id] = answers;
+  saveAnswerDraft(activeQuestion.value.id, answers);
 }
 
-async function submitAnswer() {
+async function submitAssignment() {
+  if (!canSubmitAssignment.value) {
+    errorMessage.value = "请完成所有题目后再提交作业。";
+    return;
+  }
   submitting.value = true;
   errorMessage.value = "";
+  successMessage.value = "";
   try {
-    const payload = {
-      started_at: startedAtByQuestion.value[activeQuestion.value.id],
-    };
-    if (isProgrammingQuestion.value) {
-      payload.code = activeCode.value;
-    } else if (isFillBlankQuestion.value) {
-      payload.answer = fillBlankAnswers();
-    } else {
-      payload.answer = objectiveAnswer.value;
-    }
-    const { data } = await submitAssignmentQuestionApi(assignment.value.id, activeQuestion.value.id, payload);
-    ensureDefaultResultPaneHeight();
-    lastResultByQuestion.value[activeQuestion.value.id] = data;
-    if (data.submission?.submitted_at) {
-      startedAtByQuestion.value[activeQuestion.value.id] = data.submission.submitted_at;
-      saveStartedAt(activeQuestion.value.id, data.submission.submitted_at);
+    await submitAssignmentApi(assignment.value.id, {
+      answers: assignment.value.questions.map((question) => buildQuestionSubmitPayload(question)),
+    });
+    lastResultByQuestion.value = {};
+    successMessage.value = "提交成功，系统将在后台完成判题。";
+    const submittedAt = new Date().toISOString();
+    for (const question of assignment.value.questions || []) {
+      startedAtByQuestion.value[question.id] = submittedAt;
+      saveStartedAt(question.id, submittedAt);
     }
   } catch (error) {
     handleApiError(error, "提交失败。");
   } finally {
     submitting.value = false;
   }
+}
+
+function buildQuestionSubmitPayload(question) {
+  const questionType = question.question_type || "programming";
+  const payload = {
+    question_id: question.id,
+    started_at: startedAtByQuestion.value[question.id],
+  };
+  if (questionType === "programming") {
+    payload.code = codeByQuestion.value[question.id] ?? loadCodeDraft(question.id) ?? resolveStarterCode(question);
+  } else {
+    payload.answer = answerByQuestion.value[question.id] ?? loadAnswerDraft(question.id) ?? (questionType === "fill_blank" ? [] : "");
+  }
+  return payload;
+}
+
+function isQuestionAnswered(question) {
+  const questionType = question.question_type || "programming";
+  if (questionType === "programming") {
+    return Boolean(String(codeByQuestion.value[question.id] ?? "").trim());
+  }
+  const answer = answerByQuestion.value[question.id];
+  if (questionType === "fill_blank") {
+    const answers = Array.isArray(answer) ? answer : (answer ? [answer] : []);
+    const expectedCount = blankCountForQuestion(question);
+    return answers.length >= expectedCount && answers.slice(0, expectedCount).every((item) => String(item || "").trim());
+  }
+  if (Array.isArray(answer)) return answer.some((item) => String(item || "").trim());
+  return Boolean(String(answer || "").trim());
+}
+
+function blankCountForQuestion(question) {
+  const segments = String(question.prompt || "").split(blankPattern());
+  return Math.max(segments.length > 1 ? segments.length - 1 : 1, 1);
 }
 
 async function showPreviousSubmissionResult() {
@@ -560,6 +607,10 @@ function getDraftKey(questionId) {
   return `${DRAFT_PREFIX}:${getDraftOwnerKey()}:${route.params.assignmentId}:${questionId}`;
 }
 
+function getAnswerDraftKey(questionId) {
+  return `${ANSWER_DRAFT_PREFIX}:${getDraftOwnerKey()}:${route.params.assignmentId}:${questionId}`;
+}
+
 function getStartedAtKey(questionId) {
   return `${STARTED_AT_PREFIX}:${getDraftOwnerKey()}:${route.params.assignmentId}:${questionId}`;
 }
@@ -586,6 +637,23 @@ function loadCodeDraft(questionId) {
 function saveCodeDraft(questionId, code) {
   try {
     window.localStorage.setItem(getDraftKey(questionId), code);
+  } catch {
+    // Ignore storage failures so editing and submission are not blocked.
+  }
+}
+
+function loadAnswerDraft(questionId) {
+  try {
+    const raw = window.localStorage.getItem(getAnswerDraftKey(questionId));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAnswerDraft(questionId, answer) {
+  try {
+    window.localStorage.setItem(getAnswerDraftKey(questionId), JSON.stringify(answer));
   } catch {
     // Ignore storage failures so editing and submission are not blocked.
   }
@@ -702,6 +770,7 @@ function statusText(status) {
     sandbox_error: "沙箱错误",
     needs_manual_review: "待人工复核",
     ai_rejected: "AI 判定未通过",
+    submitted: "判题中",
     published: "已发布",
     closed: "已关闭",
   }[status] || status;
@@ -723,6 +792,8 @@ function decisionSourceText(value) {
     ai_with_testcases: "AI + 测试用例",
     observed_ai: "观察运行 + AI",
     ai_only: "AI 判题结果",
+    background_pending: "后台判题中",
+    local_multiple_choice: "本地选择题判分",
     teacher_override: "教师改判",
   }[value] || "系统判定";
 }
@@ -1032,18 +1103,6 @@ pre {
   margin: 0;
 }
 
-.objective-icon {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border-radius: 5px;
-  background: #2563eb;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .choice-list {
   display: grid;
   gap: 18px;
@@ -1323,9 +1382,16 @@ pre {
 }
 
 .result-item.accepted,
-.result-status.accepted {
+.result-status.accepted,
+.feedback.success {
   background: #ecfdf3;
   color: #027a48;
+}
+
+.result-item.submitted,
+.result-status.submitted {
+  background: #eef4ff;
+  color: #35639f;
 }
 
 .result-item.wrong_answer,

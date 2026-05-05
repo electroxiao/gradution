@@ -411,6 +411,7 @@ function evidenceText(submission) {
 function statusText(status) {
   return {
     not_submitted: "未提交",
+    submitted: "判题中",
     accepted: "通过",
     wrong_answer: "答案错误",
     runtime_error: "运行错误",
@@ -437,6 +438,8 @@ function decisionSourceText(value) {
     ai_with_testcases: "AI + 测试用例",
     observed_ai: "观察运行 + AI",
     ai_only: "AI 判题结果",
+    background_pending: "后台判题中",
+    local_multiple_choice: "本地选择题判分",
     teacher_override: "教师改判",
   }[value] || "系统判定";
 }

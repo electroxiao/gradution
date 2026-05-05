@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -6,6 +6,7 @@ from backend.api.deps import get_current_teacher, get_current_user, get_db
 from backend.models.user import User
 from backend.schemas.assignment import (
     AssignmentAiHelpRequest,
+    AssignmentBulkSubmitRequest,
     AssignmentCreateRequest,
     AssignmentGenerateFocusRequest,
     AssignmentGenerateQuestionRequest,
@@ -37,6 +38,8 @@ from backend.services.assignment_service import (
     list_teacher_assignments,
     reuse_question_bank_item,
     review_assignment_submission,
+    grade_assignment_submissions_in_background,
+    submit_assignment,
     submit_assignment_question,
     update_assignment,
     update_assignment_questions,
@@ -242,6 +245,19 @@ def post_assignment_submission(
     current_user: User = Depends(get_current_user),
 ):
     return submit_assignment_question(db, current_user, assignment_id, question_id, payload.code, payload.started_at, payload.answer)
+
+
+@student_router.post("/{assignment_id}/submit")
+def post_assignment_bulk_submission(
+    assignment_id: int,
+    payload: AssignmentBulkSubmitRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = submit_assignment(db, current_user, assignment_id, payload)
+    background_tasks.add_task(grade_assignment_submissions_in_background, result["submission_ids"])
+    return result
 
 
 @student_router.post("/{assignment_id}/questions/{question_id}/ai-help")
