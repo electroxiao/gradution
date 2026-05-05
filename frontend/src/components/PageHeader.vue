@@ -8,8 +8,8 @@
       <p v-if="subtitle" class="page-subtitle">{{ subtitle }}</p>
     </div>
 
-    <div class="page-header-right">
-      <span class="auth-pill" :class="roleClass">
+    <div v-if="showStatus || $slots.actions" class="page-header-right">
+      <span v-if="showStatus" class="auth-pill" :class="roleClass">
         <span class="auth-dot" />
         <span>{{ roleText }}</span>
       </span>
@@ -42,6 +42,10 @@ const props = defineProps({
   titleTag: {
     type: String,
     default: "h1",
+  },
+  showStatus: {
+    type: Boolean,
+    default: true,
   },
 });
 

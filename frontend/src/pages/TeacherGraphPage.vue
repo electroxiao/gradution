@@ -302,7 +302,10 @@ import {
 } from "../api/teacher";
 import PageHeader from "../components/PageHeader.vue";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
+import { FULL_GRAPH_LIMIT, fetchFullGraph, getCachedFullGraph, getStaleFullGraph } from "../features/teacher-graph/graphCache";
 import { clearAuthSession } from "../utils/authStorage";
+
+defineOptions({ name: "TeacherGraphPage" });
 
 const router = useRouter();
 const keyword = ref("");
@@ -352,9 +355,24 @@ onMounted(async () => {
 });
 
 async function loadGraph() {
+  const cachedGraph = getCachedFullGraph();
+  if (cachedGraph) {
+    fullGraph.value = cachedGraph;
+    graph.value = cachedGraph;
+    return;
+  }
+
+  const staleGraph = getStaleFullGraph();
+  if (staleGraph) {
+    fullGraph.value = staleGraph;
+    graph.value = staleGraph;
+    refreshFullGraphCacheInBackground();
+    return;
+  }
+
   isGraphLoading.value = true;
   try {
-    const { data } = await getTeacherGraphApi({ keyword: "", limit: 2000 });
+    const data = await fetchFullGraph({ force: false });
     fullGraph.value = data;
     graph.value = data;
   } catch (error) {
@@ -364,20 +382,30 @@ async function loadGraph() {
   }
 }
 
+function refreshFullGraphCacheInBackground() {
+  fetchFullGraph({ force: true })
+    .then((data) => {
+      if (keyword.value.trim() || selectedGraphChapter.value) return;
+      fullGraph.value = data;
+      graph.value = data;
+    })
+    .catch(() => {});
+}
+
 async function reloadGraphAfterMutation() {
   const query = keyword.value.trim();
   const chapter = selectedGraphChapter.value;
-  const fullGraphRequest = getTeacherGraphApi({ keyword: "", limit: 2000 });
+  const fullGraphRequest = fetchFullGraph({ force: true });
   const visibleGraphRequest =
-    query || chapter ? getTeacherGraphApi({ keyword: query, chapter, limit: 2000 }) : fullGraphRequest;
+    query || chapter ? getTeacherGraphApi({ keyword: query, chapter, limit: FULL_GRAPH_LIMIT }) : fullGraphRequest;
 
-  const [fullGraphResponse, visibleGraphResponse] = await Promise.all([
+  const [fullGraphData, visibleGraphResponse] = await Promise.all([
     fullGraphRequest,
     visibleGraphRequest,
   ]);
 
-  fullGraph.value = fullGraphResponse.data;
-  graph.value = query ? visibleGraphResponse.data : fullGraphResponse.data;
+  fullGraph.value = fullGraphData;
+  graph.value = query || chapter ? visibleGraphResponse.data : fullGraphData;
 }
 
 async function refreshGraph(options = {}) {
@@ -594,7 +622,7 @@ async function searchGraph() {
   }
   try {
     isGraphLoading.value = true;
-    const { data } = await getTeacherGraphApi({ keyword: query, chapter, limit: 2000 });
+    const { data } = await getTeacherGraphApi({ keyword: query, chapter, limit: FULL_GRAPH_LIMIT });
     graph.value = data;
     clearSelection();
     showGraphSuggestions.value = false;

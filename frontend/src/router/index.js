@@ -17,6 +17,10 @@ const StudentAssignmentDetailPage = () => import("../pages/StudentAssignmentDeta
 const WeakPointsPage = () => import("../pages/WeakPointsPage.vue");
 const TeacherLayout = () => import("../pages/TeacherLayout.vue");
 
+export function preloadTeacherGraphPage() {
+  return TeacherGraphPage();
+}
+
 function resolveHomePath() {
   return getUserRole() === "teacher" ? "/teacher/dashboard" : "/";
 }
@@ -48,7 +52,7 @@ const router = createRouter({
       children: [
         { path: "", redirect: "/teacher/dashboard" },
         { path: "dashboard", component: TeacherDashboardPage, meta: { roles: ["teacher"] } },
-        { path: "graph", component: TeacherGraphPage, meta: { roles: ["teacher"] } },
+        { path: "graph", name: "teacher-graph", component: TeacherGraphPage, meta: { roles: ["teacher"], keepAlive: true } },
         { path: "students", component: TeacherStudentsPage, meta: { roles: ["teacher"] } },
         { path: "assignments", component: TeacherAssignmentsPage, meta: { roles: ["teacher"] } },
         { path: "assignments/new", component: TeacherAssignmentEditorPage, meta: { roles: ["teacher"] } },

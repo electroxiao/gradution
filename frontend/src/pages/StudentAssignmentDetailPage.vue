@@ -4,7 +4,12 @@
 
     <main v-if="assignment" class="assignment-lab" :style="labGridStyle">
       <aside class="problem-pane">
-        <PageHeader :title="assignment.title" title-tag="h1" :subtitle="assignment.description || '完成题目后提交代码查看测试结果。'">
+        <PageHeader
+          :title="assignment.title"
+          title-tag="h1"
+          :subtitle="assignment.description || '完成题目后提交代码查看测试结果。'"
+          :show-status="false"
+        >
           <template #actions>
             <router-link class="back-link" to="/assignments">返回作业</router-link>
           </template>
@@ -24,8 +29,7 @@
 
         <section v-if="activeQuestion" class="problem-content">
           <h2>{{ activeQuestion.title || questionTypeText(activeQuestion.question_type) }}</h2>
-          <span class="question-type-badge">{{ questionTypeText(activeQuestion.question_type) }}</span>
-          <MarkdownContent :content="activeQuestion.prompt" />
+          <MarkdownContent v-if="isProgrammingQuestion" :content="activeQuestion.prompt" />
 
           <div v-if="sampleCases.length" class="sample-list">
             <article v-for="item in sampleCases" :key="item.id" class="sample-card">
@@ -63,20 +67,48 @@
         <div v-if="isProgrammingQuestion" class="editor-shell">
           <CodeEditor v-model="activeCode" />
         </div>
-        <div v-else-if="activeQuestion.question_type === 'multiple_choice'" class="objective-shell">
-          <label
-            v-for="option in activeQuestion.options || []"
-            :key="option.key"
-            class="choice-option"
-            :class="{ selected: objectiveAnswer === option.key }"
-          >
-            <input v-model="objectiveAnswer" type="radio" :value="option.key" />
-            <span>{{ option.key }}</span>
-            <p>{{ option.text }}</p>
-          </label>
+        <div v-else-if="isMultipleChoiceQuestion" class="objective-shell">
+          <section class="objective-card">
+            <div class="objective-card-head">
+              <span class="objective-icon" aria-hidden="true">▦</span>
+              <strong>单选题</strong>
+            </div>
+            <div class="objective-prompt">
+              <MarkdownContent :content="activeQuestion.prompt" />
+            </div>
+            <div class="choice-list">
+              <label
+                v-for="option in activeQuestion.options || []"
+                :key="option.key"
+                class="choice-option"
+                :class="{ selected: objectiveAnswer === option.key }"
+              >
+                <input v-model="objectiveAnswer" type="radio" :value="option.key" />
+                <span class="choice-key">{{ option.key }}</span>
+                <p>{{ option.text }}</p>
+              </label>
+            </div>
+          </section>
         </div>
         <div v-else class="objective-shell">
-          <textarea v-model="objectiveAnswer" rows="10" placeholder="请输入你的答案，系统会结合参考答案进行 AI 语义判分。" />
+          <section class="objective-card fill-card">
+            <div class="objective-card-head">
+              <span class="objective-icon" aria-hidden="true">▦</span>
+              <strong>填空题</strong>
+            </div>
+            <div class="blank-inline-card">
+              <template v-for="(segment, index) in fillBlankSegments" :key="`blank-segment-${index}`">
+                <span v-if="segment">{{ segment }}</span>
+                <input
+                  v-if="index < fillBlankCount"
+                  :value="fillBlankAnswerAt(index)"
+                  type="text"
+                  placeholder="请输入答案"
+                  @input="updateFillBlankAnswer(index, $event.target.value)"
+                />
+              </template>
+            </div>
+          </section>
         </div>
 
         <div v-if="lastResult" class="result-resize-handle" @pointerdown="startResultResize" />
@@ -272,8 +304,22 @@ const resultPaneHeight = ref(0);
 
 const sampleCases = computed(() => activeQuestion.value?.test_cases?.filter((item) => item.is_sample) || []);
 const isProgrammingQuestion = computed(() => (activeQuestion.value?.question_type || "programming") === "programming");
+const isMultipleChoiceQuestion = computed(() => activeQuestion.value?.question_type === "multiple_choice");
+const isFillBlankQuestion = computed(() => activeQuestion.value?.question_type === "fill_blank");
 const answerPaneTitle = computed(() => isProgrammingQuestion.value ? "Main.java" : "作答区");
 const submitButtonText = computed(() => isProgrammingQuestion.value ? "提交运行" : "提交答案");
+const fillBlankSegments = computed(() => {
+  const prompt = activeQuestion.value?.prompt || "";
+  if (!isFillBlankQuestion.value) return [prompt];
+  const segments = prompt.split(blankPattern());
+  return segments.length > 1 ? segments : [prompt, ""];
+});
+const fillBlankCount = computed(() => {
+  if (!isFillBlankQuestion.value) return 0;
+  const promptBlankCount = Math.max(fillBlankSegments.value.length - 1, 0);
+  const answerCount = Array.isArray(objectiveAnswer.value) ? objectiveAnswer.value.length : 0;
+  return Math.max(promptBlankCount, answerCount, 1);
+});
 const objectiveAnswer = computed({
   get() {
     if (!activeQuestion.value) return "";
@@ -286,7 +332,11 @@ const objectiveAnswer = computed({
 });
 const canSubmitAnswer = computed(() => {
   if (!activeQuestion.value) return false;
-  return isProgrammingQuestion.value ? activeCode.value.trim() : String(objectiveAnswer.value || "").trim();
+  if (isProgrammingQuestion.value) return activeCode.value.trim();
+  if (isFillBlankQuestion.value) {
+    return fillBlankAnswers().some((item) => item.trim());
+  }
+  return String(objectiveAnswer.value || "").trim();
 });
 const aiConcepts = computed(() => {
   const names = new Set(aiKeywords.value.map((item) => String(item)).filter(Boolean));
@@ -364,7 +414,7 @@ function selectQuestion(question) {
     codeByQuestion.value[question.id] = loadCodeDraft(question.id) ?? resolveStarterCode(question);
   }
   if ((question.question_type || "programming") !== "programming" && !(question.id in answerByQuestion.value)) {
-    answerByQuestion.value[question.id] = "";
+    answerByQuestion.value[question.id] = question.question_type === "fill_blank" ? [] : "";
   }
   if (!startedAtByQuestion.value[question.id]) {
     const startedAt = loadStartedAt(question.id) || new Date().toISOString();
@@ -373,6 +423,32 @@ function selectQuestion(question) {
   }
   aiMessage.value = "";
   clearAiHelp();
+}
+
+function blankPattern() {
+  return /_{2,}|（\s*）|\(\s*\)|\[blank\]|\{\{blank\}\}/gi;
+}
+
+function fillBlankAnswers() {
+  if (!activeQuestion.value) return [];
+  const raw = answerByQuestion.value[activeQuestion.value.id];
+  if (Array.isArray(raw)) return raw.map((item) => String(item || ""));
+  if (raw) return [String(raw)];
+  return Array.from({ length: fillBlankCount.value }, () => "");
+}
+
+function fillBlankAnswerAt(index) {
+  return fillBlankAnswers()[index] || "";
+}
+
+function updateFillBlankAnswer(index, value) {
+  if (!activeQuestion.value) return;
+  const answers = fillBlankAnswers();
+  while (answers.length < fillBlankCount.value) {
+    answers.push("");
+  }
+  answers[index] = value;
+  answerByQuestion.value[activeQuestion.value.id] = answers;
 }
 
 async function submitAnswer() {
@@ -384,6 +460,8 @@ async function submitAnswer() {
     };
     if (isProgrammingQuestion.value) {
       payload.code = activeCode.value;
+    } else if (isFillBlankQuestion.value) {
+      payload.answer = fillBlankAnswers();
     } else {
       payload.answer = objectiveAnswer.value;
     }
@@ -910,69 +988,147 @@ pre {
 .objective-shell {
   display: grid;
   align-content: start;
-  gap: 12px;
   min-height: 0;
   overflow: auto;
-  padding: 18px;
-  background: #ffffff;
+  padding: 28px 32px 42px;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(37, 99, 235, 0.06), transparent 28%),
+    #ffffff;
+}
+
+.objective-card {
+  display: grid;
+  gap: 20px;
+  min-height: 0;
+  padding: 28px 32px;
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 42px rgba(15, 35, 70, 0.10);
+}
+
+.objective-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  color: #7a8aa0;
+  font-size: 14px;
+}
+
+.objective-card-head strong {
+  color: #15243d;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.objective-prompt {
+  color: #22314d;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.objective-prompt :deep(p) {
+  margin: 0;
+}
+
+.objective-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 5px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.choice-list {
+  display: grid;
+  gap: 18px;
 }
 
 .choice-option {
   display: grid;
-  grid-template-columns: 20px 34px minmax(0, 1fr);
-  gap: 10px;
-  align-items: start;
-  border: 1px solid #dce7f5;
+  grid-template-columns: 24px 50px minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  min-height: 88px;
+  border: 1px solid #e1e8f2;
   border-radius: 8px;
-  background: #fff;
-  padding: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 16px 24px;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(15, 35, 70, 0.06);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
 
 .choice-option.selected {
   border-color: #2563eb;
-  box-shadow: inset 3px 0 0 #2563eb;
+  background: #f7fbff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 12px 28px rgba(37, 99, 235, 0.10);
 }
 
 .choice-option input {
-  margin-top: 5px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #2563eb;
 }
 
-.choice-option span {
+.choice-key {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 42px;
+  height: 42px;
   place-items: center;
-  border-radius: 50%;
-  background: #ffffff;
+  border-radius: 8px;
+  background: #edf4ff;
   color: #2563eb;
   font-weight: 800;
+  font-size: 20px;
 }
 
 .choice-option p {
-  margin: 4px 0 0;
+  margin: 0;
   color: #22314d;
   line-height: 1.6;
+  font-size: 16px;
 }
 
-.objective-shell textarea {
-  min-height: 240px;
-  border: 1px solid #dce7f5;
+.fill-card {
+  gap: 26px;
+}
+
+.blank-inline-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+  padding: 26px 28px;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
-  padding: 14px;
-  resize: vertical;
-  font: inherit;
+  background: #f8fbff;
+  color: #263954;
+  font-size: 16px;
+  line-height: 2.1;
 }
 
-.question-type-badge {
-  display: inline-flex;
-  margin-bottom: 12px;
-  border-radius: 6px;
+.blank-inline-card input {
+  width: min(230px, 100%);
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid #d9e2ef;
+  border-radius: 8px;
   background: #ffffff;
-  color: #2563eb;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 800;
+  font: inherit;
+  color: #15243d;
+  outline: none;
+}
+
+.blank-inline-card input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
 }
 
 .editor-shell :deep(.code-editor) {
@@ -1330,5 +1486,26 @@ textarea {
   .ai-composer button {
     width: 100%;
   }
+
+  .objective-shell {
+    padding: 16px;
+  }
+
+  .objective-card,
+  .blank-inline-card {
+    padding: 16px;
+  }
+
+  .choice-option {
+    grid-template-columns: 22px 42px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .choice-key {
+    width: 36px;
+    height: 36px;
+  }
+
 }
 </style>

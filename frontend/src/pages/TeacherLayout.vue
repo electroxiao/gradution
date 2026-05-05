@@ -11,7 +11,7 @@
             <span class="nav-icon">数</span>
             <span class="nav-copy"><strong>数据看板</strong></span>
           </router-link>
-          <router-link to="/teacher/graph">
+          <router-link to="/teacher/graph" @mouseenter="preloadGraphPage" @focus="preloadGraphPage">
             <span class="nav-icon">图</span>
             <span class="nav-copy"><strong>知识图谱</strong></span>
           </router-link>
@@ -33,7 +33,11 @@
 
     <main class="console-main">
       <div class="console-content">
-        <router-view />
+        <router-view v-slot="{ Component, route }">
+          <keep-alive include="TeacherGraphPage">
+            <component :is="Component" :key="route.meta.keepAlive ? route.name : route.fullPath" />
+          </keep-alive>
+        </router-view>
       </div>
     </main>
   </div>
@@ -43,6 +47,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
+import { fetchFullGraph } from "../features/teacher-graph/graphCache";
+import { preloadTeacherGraphPage } from "../router";
 import { useAuthStore } from "../stores/auth";
 
 const authStore = useAuthStore();
@@ -58,6 +64,7 @@ function syncViewportWidth() {
 
 onMounted(() => {
   window.addEventListener("resize", syncViewportWidth, { passive: true });
+  scheduleGraphPreload();
 });
 
 onBeforeUnmount(() => {
@@ -67,6 +74,20 @@ onBeforeUnmount(() => {
 function logout() {
   authStore.logout();
   router.push("/login");
+}
+
+function preloadGraphPage() {
+  preloadTeacherGraphPage().catch(() => {});
+  fetchFullGraph().catch(() => {});
+}
+
+function scheduleGraphPreload() {
+  if (typeof window === "undefined") return;
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(preloadGraphPage, { timeout: 2500 });
+    return;
+  }
+  window.setTimeout(preloadGraphPage, 800);
 }
 </script>
 
