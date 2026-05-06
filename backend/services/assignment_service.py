@@ -534,6 +534,14 @@ def reuse_question_bank_item(db: Session, teacher: User, item_id: int) -> Questi
     return _question_bank_item_response(row, db)
 
 
+def delete_question_bank_item(db: Session, teacher: User, item_id: int) -> None:
+    row = db.query(QuestionBankItem).filter(QuestionBankItem.id == item_id, QuestionBankItem.teacher_id == teacher.id).first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="题库题目不存在。")
+    db.delete(row)
+    db.commit()
+
+
 def list_student_assignments(db: Session, student: User) -> list[AssignmentSummaryResponse]:
     assignments = (
         db.query(Assignment)

@@ -23,6 +23,7 @@ from backend.services.assignment_service import (
     create_assignment,
     create_question_bank_item,
     delete_assignment,
+    delete_question_bank_item,
     generate_assignment_focus,
     generate_assignment_question,
     generate_assignment_questions,
@@ -128,6 +129,16 @@ def post_question_bank_reuse(
     current_user: User = Depends(get_current_teacher),
 ):
     return reuse_question_bank_item(db, current_user, item_id)
+
+
+@teacher_router.delete("/question-bank/{item_id}")
+def delete_question_bank(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    delete_question_bank_item(db, current_user, item_id)
+    return {"ok": True}
 
 
 @teacher_router.get("/{assignment_id}/progress")

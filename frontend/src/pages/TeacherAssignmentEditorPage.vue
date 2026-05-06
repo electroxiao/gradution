@@ -3,6 +3,7 @@
     <PageHeader
       :title="isNew ? '新建作业' : '编辑作业'"
       title-tag="h1"
+      :show-status="false"
       :subtitle="!isNew ? '面向高频布置作业：AI 出题、题库复用、题型编辑和班级发布都在一个工作台完成。' : ''"
     >
       <template #actions>
@@ -84,8 +85,21 @@
           <div class="bank-dialog-foot">
             <span>已选择 {{ selectedQuestionBankIds.length }} 题</span>
             <div>
+              <button type="button" class="btn ghost" :class="{ active: questionBankEditMode }" @click="toggleQuestionBankEditMode">
+                {{ questionBankEditMode ? "完成" : "编辑" }}
+              </button>
               <button type="button" class="btn ghost" @click="closeQuestionBankDialog">取消</button>
               <button
+                v-if="questionBankEditMode"
+                type="button"
+                class="btn danger solid"
+                :disabled="!selectedQuestionBankIds.length || deletingQuestionBank"
+                @click="openQuestionBankDeleteConfirm"
+              >
+                {{ deletingQuestionBank ? "删除中..." : "删除选中题目" }}
+              </button>
+              <button
+                v-else
                 type="button"
                 class="btn primary"
                 :disabled="!selectedQuestionBankIds.length || importingQuestionBank"
@@ -94,6 +108,21 @@
                 {{ importingQuestionBank ? "导入中..." : "导入选中题目" }}
               </button>
             </div>
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="questionBankDeleteConfirmOpen" class="dialog-backdrop" role="presentation" @click.self="closeQuestionBankDeleteConfirm">
+        <section class="confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="question-bank-delete-title">
+          <h2 id="question-bank-delete-title">删除题库题目</h2>
+          <p>确定删除选中的 {{ selectedQuestionBankIds.length }} 道题目吗？删除后将从题库移除，但不会影响已经保存到作业里的题目。</p>
+          <div class="confirm-dialog-actions">
+            <button type="button" class="btn ghost" @click="closeQuestionBankDeleteConfirm">取消</button>
+            <button type="button" class="btn danger solid" :disabled="deletingQuestionBank" @click="deleteSelectedQuestionBankItems">
+              {{ deletingQuestionBank ? "删除中..." : "确认删除" }}
+            </button>
           </div>
         </section>
       </div>
@@ -457,6 +486,7 @@ import { VueDraggable } from "vue-draggable-plus";
 
 import {
   createTeacherAssignmentApi,
+  deleteTeacherQuestionBankItemApi,
   generateAssignmentQuestionsApi,
   generateAssignmentTestCasesApi,
   getTeacherAssignmentApi,
@@ -493,6 +523,9 @@ const testcaseGenerating = ref(false);
 const questionBankOpen = ref(false);
 const questionBankLoading = ref(false);
 const importingQuestionBank = ref(false);
+const deletingQuestionBank = ref(false);
+const questionBankEditMode = ref(false);
+const questionBankDeleteConfirmOpen = ref(false);
 const questionBankItems = ref([]);
 const selectedQuestionBankIds = ref([]);
 const questionBankFilters = ref({
@@ -626,12 +659,16 @@ function openQuestionBankDialog() {
   errorMessage.value = "";
   successMessage.value = "";
   selectedQuestionBankIds.value = [];
+  questionBankEditMode.value = false;
+  questionBankDeleteConfirmOpen.value = false;
   loadQuestionBank();
 }
 
 function closeQuestionBankDialog() {
-  if (importingQuestionBank.value) return;
+  if (importingQuestionBank.value || deletingQuestionBank.value) return;
   questionBankOpen.value = false;
+  questionBankEditMode.value = false;
+  questionBankDeleteConfirmOpen.value = false;
 }
 
 async function loadQuestionBank() {
@@ -670,6 +707,39 @@ async function importSelectedQuestionBankItems() {
     handleApiError(error, "导入题库题目失败。");
   } finally {
     importingQuestionBank.value = false;
+  }
+}
+
+function toggleQuestionBankEditMode() {
+  if (deletingQuestionBank.value || importingQuestionBank.value) return;
+  questionBankEditMode.value = !questionBankEditMode.value;
+}
+
+function openQuestionBankDeleteConfirm() {
+  if (!selectedQuestionBankIds.value.length || deletingQuestionBank.value) return;
+  questionBankDeleteConfirmOpen.value = true;
+}
+
+function closeQuestionBankDeleteConfirm() {
+  if (deletingQuestionBank.value) return;
+  questionBankDeleteConfirmOpen.value = false;
+}
+
+async function deleteSelectedQuestionBankItems() {
+  const selectedIds = [...new Set(selectedQuestionBankIds.value)];
+  if (!selectedIds.length) return;
+
+  deletingQuestionBank.value = true;
+  try {
+    await Promise.all(selectedIds.map((itemId) => deleteTeacherQuestionBankItemApi(itemId)));
+    selectedQuestionBankIds.value = [];
+    questionBankDeleteConfirmOpen.value = false;
+    successMessage.value = `已从题库删除 ${selectedIds.length} 道题目。`;
+    await loadQuestionBank();
+  } catch (error) {
+    handleApiError(error, "删除题库题目失败。");
+  } finally {
+    deletingQuestionBank.value = false;
   }
 }
 
@@ -1103,6 +1173,12 @@ function formatApiErrorDetail(detail, fallbackMessage) {
   color: #dc2626;
 }
 
+.btn.danger.solid {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+
 .btn.ghost {
   background: #f8fafc;
 }
@@ -1168,6 +1244,38 @@ function formatApiErrorDetail(detail, fallbackMessage) {
   background: #ffffff;
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
   padding: 20px 48px 20px 20px;
+}
+
+:global(.confirm-dialog) {
+  box-sizing: border-box;
+  display: grid;
+  gap: 14px;
+  width: min(440px, 100%);
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+  padding: 22px;
+}
+
+:global(.confirm-dialog h2) {
+  margin: 0;
+  color: #172033;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+:global(.confirm-dialog p) {
+  margin: 0;
+  color: #526078;
+  line-height: 1.7;
+}
+
+:global(.confirm-dialog-actions) {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 :global(.error-dialog-icon) {

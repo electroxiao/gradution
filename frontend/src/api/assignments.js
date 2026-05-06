@@ -31,6 +31,8 @@ export const createTeacherQuestionBankItemApi = (payload) =>
   http.post("/api/teacher/assignments/question-bank", payload);
 export const reuseTeacherQuestionBankItemApi = (itemId) =>
   http.post(`/api/teacher/assignments/question-bank/${itemId}/reuse`);
+export const deleteTeacherQuestionBankItemApi = (itemId) =>
+  http.delete(`/api/teacher/assignments/question-bank/${itemId}`);
 
 export const listStudentAssignmentsApi = () => http.get("/api/assignments");
 export const getStudentAssignmentApi = (assignmentId) => http.get(`/api/assignments/${assignmentId}`);
