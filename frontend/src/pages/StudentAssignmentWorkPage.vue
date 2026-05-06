@@ -119,7 +119,7 @@
           </header>
           <div v-if="isAiRejectedAfterPassingTests" class="ai-reject-alert">
             <strong>测试用例已通过，但 AI 判定未通过</strong>
-            <p>请优先查看 AI 评审中的风险点和可能薄弱点。</p>
+            <p>请根据题目要求调整实现后重新提交。</p>
           </div>
           <div class="result-list">
             <div v-for="item in lastResult.results" :key="item.case_index" class="result-item" :class="item.status">
@@ -141,26 +141,14 @@
 
           <section v-if="lastResult?.ai_review" class="ai-review-block">
             <header>
-              <h3>AI 评审</h3>
+              <h3>AI 判定</h3>
               <span class="review-badge">{{ decisionSourceText(lastResult.decision_source) }}</span>
             </header>
             <p class="review-summary">{{ lastResult.ai_review.summary || "AI 未返回总结。" }}</p>
             <dl class="review-metrics">
               <div>
-                <dt>AI 决策</dt>
+                <dt>判定结果</dt>
                 <dd>{{ statusText(lastResult.ai_review.decision || lastResult.status) }}</dd>
-              </div>
-              <div>
-                <dt>评分</dt>
-                <dd>{{ lastResult.ai_review.score ?? "--" }}</dd>
-              </div>
-              <div>
-                <dt>置信度</dt>
-                <dd>{{ formatConfidence(lastResult.ai_review.confidence) }}</dd>
-              </div>
-              <div>
-                <dt>人工复核</dt>
-                <dd>{{ lastResult.manual_review_required ? "需要" : "无需" }}</dd>
               </div>
             </dl>
             <div v-if="lastResult.ai_review.issues?.length" class="review-list">
@@ -176,14 +164,11 @@
               </ul>
             </div>
             <div v-if="lastResult.ai_review.diagnoses?.length" class="diagnosis-list">
-              <strong>可能薄弱点</strong>
+              <strong>AI 诊断</strong>
               <article v-for="(item, index) in lastResult.ai_review.diagnoses" :key="`diagnosis-${index}`" class="diagnosis-item">
                 <div class="diagnosis-head">
                   <span>{{ item.knowledge_node || "unknown" }}</span>
-                  <small>{{ formatConfidence(item.confidence) }}</small>
-                </div>
-                <div class="diagnosis-resolution" :class="item.graph_resolution?.status || 'unresolved'">
-                  {{ graphResolutionText(item.graph_resolution) }}
+                  <small>{{ [item.stage, item.category].filter(Boolean).join(" / ") }}</small>
                 </div>
                 <p v-if="item.student_feedback">{{ item.student_feedback }}</p>
                 <p v-else-if="item.reason">{{ item.reason }}</p>
@@ -682,7 +667,6 @@ function submissionToRunResult(submission) {
     results: Array.isArray(submission.results_json) ? submission.results_json : [],
     ai_review: submission.ai_review_json,
     decision_source: submission.decision_source,
-    manual_review_required: submission.manual_review_required,
   };
 }
 
@@ -768,7 +752,6 @@ function statusText(status) {
     runtime_error: "运行错误",
     timeout: "超时",
     sandbox_error: "沙箱错误",
-    needs_manual_review: "待人工复核",
     ai_rejected: "AI 判定未通过",
     submitted: "判题中",
     published: "已发布",
@@ -787,7 +770,7 @@ function questionTypeText(value) {
 function decisionSourceText(value) {
   return {
     testcase: "测试用例结果",
-    ai_review: "AI 评审结果",
+    ai_review: "AI 判定结果",
     hybrid: "混合判题结果",
     ai_with_testcases: "AI + 测试用例",
     observed_ai: "观察运行 + AI",
@@ -796,24 +779,6 @@ function decisionSourceText(value) {
     local_multiple_choice: "本地选择题判分",
     teacher_override: "教师改判",
   }[value] || "系统判定";
-}
-
-function formatConfidence(value) {
-  const number = Number(value);
-  if (Number.isNaN(number)) return "--";
-  return `${Math.round(number * 100)}%`;
-}
-
-function graphResolutionText(resolution) {
-  const status = resolution?.status;
-  if (status === "matched_existing") {
-    return `已关联：${resolution.node_name || "知识图谱节点"}`;
-  }
-  if (status === "needs_teacher_review" || status === "unmatched") return "未自动匹配";
-  if (status === "skipped_low_confidence") return "低置信诊断，暂不计入";
-  if (status === "low_confidence_unmatched") return "低置信未匹配";
-  if (status === "unresolved") return "暂未关联到图谱";
-  return "暂未解析";
 }
 
 function resultTitle(item) {
@@ -1352,27 +1317,6 @@ pre {
   color: #35639f;
 }
 
-.diagnosis-resolution {
-  justify-self: start;
-  min-height: 24px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #f4f7fb;
-  color: #526071;
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.diagnosis-resolution.matched_existing {
-  background: #ecfdf3;
-  color: #027a48;
-}
-
-.diagnosis-resolution.needs_teacher_review {
-  background: #fff7e6;
-  color: #9a5b00;
-}
-
 .diagnosis-item p,
 .diagnosis-item small {
   margin: 0;
@@ -1398,7 +1342,6 @@ pre {
 .result-item.runtime_error,
 .result-item.timeout,
 .result-item.sandbox_error,
-.result-item.needs_manual_review,
 .result-item.ai_rejected,
 .feedback.error {
   background: #fff8f8;
@@ -1413,8 +1356,7 @@ pre {
 .result-status.wrong_answer,
 .result-status.runtime_error,
 .result-status.timeout,
-.result-status.sandbox_error,
-.result-status.needs_manual_review {
+.result-status.sandbox_error {
   background: #fff1f0;
   color: #b42318;
 }

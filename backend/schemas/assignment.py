@@ -33,8 +33,6 @@ class AssignmentQuestionInput(BaseModel):
     ai_review_level: str = Field(default="light", max_length=32)
     ai_grading_rubric: str = Field(default="")
     ai_grading_focus: list[str] = Field(default_factory=list)
-    ai_grading_pass_threshold: int = Field(default=85, ge=0, le=100)
-    ai_grading_confidence_threshold: float = Field(default=0.85, ge=0, le=1)
     sort_order: int = 0
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
 
@@ -143,8 +141,6 @@ class AssignmentQuestionResponse(BaseModel):
     ai_review_level: str = "light"
     ai_grading_rubric: str = ""
     ai_grading_focus: list[str] = Field(default_factory=list)
-    ai_grading_pass_threshold: int = 85
-    ai_grading_confidence_threshold: float = 0.85
     sort_order: int
     test_cases: list[AssignmentTestCaseResponse] = Field(default_factory=list)
 
@@ -162,8 +158,6 @@ class AssignmentSubmissionResponse(BaseModel):
     results_json: Any = None
     ai_review_json: Any = None
     decision_source: str | None = None
-    manual_review_required: bool = False
-    teacher_review_status: str | None = None
     teacher_review_note: str | None = None
     trust_label: str | None = None
     trust_score: float | None = None
@@ -216,7 +210,6 @@ class AssignmentRunResultResponse(BaseModel):
     results: list[dict[str, Any]]
     ai_review: Any = None
     decision_source: str | None = None
-    manual_review_required: bool = False
 
 
 class AssignmentAiHelpResponse(BaseModel):
@@ -292,8 +285,6 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     results_json: Any = None
     ai_review_json: Any = None
     decision_source: str | None = None
-    manual_review_required: bool = False
-    teacher_review_status: str | None = None
     teacher_review_note: str | None = None
     trust_label: str | None = None
     trust_score: float | None = None
@@ -311,7 +302,7 @@ class AssignmentSubmissionHistoryResponse(BaseModel):
 
 
 class AssignmentReviewRequest(BaseModel):
-    status: str = Field(pattern="^(accepted|ai_rejected|needs_manual_review)$")
+    status: str = Field(pattern="^(accepted|ai_rejected)$")
     note: str = Field(default="", max_length=2000)
 
 
@@ -333,8 +324,6 @@ class QuestionBankItemResponse(BaseModel):
     grading_mode: str = "testcase"
     ai_grading_rubric: str = ""
     ai_grading_focus: list[str] = Field(default_factory=list)
-    ai_grading_pass_threshold: int = 85
-    ai_grading_confidence_threshold: float = 0.85
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
     knowledge_node_ids: list[int] = Field(default_factory=list)
     knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)

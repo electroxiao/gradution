@@ -166,7 +166,7 @@ def test_assignment_submission_integration_flow(
     submit_data = submit_response.json()
     assert "submission" in submit_data
     assert "results" in submit_data
-    assert submit_data["status"] in {"accepted", "needs_manual_review"}
+    assert submit_data["status"] in {"accepted", "ai_rejected"}
     assert submit_data["submission"]["assignment_id"] == assignment_id
     assert submit_data["submission"]["question_id"] == question_id
     assert isinstance(submit_data["results"], list)
@@ -261,6 +261,6 @@ def test_mixed_assignment_class_publish_and_question_bank(
     )
     assert_status(submit_response, 200)
     data = submit_response.json()
-    assert data["status"] in {"accepted", "needs_manual_review"}
-    assert data["decision_source"] == "ai_objective_review"
+    assert data["status"] in {"accepted", "ai_rejected"}
+    assert data["decision_source"] == "local_multiple_choice"
     assert data["submission"]["answer"] == "A"

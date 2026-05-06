@@ -2,7 +2,6 @@ import json
 import re
 import hashlib
 from datetime import datetime
-from difflib import SequenceMatcher
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
@@ -59,13 +58,9 @@ from backend.services.sandbox_service import run_java_submission
 VALID_ASSIGNMENT_STATUSES = {"draft", "published", "closed"}
 VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid", "observed_ai"}
 VALID_AI_REVIEW_LEVELS = {"light", "deep"}
-VALID_REVIEW_STATUSES = {"accepted", "ai_rejected", "needs_manual_review"}
+VALID_REVIEW_STATUSES = {"accepted", "ai_rejected"}
 VALID_QUESTION_TYPES = {"programming", "multiple_choice", "fill_blank"}
-DEFAULT_AI_GRADING_PASS_THRESHOLD = 85
-DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD = 0.85
 FAST_PASS_THRESHOLD_SECONDS = 60
-DIAGNOSIS_CONFIDENCE_THRESHOLD = 0.8
-GRAPH_MATCH_CONFIDENCE_THRESHOLD = 0.75
 
 
 def list_teacher_assignments(db: Session, teacher: User) -> list[AssignmentSummaryResponse]:
@@ -584,7 +579,6 @@ def submit_assignment_question(
     started_at = _resolve_submission_started_at(started_at, previous_submission)
     duration_seconds = _duration_seconds(started_at, submitted_at)
     status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
-    ai_review = _resolve_ai_review_diagnoses(db, student, assignment, question, results, ai_review)
     previous_code = (previous_submission.code or "") if previous_submission else ""
     trust_label, trust_score = _resolve_submission_trust(status_value, duration_seconds, code, previous_code)
     submission = AssignmentSubmission(
@@ -597,7 +591,6 @@ def submit_assignment_question(
         results_json=results,
         ai_review_json=ai_review,
         final_decision_source=decision_source,
-        teacher_review_status="pending" if status_value == "needs_manual_review" else None,
         trust_label=trust_label,
         trust_score=trust_score,
         started_at=started_at,
@@ -615,7 +608,6 @@ def submit_assignment_question(
         results=_student_visible_results(results),
         ai_review=ai_review,
         decision_source=decision_source,
-        manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
     )
 
 
@@ -673,7 +665,6 @@ def submit_assignment(
             ],
             ai_review_json=None,
             final_decision_source="background_pending",
-            teacher_review_status=None,
             started_at=started_at,
             duration_seconds=_duration_seconds(started_at, submitted_at),
             submitted_at=submitted_at,
@@ -712,7 +703,6 @@ def _grade_pending_assignment_submission(db: Session, submission_id: int) -> Non
         question_type = _normalize_question_type(question.question_type)
         if question_type == "programming":
             status_value, results, ai_review, decision_source = _grade_submission(assignment, question, submission.code or "")
-            ai_review = _resolve_ai_review_diagnoses(db, student, assignment, question, results, ai_review)
             previous_submission = _get_previous_submission_before(db, submission)
             previous_code = (previous_submission.code or "") if previous_submission else ""
             trust_label, trust_score = _resolve_submission_trust(
@@ -743,7 +733,6 @@ def _grade_pending_assignment_submission(db: Session, submission_id: int) -> Non
         submission.results_json = results
         submission.ai_review_json = ai_review
         submission.final_decision_source = decision_source
-        submission.teacher_review_status = "pending" if status_value == "needs_manual_review" else None
         _mark_wrong_submission_bound_nodes_weak(db, student, question, submission)
         db.commit()
     except Exception as error:
@@ -803,7 +792,6 @@ def _submit_objective_assignment_question(
         results_json=results,
         ai_review_json=ai_review,
         final_decision_source=decision_source,
-        teacher_review_status="pending" if status_value == "needs_manual_review" else None,
         started_at=started_at,
         duration_seconds=duration_seconds,
         submitted_at=submitted_at,
@@ -819,7 +807,6 @@ def _submit_objective_assignment_question(
         results=_student_visible_results(results),
         ai_review=ai_review,
         decision_source=decision_source,
-        manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
     )
 
 
@@ -986,8 +973,6 @@ def _teacher_submission_detail_response(submission: AssignmentSubmission) -> Ass
         results_json=submission.results_json,
         ai_review_json=submission.ai_review_json,
         decision_source=submission.final_decision_source,
-        manual_review_required=_submission_requires_manual_review(submission),
-        teacher_review_status=submission.teacher_review_status,
         teacher_review_note=submission.teacher_review_note,
         trust_label=submission.trust_label,
         trust_score=submission.trust_score,
@@ -1025,11 +1010,10 @@ def review_assignment_submission(
     if not submission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="提交记录不存在。")
     if payload.status not in VALID_REVIEW_STATUSES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="人工复核状态非法。")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="教师改判状态非法。")
 
     submission.status = payload.status
     submission.final_decision_source = "teacher_override"
-    submission.teacher_review_status = "approved" if payload.status == "accepted" else "rejected"
     submission.teacher_review_note = payload.note.strip() or None
     submission.reviewed_at = datetime.now()
     submission.reviewed_by = teacher.id
@@ -1325,8 +1309,6 @@ def _sync_questions(db: Session, assignment: Assignment, payload_questions: list
             question.grading_mode = grading_mode
             question.ai_grading_rubric = (item.ai_grading_rubric or "").strip()
             question.ai_grading_focus_json = _normalize_ai_focus(item.ai_grading_focus)
-            question.ai_grading_pass_threshold = item.ai_grading_pass_threshold
-            question.ai_grading_confidence_threshold = item.ai_grading_confidence_threshold
             question.sort_order = sort_order
         else:
             question = AssignmentQuestion(
@@ -1342,8 +1324,6 @@ def _sync_questions(db: Session, assignment: Assignment, payload_questions: list
                 grading_mode=grading_mode,
                 ai_grading_rubric=(item.ai_grading_rubric or "").strip(),
                 ai_grading_focus_json=_normalize_ai_focus(item.ai_grading_focus),
-                ai_grading_pass_threshold=item.ai_grading_pass_threshold,
-                ai_grading_confidence_threshold=item.ai_grading_confidence_threshold,
                 sort_order=sort_order,
             )
             db.add(question)
@@ -1485,16 +1465,6 @@ def _assignment_detail(
                     "ai_review_level": _question_ai_review_level(question),
                     "ai_grading_rubric": question.ai_grading_rubric or "",
                     "ai_grading_focus": _normalize_ai_focus(question.ai_grading_focus_json),
-                    "ai_grading_pass_threshold": (
-                        question.ai_grading_pass_threshold
-                        if question.ai_grading_pass_threshold is not None
-                        else DEFAULT_AI_GRADING_PASS_THRESHOLD
-                    ),
-                    "ai_grading_confidence_threshold": float(
-                        question.ai_grading_confidence_threshold
-                        if question.ai_grading_confidence_threshold is not None
-                        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
-                    ),
                     "sort_order": question.sort_order,
                     "test_cases": test_cases,
                 }
@@ -1666,8 +1636,6 @@ def _sync_assignment_questions_to_bank(db: Session, teacher: User, assignment: A
             grading_mode=_normalize_grading_mode(question.grading_mode),
             ai_grading_rubric=question.ai_grading_rubric or "",
             ai_grading_focus=_normalize_ai_focus(question.ai_grading_focus_json),
-            ai_grading_pass_threshold=question.ai_grading_pass_threshold or DEFAULT_AI_GRADING_PASS_THRESHOLD,
-            ai_grading_confidence_threshold=question.ai_grading_confidence_threshold or DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD,
             test_cases=[
                 AssignmentTestCaseInput(
                     input_data=test_case.input_data or "",
@@ -1708,8 +1676,6 @@ def _upsert_question_bank_item(
         "grading_mode": _resolve_grading_mode(payload) if question_type == "programming" else "ai_review",
         "ai_grading_rubric": (payload.ai_grading_rubric or "").strip(),
         "ai_grading_focus_json": _normalize_ai_focus(payload.ai_grading_focus),
-        "ai_grading_pass_threshold": payload.ai_grading_pass_threshold,
-        "ai_grading_confidence_threshold": payload.ai_grading_confidence_threshold,
         "test_cases_json": [item.model_dump() if hasattr(item, "model_dump") else item for item in payload.test_cases],
         "knowledge_node_ids_json": [int(item) for item in payload.knowledge_node_ids if str(item).strip()],
         "difficulty": (payload.difficulty or "medium").strip(),
@@ -1789,8 +1755,6 @@ def _question_bank_item_response(row: QuestionBankItem, db: Session | None = Non
         grading_mode=_normalize_grading_mode(row.grading_mode),
         ai_grading_rubric=row.ai_grading_rubric or "",
         ai_grading_focus=_normalize_ai_focus(row.ai_grading_focus_json),
-        ai_grading_pass_threshold=row.ai_grading_pass_threshold or DEFAULT_AI_GRADING_PASS_THRESHOLD,
-        ai_grading_confidence_threshold=float(row.ai_grading_confidence_threshold or DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD),
         test_cases=[
             AssignmentTestCaseInput(**item)
             for item in (row.test_cases_json if isinstance(row.test_cases_json, list) else [])
@@ -1848,13 +1812,6 @@ def _normalize_ai_focus(value) -> list[str]:
     return [str(item).strip() for item in items if str(item).strip()]
 
 
-def _submission_requires_manual_review(submission: AssignmentSubmission) -> bool:
-    if submission.final_decision_source == "teacher_override":
-        return submission.status == "needs_manual_review"
-    ai_review = submission.ai_review_json if isinstance(submission.ai_review_json, dict) else {}
-    return submission.status == "needs_manual_review" or bool(ai_review.get("manual_review_required"))
-
-
 def _submission_to_response(
     submission: AssignmentSubmission,
     student_visible: bool = False,
@@ -1870,8 +1827,6 @@ def _submission_to_response(
         results_json=_student_visible_results(submission.results_json) if student_visible else submission.results_json,
         ai_review_json=submission.ai_review_json,
         decision_source=submission.final_decision_source,
-        manual_review_required=_submission_requires_manual_review(submission),
-        teacher_review_status=submission.teacher_review_status,
         teacher_review_note=submission.teacher_review_note,
         trust_label=submission.trust_label,
         trust_score=submission.trust_score,
@@ -1945,340 +1900,6 @@ def _resolve_submission_trust(status_value: str, duration_seconds: int | None, c
         label = "suspicious_" + "_".join(flags)
         return label, max(0.0, trust)
     return "normal", 1.0
-
-
-def _resolve_ai_review_diagnoses(
-    db: Session,
-    student: User,
-    assignment: Assignment,
-    question: AssignmentQuestion,
-    results: list[dict],
-    ai_review: dict | None,
-) -> dict | None:
-    if not isinstance(ai_review, dict):
-        return ai_review
-    diagnoses = ai_review.get("diagnoses")
-    if not isinstance(diagnoses, list) or not diagnoses:
-        return ai_review
-
-    resolved_diagnoses = []
-    context = _diagnosis_resolution_context(question, results)
-
-    for diagnosis in diagnoses:
-        if not isinstance(diagnosis, dict):
-            continue
-        resolved = dict(diagnosis)
-        resolution = resolve_diagnosis_to_graph(db, question, resolved, context)
-        resolved["graph_resolution"] = resolution
-        resolved_diagnoses.append(resolved)
-
-    ai_review["diagnoses"] = resolved_diagnoses
-    return ai_review
-
-
-def _tokenize_concept_name(name: str) -> set[str]:
-    """将知识点名称分词，用于倒排索引匹配。"""
-    tokens: set[str] = set()
-    name = name.strip().lower()
-    tokens.add(name)
-    for part in re.split(r"[\s,，、:：;；()（）\[\]{}<>\"'`/\\]+", name):
-        part = part.strip()
-        if len(part) >= 2:
-            tokens.add(part)
-    for i in range(len(name) - 1):
-        if name[i:i + 2].isalpha():
-            tokens.add(name[i:i + 2])
-    return tokens
-
-
-def _token_overlap_score(raw_name: str, candidate_name: str) -> float:
-    raw_tokens = _tokenize_concept_name(raw_name)
-    cand_tokens = _tokenize_concept_name(candidate_name)
-    if not raw_tokens or not cand_tokens:
-        return 0.0
-    intersection = raw_tokens & cand_tokens
-    return len(intersection) / min(len(raw_tokens), len(cand_tokens))
-
-
-def resolve_diagnosis_to_graph(
-    db: Session,
-    question: AssignmentQuestion,
-    diagnosis: dict,
-    context: dict,
-) -> dict:
-    diagnosis_confidence = _safe_float(diagnosis.get("confidence"), 0.0)
-    raw_name = str(diagnosis.get("knowledge_node") or "").strip()
-    low_confidence = diagnosis_confidence < DIAGNOSIS_CONFIDENCE_THRESHOLD
-    if not raw_name or raw_name.lower() == "unknown":
-        return {
-            "status": "unresolved",
-            "node_id": None,
-            "node_name": "",
-            "match_confidence": 0.0,
-            "match_type": "unknown",
-        }
-
-    exact = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == raw_name).first()
-    if exact and _graph_node_name_exists(raw_name):
-        return _matched_graph_resolution(exact, 1.0, "sql_exact")
-
-    graph_candidates, graph_available = _diagnosis_graph_candidates(question, diagnosis, context)
-    best_candidate = _best_diagnosis_graph_candidate(raw_name, graph_candidates, context)
-    token_best = _resolve_by_token_overlap(raw_name, graph_candidates)
-
-    merged_candidate = _pick_best_candidate(best_candidate, token_best)
-
-    if merged_candidate and merged_candidate["score"] >= GRAPH_MATCH_CONFIDENCE_THRESHOLD:
-        try:
-            node = _ensure_existing_graph_node_ref(db, merged_candidate["node_name"])
-            return _matched_graph_resolution(node, merged_candidate["score"], merged_candidate["match_type"])
-        except Exception:
-            return {
-                "status": "unresolved",
-                "node_id": None,
-                "node_name": "",
-                "match_confidence": merged_candidate["score"],
-                "match_type": "graph_candidate_not_confirmed",
-            }
-
-    if low_confidence:
-        partial = merged_candidate or best_candidate or token_best
-        return {
-            "status": "low_confidence_unmatched",
-            "node_id": None,
-            "node_name": raw_name,
-            "match_confidence": partial["score"] if partial else 0.0,
-            "match_type": (partial["match_type"] if partial else "diagnosis_confidence") + "_low_confidence",
-        }
-
-    if not graph_available:
-        return {
-            "status": "unresolved",
-            "node_id": None,
-            "node_name": "",
-            "match_confidence": 0.0,
-            "match_type": "neo4j_unavailable",
-        }
-    return {
-        "status": "unmatched",
-        "node_id": None,
-        "node_name": raw_name,
-        "match_confidence": merged_candidate["score"] if merged_candidate else best_candidate["score"] if best_candidate else 0.0,
-        "match_type": merged_candidate["match_type"] if merged_candidate else best_candidate["match_type"] if best_candidate else "no_candidate",
-    }
-
-
-def _resolve_by_token_overlap(raw_name: str, candidates: list[dict]) -> dict | None:
-    best: dict | None = None
-    for candidate in candidates:
-        node_name = str(candidate.get("node_name") or "").strip()
-        if not node_name:
-            continue
-        overlap = _token_overlap_score(raw_name, node_name)
-        if overlap > 0.5:
-            score = min(0.70 + overlap * 0.25, 0.95)
-            if best is None or score > best["score"]:
-                best = {"node_name": node_name, "score": score, "match_type": "token_overlap"}
-    return best
-
-
-def _pick_best_candidate(sequence_best: dict | None, token_best: dict | None) -> dict | None:
-    if sequence_best and token_best:
-        return sequence_best if sequence_best["score"] >= token_best["score"] else token_best
-    return sequence_best or token_best
-
-
-def _matched_graph_resolution(node: KnowledgeNode, confidence: float, match_type: str) -> dict:
-    return {
-        "status": "matched_existing",
-        "node_id": node.id,
-        "node_name": node.node_name,
-        "match_confidence": max(0.0, min(confidence, 1.0)),
-        "match_type": match_type,
-    }
-
-
-def _diagnosis_resolution_context(question: AssignmentQuestion, results: list[dict]) -> dict:
-    bound_names = [
-        relation.knowledge_node.node_name
-        for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
-        if relation.knowledge_node
-    ]
-    signal_concepts = []
-    signal_categories = []
-    for result in results or []:
-        if not isinstance(result, dict):
-            continue
-        signal = result.get("error_signal")
-        if not isinstance(signal, dict):
-            continue
-        if signal.get("category"):
-            signal_categories.append(str(signal["category"]))
-        concepts = signal.get("candidate_concepts")
-        if isinstance(concepts, list):
-            signal_concepts.extend(str(item).strip() for item in concepts if str(item).strip())
-    return {
-        "bound_names": list(dict.fromkeys(bound_names)),
-        "signal_concepts": list(dict.fromkeys(signal_concepts)),
-        "signal_categories": list(dict.fromkeys(signal_categories)),
-    }
-
-
-def _diagnosis_graph_candidates(
-    question: AssignmentQuestion,
-    diagnosis: dict,
-    context: dict,
-) -> tuple[list[dict], bool]:
-    terms = _diagnosis_search_terms(question, diagnosis, context)
-    bound_names = context.get("bound_names") or []
-    try:
-        driver = get_neo4j_driver()
-        with driver.session(database=settings.neo4j_db_name) as session:
-            rows = session.run(
-                """
-                MATCH (n:Knowledge)
-                WHERE any(term IN $terms WHERE
-                    toLower(n.name) CONTAINS term
-                    OR toLower(coalesce(n.desc, "")) CONTAINS term
-                )
-                RETURN DISTINCT n.name AS node_name,
-                                coalesce(n.desc, "") AS node_desc,
-                                "match" AS match_type
-                LIMIT 30
-                """,
-                terms=terms,
-            )
-            candidates = [
-                {
-                    "node_name": row["node_name"],
-                    "node_desc": row["node_desc"] or "",
-                    "match_type": row["match_type"],
-                }
-                for row in rows
-                if row.get("node_name")
-            ]
-            if bound_names:
-                neighbor_rows = session.run(
-                    """
-                    UNWIND $names AS node_name
-                    MATCH (:Knowledge {name: node_name})-[r]-(neighbor:Knowledge)
-                    RETURN DISTINCT neighbor.name AS node_name,
-                                    coalesce(neighbor.desc, "") AS node_desc,
-                                    "neighbor" AS match_type
-                    LIMIT 30
-                    """,
-                    names=bound_names,
-                )
-                seen_names = {item["node_name"] for item in candidates}
-                for row in neighbor_rows:
-                    node_name = row["node_name"]
-                    if node_name and node_name not in seen_names:
-                        seen_names.add(node_name)
-                        candidates.append(
-                            {
-                                "node_name": node_name,
-                                "node_desc": row["node_desc"] or "",
-                                "match_type": row["match_type"],
-                            }
-                        )
-        return candidates, True
-    except Exception:
-        return [], False
-
-
-def _diagnosis_search_terms(question: AssignmentQuestion, diagnosis: dict, context: dict) -> list[str]:
-    values = [
-        diagnosis.get("knowledge_node"),
-        diagnosis.get("category"),
-        diagnosis.get("reason"),
-        diagnosis.get("evidence"),
-        *(context.get("signal_concepts") or []),
-        *(context.get("bound_names") or []),
-    ]
-    terms: list[str] = []
-    for value in values:
-        text = str(value or "").strip().lower()
-        if not text:
-            continue
-        for part in re.split(r"[\s,，、:：;；()（）\[\]{}<>\"'`/\\]+", text):
-            part = part.strip()
-            if len(part) >= 2:
-                terms.append(part)
-        if len(text) >= 2:
-            terms.append(text)
-        for i in range(len(text) - 1):
-            if text[i].isalpha() and text[i + 1].isalpha():
-                terms.append(text[i:i + 2])
-    if not terms and question.prompt:
-        terms.extend(part for part in re.split(r"\s+", question.prompt.lower()) if len(part) >= 2)
-    return list(dict.fromkeys(terms))[:20]
-
-
-def _best_diagnosis_graph_candidate(raw_name: str, candidates: list[dict], context: dict) -> dict | None:
-    best = None
-    for candidate in candidates:
-        node_name = str(candidate.get("node_name") or "").strip()
-        if not node_name:
-            continue
-        score, match_type = _score_diagnosis_candidate(raw_name, candidate, context)
-        item = {"node_name": node_name, "score": score, "match_type": match_type}
-        if best is None or item["score"] > best["score"]:
-            best = item
-    return best
-
-
-def _score_diagnosis_candidate(raw_name: str, candidate: dict, context: dict) -> tuple[float, str]:
-    candidate_name = str(candidate.get("node_name") or "").strip()
-    candidate_desc = str(candidate.get("node_desc") or "").strip()
-    raw_norm = _normalize_concept_text(raw_name)
-    name_norm = _normalize_concept_text(candidate_name)
-    desc_norm = _normalize_concept_text(candidate_desc)
-    if raw_norm and raw_norm == name_norm:
-        return 1.0, "neo4j_exact"
-    if raw_norm and (raw_norm in name_norm or name_norm in raw_norm):
-        return 0.88, "name_contains"
-
-    score = SequenceMatcher(None, raw_norm, name_norm).ratio() if raw_norm and name_norm else 0.0
-    if raw_norm and desc_norm and raw_norm in desc_norm:
-        score = max(score, 0.72)
-    if candidate_name in (context.get("bound_names") or []):
-        score += 0.08
-    if candidate_name in (context.get("signal_concepts") or []):
-        score += 0.1
-    if candidate.get("match_type") == "neighbor":
-        score += 0.04
-    return min(score, 1.0), candidate.get("match_type") or "fuzzy"
-
-
-def _normalize_concept_text(value: str) -> str:
-    return re.sub(r"[\s,，、:：;；()（）\\[\\]{}<>\"'`]+", "", (value or "").strip().lower())
-
-
-def _ensure_existing_graph_node_ref(db: Session, node_name: str) -> KnowledgeNode:
-    if not _graph_node_name_exists(node_name):
-        raise ValueError(f"Knowledge graph node does not exist: {node_name}")
-    node = db.query(KnowledgeNode).filter(KnowledgeNode.node_name == node_name).first()
-    if node:
-        return node
-    node = KnowledgeNode(node_name=node_name)
-    db.add(node)
-    db.flush()
-    return node
-
-
-def _graph_node_name_exists(node_name: str) -> bool:
-    if not node_name:
-        return False
-    try:
-        driver = get_neo4j_driver()
-        with driver.session(database=settings.neo4j_db_name) as session:
-            row = session.run(
-                "MATCH (n:Knowledge {name: $name}) RETURN n.name AS name LIMIT 1",
-                name=node_name,
-            ).single()
-            return bool(row)
-    except Exception:
-        return False
 
 
 def _mark_wrong_submission_bound_nodes_weak(
@@ -2401,14 +2022,11 @@ def _run_ai_code_review(
         observe_only,
     )
     fallback = {
-        "decision": "needs_manual_review",
-        "score": 0,
-        "confidence": 0,
-        "summary": "AI 判题暂时不可用，建议教师人工复核。",
+        "decision": "ai_rejected",
+        "summary": "AI 判题失败，按未通过处理。",
         "issues": ["AI 判题调用失败或返回格式异常。"],
         "strengths": [],
         "diagnoses": [],
-        "manual_review_required": True,
     }
     try:
         response = client.chat.completions.create(
@@ -2419,8 +2037,7 @@ def _run_ai_code_review(
         content = response.choices[0].message.content or ""
         parsed = _parse_json_object(content)
         return _normalize_ai_review_payload(parsed)
-    except Exception as error:
-        fallback["summary"] = f"AI 判题失败：{error}"
+    except Exception:
         return fallback
 
 
@@ -2431,10 +2048,10 @@ def _run_ai_objective_review(assignment: Assignment, question: AssignmentQuestio
 
 要求：
 1. 只返回 JSON，不要解释。
-2. decision 只能是 accepted、ai_rejected、needs_manual_review。
-3. 选择题若学生选择与标准答案一致，应 accepted；若明显不一致，应 ai_rejected。
-4. 填空题允许语义等价、同义表达或合理格式差异；不确定时 needs_manual_review。
-5. 输出 score、confidence、summary、issues、strengths、diagnoses、manual_review_required。
+2. decision 只能是 accepted 或 ai_rejected。
+3. accepted 表示通过，ai_rejected 表示不通过。
+4. 不确定时也返回 ai_rejected。
+5. 输出 summary、issues、strengths、diagnoses 作为解释信息。
 
 作业：{assignment.title}
 题型：{_normalize_question_type(question.question_type)}
@@ -2453,13 +2070,10 @@ def _run_ai_objective_review(assignment: Assignment, question: AssignmentQuestio
 返回 JSON 格式：
 {{
   "decision": "accepted",
-  "score": 90,
-  "confidence": 0.92,
   "summary": "简要说明",
   "issues": [],
   "strengths": [],
-  "diagnoses": [],
-  "manual_review_required": false
+  "diagnoses": []
 }}
 """
     fallback = _local_objective_review(question, answer)
@@ -2480,14 +2094,11 @@ def _local_objective_review(question: AssignmentQuestion, answer) -> dict:
     expected_text = json.dumps(expected, ensure_ascii=False, sort_keys=True) if isinstance(expected, (list, dict)) else str(expected or "").strip()
     is_match = answer_text.lower().replace(" ", "") == expected_text.lower().replace(" ", "")
     return {
-        "decision": "accepted" if is_match else "needs_manual_review",
-        "score": 100 if is_match else 0,
-        "confidence": 0.9 if is_match else 0.2,
-        "summary": "答案与标准答案一致。" if is_match else "AI 判题暂时不可用，已转入人工复核。",
-        "issues": [] if is_match else ["无法完成语义判分。"],
+        "decision": "accepted" if is_match else "ai_rejected",
+        "summary": "答案与标准答案一致。" if is_match else "答案与标准答案不一致。",
+        "issues": [] if is_match else ["答案不匹配。"],
         "strengths": ["答案匹配。"] if is_match else [],
         "diagnoses": [],
-        "manual_review_required": not is_match,
     }
 
 
@@ -2497,14 +2108,11 @@ def _grade_multiple_choice_locally(question: AssignmentQuestion, answer) -> tupl
     accepted = _normalized_answer_text(normalized_answer) == _normalized_answer_text(expected)
     status_value = "accepted" if accepted else "wrong_answer"
     review = {
-        "decision": status_value,
-        "score": 100 if accepted else 0,
-        "confidence": 1.0,
+        "decision": "accepted" if accepted else "ai_rejected",
         "summary": "选择与标准答案一致。" if accepted else "选择与标准答案不一致。",
         "issues": [] if accepted else ["选择题答案错误。"],
         "strengths": ["答案匹配。"] if accepted else [],
         "diagnoses": [],
-        "manual_review_required": False,
     }
     results = [
         {
@@ -2535,39 +2143,6 @@ def _answer_is_empty(value) -> bool:
     return False
 
 
-def _enrich_prompt_with_graph_context(question: AssignmentQuestion) -> list[str]:
-    """查询题目绑定知识点及其1-hop邻居，构建可供LLM参考的知识点名称候选列表。"""
-    bound_names = [
-        relation.knowledge_node.node_name
-        for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
-        if relation.knowledge_node and relation.knowledge_node.node_name
-    ]
-    if not bound_names:
-        return []
-    seen = set(bound_names)
-    names = list(bound_names)
-    try:
-        driver = get_neo4j_driver()
-        with driver.session(database=settings.neo4j_db_name) as session:
-            rows = session.run(
-                """
-                UNWIND $names AS node_name
-                MATCH (n:Knowledge {name: node_name})-[r]-(neighbor:Knowledge)
-                RETURN DISTINCT neighbor.name AS name
-                LIMIT 40
-                """,
-                names=bound_names,
-            )
-            for row in rows:
-                name = row["name"]
-                if name and name not in seen:
-                    seen.add(name)
-                    names.append(name)
-    except Exception:
-        pass
-    return names
-
-
 def _build_ai_review_prompt(
     assignment: Assignment,
     question: AssignmentQuestion,
@@ -2587,7 +2162,6 @@ def _build_ai_review_prompt(
         for relation in sorted(question.knowledge_nodes, key=lambda item: (item.sort_order, item.id))
         if relation.knowledge_node
     ]
-    graph_candidate_names = _enrich_prompt_with_graph_context(question)
     strategy_text = (
         "轻审查：不要主动苛责命名、架构或微优化，只检查题意满足、明显逻辑错误、危险实现与较大风险。"
         if review_level == "light"
@@ -2595,31 +2169,20 @@ def _build_ai_review_prompt(
     )
     grading_mode_text = "观察运行 + AI 判题" if observe_only else "标准输出 + AI 复核" if enable_testcases else "仅 AI 判题"
 
-    graph_context_block = ""
-    if graph_candidate_names:
-        graph_context_block = f"""
-知识图谱可用知识点（请优先从以下列表中选择 diagnosis.knowledge_node，确保术语一致便于后续关联）：
-{json.dumps(graph_candidate_names, ensure_ascii=False)}
-"""
-
     return f"""
 你是一名严格但克制的 Java 编程作业评审助手。请根据教师给出的评分标准，对学生代码进行保守评审。
 
 要求：
 1. 只返回 JSON，不要输出任何解释性文字。
-2. decision 只能是 accepted、ai_rejected、needs_manual_review 三者之一。
-3. 只有在你高置信度确认实现合理时，才允许 decision=accepted。
+2. decision 只能是 accepted 或 ai_rejected。
+3. accepted 表示通过，ai_rejected 表示不通过。
 4. 未启用测试用例时，请主动从题意、边界、资源管理和潜在风险角度深入检查。
 5. 观察运行模式下，运行输出不是固定答案，请结合代码、输出证据和评分标准判断是否满足题意。
 6. 启用标准输出测试且当前为轻审查时，只指出明显问题，不要为了工程洁癖过度挑刺。
-7. score 为 0 到 100 的整数；confidence 为 0 到 1 的小数。
-8. issues 和 strengths 必须是字符串数组。
-9. manual_review_required 为布尔值。
-10. 必须额外输出 diagnoses 数组，用于诊断学生可能薄弱的知识点。
-11. diagnoses 必须优先依据编译错误、运行错误、测试失败证据。如果错误特征明确对应某个图谱知识点，请使用该知识点的确切名称。
-12. 如果是编译错误，优先诊断语法、类型、作用域、方法调用、API 使用、继承/接口等基础问题。
-13. 如果证据不足以匹配任何图谱知识点，diagnoses 的 knowledge_node 返回 "unknown"，并设置 manual_review_required=true。
-14. diagnoses 每项必须包含 stage、category、knowledge_node、confidence、evidence、reason、student_feedback。
+7. 不确定时返回 ai_rejected。
+8. 必须输出 summary、issues、strengths、diagnoses，作为给教师和学生查看的解释信息。
+9. diagnoses 用于描述学生可能薄弱的知识点，不参与系统薄弱点写入。
+10. diagnoses 每项包含 knowledge_node、stage、category、evidence、reason、student_feedback。
 
 作业标题：{assignment.title}
 题目标题：{question.title or "未命名题目"}
@@ -2640,7 +2203,6 @@ def _build_ai_review_prompt(
 
 题目绑定知识点：
 {json.dumps(bound_knowledge_nodes, ensure_ascii=False)}
-{graph_context_block}
 测试/编译结果摘要：
 {json.dumps(execution_results or [], ensure_ascii=False)}
 
@@ -2652,106 +2214,58 @@ def _build_ai_review_prompt(
 返回 JSON 格式：
 {{
   "decision": "accepted",
-  "score": 92,
-  "confidence": 0.93,
   "summary": "简要总结",
   "issues": ["问题1"],
   "strengths": ["优点1"],
   "diagnoses": [
     {{
+      "knowledge_node": "Runnable接口",
       "stage": "compile",
       "category": "api_misuse",
-      "knowledge_node": "Runnable接口",
-      "confidence": 0.86,
       "evidence": "cannot find symbol: method start()",
       "reason": "学生把 Runnable 当作 Thread 使用。",
       "student_feedback": "Runnable 表示任务，不能直接 start，需要交给 Thread 执行。"
     }}
-  ],
-  "manual_review_required": false
+  ]
 }}
 """
 
 
 def _normalize_ai_review_payload(data: dict) -> dict:
-    decision = str(data.get("decision") or "needs_manual_review").strip()
-    if decision not in {"accepted", "ai_rejected", "needs_manual_review"}:
-        decision = "needs_manual_review"
+    decision = str(data.get("decision") or "ai_rejected").strip()
+    if decision not in {"accepted", "ai_rejected"}:
+        decision = "ai_rejected"
     issues = data.get("issues")
     strengths = data.get("strengths")
     diagnoses = data.get("diagnoses")
-    score = _safe_int(data.get("score"), 0)
-    confidence = _safe_float(data.get("confidence"), 0.0)
-    summary = str(data.get("summary") or "AI 未返回有效总结。").strip()
-    manual_review_required = bool(data.get("manual_review_required", decision != "accepted"))
-    score = max(0, min(score, 100))
-    confidence = max(0.0, min(confidence, 1.0))
-    normalized = {
+    summary = str(data.get("summary") or ("AI 判定通过。" if decision == "accepted" else "AI 判定未通过。")).strip()
+    return {
         "decision": decision,
-        "score": score,
-        "confidence": confidence,
         "summary": summary,
         "issues": [str(item).strip() for item in (issues if isinstance(issues, list) else []) if str(item).strip()],
         "strengths": [str(item).strip() for item in (strengths if isinstance(strengths, list) else []) if str(item).strip()],
         "diagnoses": _normalize_ai_diagnoses(diagnoses),
-        "manual_review_required": manual_review_required,
     }
-    if not normalized["issues"] and decision != "accepted":
-        normalized["issues"] = ["AI 无法高置信度确认该实现满足要求。"]
-    return normalized
 
 
 def _normalize_ai_diagnoses(diagnoses) -> list[dict]:
     if not isinstance(diagnoses, list):
         return []
-
     normalized = []
     for item in diagnoses:
         if not isinstance(item, dict):
             continue
-        knowledge_node = str(item.get("knowledge_node") or "unknown").strip() or "unknown"
         diagnosis = {
+            "knowledge_node": str(item.get("knowledge_node") or "unknown").strip() or "unknown",
             "stage": str(item.get("stage") or "").strip(),
             "category": str(item.get("category") or "").strip(),
-            "knowledge_node": knowledge_node,
-            "confidence": max(0.0, min(_safe_float(item.get("confidence"), 0.0), 1.0)),
             "evidence": str(item.get("evidence") or "").strip(),
             "reason": str(item.get("reason") or "").strip(),
             "student_feedback": str(item.get("student_feedback") or "").strip(),
-            "graph_resolution": _normalize_graph_resolution(item.get("graph_resolution")),
         }
-        if diagnosis["stage"] and diagnosis["category"] and diagnosis["knowledge_node"]:
+        if diagnosis["knowledge_node"] or diagnosis["reason"] or diagnosis["student_feedback"]:
             normalized.append(diagnosis)
     return normalized
-
-
-def _normalize_graph_resolution(value) -> dict:
-    if not isinstance(value, dict):
-        return {}
-    status_value = str(value.get("status") or "").strip()
-    if status_value not in {"matched_existing", "unmatched", "unresolved", "skipped_low_confidence", "low_confidence_unmatched"}:
-        status_value = "unresolved"
-    return {
-        "status": status_value,
-        "node_id": _safe_int(value.get("node_id"), 0) or None,
-        "node_name": str(value.get("node_name") or "").strip(),
-        "match_confidence": max(0.0, min(_safe_float(value.get("match_confidence"), 0.0), 1.0)),
-        "match_type": str(value.get("match_type") or "").strip(),
-    }
-
-
-def _safe_int(value, default: int = 0) -> int:
-    try:
-        return int(value if value is not None else default)
-    except (TypeError, ValueError):
-        return default
-
-
-def _safe_float(value, default: float = 0.0) -> float:
-    try:
-        return float(value if value is not None else default)
-    except (TypeError, ValueError):
-        return default
 
 
 def _infer_focus_from_prompt(prompt: str) -> list[str]:
@@ -2784,84 +2298,20 @@ def _merge_focus(auto_focus: list[str], teacher_focus: list[str]) -> list[str]:
 
 def _resolve_ai_only_status(question: AssignmentQuestion, ai_review: dict) -> str:
     if not isinstance(ai_review, dict):
-        return "needs_manual_review"
-    score = int(ai_review.get("score", 0) or 0)
-    confidence = float(ai_review.get("confidence", 0) or 0)
-    decision = ai_review.get("decision")
-    manual_review_required = bool(ai_review.get("manual_review_required"))
-    pass_threshold = int(
-        question.ai_grading_pass_threshold
-        if question.ai_grading_pass_threshold is not None
-        else DEFAULT_AI_GRADING_PASS_THRESHOLD
-    )
-    confidence_threshold = float(
-        question.ai_grading_confidence_threshold
-        if question.ai_grading_confidence_threshold is not None
-        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
-    )
-    if (
-        decision == "accepted"
-        and score >= pass_threshold
-        and confidence >= confidence_threshold
-        and not manual_review_required
-    ):
-        return "accepted"
-    if decision == "ai_rejected" and not manual_review_required:
         return "ai_rejected"
-    return "needs_manual_review"
+    return "accepted" if ai_review.get("decision") == "accepted" else "ai_rejected"
 
 
 def _resolve_hybrid_status(question: AssignmentQuestion, ai_review: dict) -> str:
     if not isinstance(ai_review, dict):
-        return "needs_manual_review"
-    score = int(ai_review.get("score", 0) or 0)
-    confidence = float(ai_review.get("confidence", 0) or 0)
-    decision = ai_review.get("decision")
-    manual_review_required = bool(ai_review.get("manual_review_required"))
-    pass_threshold = int(
-        question.ai_grading_pass_threshold
-        if question.ai_grading_pass_threshold is not None
-        else DEFAULT_AI_GRADING_PASS_THRESHOLD
-    )
-    confidence_threshold = float(
-        question.ai_grading_confidence_threshold
-        if question.ai_grading_confidence_threshold is not None
-        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
-    )
-    if (
-        decision == "accepted"
-        and score >= pass_threshold
-        and confidence >= confidence_threshold
-        and not manual_review_required
-    ):
-        return "accepted"
-    if decision == "ai_rejected" and not manual_review_required:
         return "ai_rejected"
-    return "needs_manual_review"
+    return "accepted" if ai_review.get("decision") == "accepted" else "ai_rejected"
 
 
 def _resolve_ai_with_testcases_status(question: AssignmentQuestion, ai_review: dict) -> str:
     if not isinstance(ai_review, dict):
         return "accepted"
-    score = int(ai_review.get("score", 0) or 0)
-    confidence = float(ai_review.get("confidence", 0) or 0)
-    decision = ai_review.get("decision")
-    manual_review_required = bool(ai_review.get("manual_review_required"))
-    pass_threshold = int(
-        question.ai_grading_pass_threshold
-        if question.ai_grading_pass_threshold is not None
-        else DEFAULT_AI_GRADING_PASS_THRESHOLD
-    )
-    confidence_threshold = float(
-        question.ai_grading_confidence_threshold
-        if question.ai_grading_confidence_threshold is not None
-        else DEFAULT_AI_GRADING_CONFIDENCE_THRESHOLD
-    )
-    if decision == "ai_rejected" and not manual_review_required:
-        return "ai_rejected"
-    if decision == "accepted" and score >= max(60, pass_threshold - 10) and confidence >= max(0.6, confidence_threshold - 0.2):
-        return "accepted"
-    return "needs_manual_review" if manual_review_required else "accepted"
+    return "accepted" if ai_review.get("decision") == "accepted" else "ai_rejected"
 
 
 def _parse_json_array(content: str) -> list:

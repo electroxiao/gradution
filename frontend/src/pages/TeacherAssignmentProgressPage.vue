@@ -220,55 +220,48 @@
 
                 <section class="detail-section">
                   <div class="review-head">
-                    <h4>AI 评审</h4>
+                    <h4>AI 判定</h4>
                     <span class="decision-pill">{{ decisionSourceText(selectedSubmission.decision_source) }}</span>
                   </div>
                   <template v-if="selectedSubmission.ai_review_json">
-                    <p class="review-summary">{{ selectedSubmission.ai_review_json.summary || "AI 未返回总结。" }}</p>
-                    <dl class="meta-grid">
+                    <dl class="meta-grid compact-meta">
                       <div>
-                        <dt>AI 决策</dt>
+                        <dt>判定结果</dt>
                         <dd>{{ statusText(selectedSubmission.ai_review_json.decision || selectedSubmission.status) }}</dd>
                       </div>
-                      <div>
-                        <dt>评分</dt>
-                        <dd>{{ selectedSubmission.ai_review_json.score ?? "--" }}</dd>
-                      </div>
-                      <div>
-                        <dt>置信度</dt>
-                        <dd>{{ formatConfidence(selectedSubmission.ai_review_json.confidence) }}</dd>
-                      </div>
-                      <div>
-                        <dt>人工复核</dt>
-                        <dd>{{ selectedSubmission.manual_review_required ? "需要" : "无需" }}</dd>
-                      </div>
                     </dl>
+                    <p class="review-summary">{{ selectedSubmission.ai_review_json.summary || "AI 未返回总结。" }}</p>
                     <div v-if="selectedSubmission.ai_review_json.issues?.length" class="review-list">
                       <strong>风险点</strong>
                       <ul>
                         <li v-for="(item, index) in selectedSubmission.ai_review_json.issues" :key="`issue-${index}`">{{ item }}</li>
                       </ul>
                     </div>
+                    <div v-if="selectedSubmission.ai_review_json.strengths?.length" class="review-list">
+                      <strong>实现优点</strong>
+                      <ul>
+                        <li v-for="(item, index) in selectedSubmission.ai_review_json.strengths" :key="`strength-${index}`">{{ item }}</li>
+                      </ul>
+                    </div>
+                    <div v-if="selectedSubmission.ai_review_json.diagnoses?.length" class="review-list diagnosis-list">
+                      <strong>AI 诊断</strong>
+                      <article v-for="(item, index) in selectedSubmission.ai_review_json.diagnoses" :key="`diagnosis-${index}`" class="diagnosis-item">
+                        <div class="diagnosis-head">
+                          <span>{{ item.knowledge_node || "unknown" }}</span>
+                          <small>{{ [item.stage, item.category].filter(Boolean).join(" / ") }}</small>
+                        </div>
+                        <p v-if="item.student_feedback">{{ item.student_feedback }}</p>
+                        <p v-else-if="item.reason">{{ item.reason }}</p>
+                        <small v-if="item.evidence">证据：{{ item.evidence }}</small>
+                      </article>
+                    </div>
                   </template>
-                  <p v-else class="section-empty">暂无 AI 评审。</p>
-                </section>
-
-                <section class="detail-section">
-                  <h4>实现优点</h4>
-                  <div v-if="selectedSubmission.ai_review_json?.strengths?.length" class="review-list">
-                    <ul>
-                      <li v-for="(item, index) in selectedSubmission.ai_review_json.strengths" :key="`strength-${index}`">{{ item }}</li>
-                    </ul>
-                  </div>
-                  <p v-else class="section-empty">暂无实现优点记录。</p>
+                  <p v-else class="section-empty">暂无 AI 判定。</p>
                 </section>
 
                 <section class="detail-section teacher-review-section">
                   <div class="review-head">
-                    <h4>教师复核</h4>
-                    <span v-if="selectedSubmission.teacher_review_status" class="decision-pill secondary">
-                      {{ teacherReviewText(selectedSubmission.teacher_review_status) }}
-                    </span>
+                    <h4>教师改判</h4>
                   </div>
                   <p class="muted" v-if="selectedSubmission.reviewed_by_username">
                     最近由 {{ selectedSubmission.reviewed_by_username }} 于 {{ formatDateTime(selectedSubmission.reviewed_at) }} 复核
@@ -285,9 +278,6 @@
             <div class="review-actions">
               <button type="button" class="review-button reject" :disabled="reviewing" @click="submitReview('ai_rejected')">
                 标记未通过
-              </button>
-              <button type="button" class="review-button pending" :disabled="reviewing" @click="submitReview('needs_manual_review')">
-                保持待复核
               </button>
               <button type="button" class="review-button accept" :disabled="reviewing" @click="submitReview('accepted')">
                 标记通过
@@ -537,7 +527,6 @@ function statusText(status) {
     runtime_error: "运行错误",
     timeout: "超时",
     sandbox_error: "沙箱错误",
-    needs_manual_review: "待人工复核",
     ai_rejected: "AI 判定未通过",
   }[status] || status;
 }
@@ -545,7 +534,7 @@ function statusText(status) {
 function decisionSourceText(value) {
   return {
     testcase: "测试用例结果",
-    ai_review: "AI 评审结果",
+    ai_review: "AI 判定结果",
     hybrid: "混合判题结果",
     ai_with_testcases: "AI + 测试用例",
     observed_ai: "观察运行 + AI",
@@ -554,14 +543,6 @@ function decisionSourceText(value) {
     local_multiple_choice: "本地选择题判分",
     teacher_override: "教师改判",
   }[value] || "系统判定";
-}
-
-function teacherReviewText(value) {
-  return {
-    pending: "待处理",
-    approved: "教师通过",
-    rejected: "教师驳回",
-  }[value] || value;
 }
 
 function formatDateTime(value) {
@@ -586,12 +567,6 @@ function formatDuration(value) {
   const minutes = Math.floor(value / 60);
   const seconds = value % 60;
   return minutes ? `${minutes}m ${seconds}s` : `${seconds}s`;
-}
-
-function formatConfidence(value) {
-  const number = Number(value);
-  if (Number.isNaN(number)) return "--";
-  return `${Math.round(number * 100)}%`;
 }
 
 function setPage(page) {
@@ -1215,11 +1190,6 @@ function handleApiError(error, fallbackMessage) {
   color: #b42318;
 }
 
-.status-pill.needs_manual_review {
-  background: #fff4d8;
-  color: #9a6700;
-}
-
 .detail-body,
 .detail-section,
 .review-list {
@@ -1269,6 +1239,10 @@ function handleApiError(error, fallbackMessage) {
   font-weight: 500;
 }
 
+.compact-meta {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .detail-section h4 {
   margin: 0;
   color: #10283d;
@@ -1293,6 +1267,39 @@ function handleApiError(error, fallbackMessage) {
   margin: 0;
   padding-left: 18px;
   color: #475467;
+}
+
+.diagnosis-list {
+  display: grid;
+  gap: 10px;
+}
+
+.diagnosis-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #d8e2ee;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.diagnosis-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.diagnosis-head span {
+  color: #10283d;
+}
+
+.diagnosis-head small,
+.diagnosis-item p,
+.diagnosis-item small {
+  margin: 0;
+  color: #526071;
+  font-size: 13px;
 }
 
 .section-empty {
@@ -1466,12 +1473,6 @@ button:disabled {
   border-color: #f3b8b8;
   background: #fff2f2;
   color: #b42318;
-}
-
-.review-button.pending {
-  border-color: #d8dee8;
-  background: #f5f7fa;
-  color: #475467;
 }
 
 .review-button.accept {
