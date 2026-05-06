@@ -69,12 +69,12 @@
         <section class="panel learning-card">
           <div class="learning-card-head">
             <div>
-              <h2>从图谱继续问</h2>
+              <h2>继续问</h2>
             </div>
           </div>
           <div class="learning-card-body">
             <div class="learning-copy">
-              <p>遇到概念不清、代码报错或输出不对时，把现象发给知识图谱助教。</p>
+              <p>遇到概念不清、代码报错或输出不对时，把问题发给知识图谱助教。</p>
               <router-link class="app-button" to="/chat">开始提问</router-link>
             </div>
             <div class="learning-visual" aria-hidden="true">

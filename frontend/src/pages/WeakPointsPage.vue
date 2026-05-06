@@ -29,7 +29,7 @@
         </div>
         <div class="graph-container">
           <div v-if="isGraphLoading" class="graph-state">图谱加载中...</div>
-          <div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱节点，请先在聊天页面提问以记录薄弱点。</div>
+          <div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱节点，请先完成作业或在聊天页面提问以记录薄弱点。</div>
           <KnowledgeGraphCanvas
             v-else
             ref="graphCanvas"
@@ -160,14 +160,12 @@
         @click="selectWeakPoint(item)"
       >
         <div class="weak-card-top">
-          <span class="weak-badge">核心薄弱点</span>
+          <span class="weak-badge">薄弱点</span>
           <span class="weak-time">最近出现 {{ formatDate(item.last_seen_at) }}</span>
         </div>
         <h2>{{ item.node_name }}</h2>
-        <p class="weak-caption">建议优先围绕这个知识点复盘概念定义、典型错误和与题目的关系。</p>
         <div class="weak-card-bottom">
           <span class="weak-first-seen">首次记录 {{ formatDate(item.first_seen_at) }}</span>
-          <span class="weak-status-hint">完成推荐学习后自动归档</span>
         </div>
       </article>
     </section>
