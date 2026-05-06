@@ -160,7 +160,7 @@ function handleApiError(error, fallbackMessage) {
   gap: 6px;
   padding: 10px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #ffffff;
   text-align: left;
   cursor: pointer;
@@ -235,7 +235,7 @@ function handleApiError(error, fallbackMessage) {
 .feedback.error,
 .empty {
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #ffffff;
   color: var(--app-text-muted);
 }

@@ -303,7 +303,7 @@ function handleApiError(error, fallbackMessage, target) {
 .weak-list article,
 .empty-state {
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid #e6eef7;
   background: #ffffff;
 }
@@ -456,7 +456,7 @@ function handleApiError(error, fallbackMessage, target) {
   display: grid;
   gap: 10px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: linear-gradient(180deg, rgba(238, 244, 255, 0.92) 0%, rgba(255, 255, 255, 0.92) 100%);
   box-shadow: 0 18px 42px rgba(47, 103, 246, 0.08);
 }

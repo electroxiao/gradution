@@ -270,7 +270,7 @@ function handleApiError(error, fallbackMessage) {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
 }
 

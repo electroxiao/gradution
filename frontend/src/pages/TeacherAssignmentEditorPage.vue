@@ -2096,7 +2096,7 @@ textarea {
   align-items: stretch;
   min-height: 40px;
   border: 1px solid #d9e3f2;
-  border-radius: 10px;
+  border-radius: 6px;
   background: #fff;
   overflow: hidden;
 }

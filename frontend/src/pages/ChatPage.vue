@@ -535,7 +535,7 @@ async function scrollToBottom() {
   padding: 11px 14px;
   width: fit-content;
   max-width: 80%;
-  border-radius: 20px;
+  border-radius: 10px;
   background: var(--app-primary);
   color: #ffffff;
   text-align: left;
@@ -544,7 +544,7 @@ async function scrollToBottom() {
 
 .system-body {
   padding: 11px 14px;
-  border-radius: 20px;
+  border-radius: 10px;
   background: #ffffff;
   color: #5b6880;
   border: 1px solid var(--app-line);
@@ -619,7 +619,7 @@ async function scrollToBottom() {
   gap: 10px;
   padding: 11px 14px;
   border: 1px solid var(--app-line);
-  border-radius: 26px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: var(--app-shadow-strong);
   pointer-events: auto;

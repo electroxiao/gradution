@@ -103,7 +103,7 @@ const relations = computed(() => {
 .path-card {
   margin-top: 14px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #eff8ff 0%, #f8fafc 100%);
   border: 1px solid #d6e7f7;
 }
@@ -127,7 +127,7 @@ const relations = computed(() => {
   min-width: 96px;
   max-width: 220px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #ffffff;
   border: 1px solid #d8e4ef;
   box-shadow: 0 6px 14px rgba(18, 50, 74, 0.08);

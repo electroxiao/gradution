@@ -156,7 +156,7 @@ function handleApiError(error, fallbackMessage) {
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--app-primary-soft);
   color: #4368af;
   font-size: 13px;

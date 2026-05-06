@@ -510,7 +510,7 @@ function handleApiError(error, fallbackMessage) {
 .shell-card,
 .feedback {
   border: 1px solid var(--app-line);
-  border-radius: 24px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: var(--app-shadow);
 }
@@ -544,7 +544,7 @@ function handleApiError(error, fallbackMessage) {
   min-height: var(--compact-control-height);
   padding: 0 12px;
   border: 1px solid var(--app-line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff;
   color: #31445f;
   text-decoration: none;
@@ -607,7 +607,7 @@ function handleApiError(error, fallbackMessage) {
 .empty-state {
   padding: 10px;
   border: 1px solid #e3edf7;
-  border-radius: 16px;
+  border-radius: 10px;
   background: #ffffff;
   color: #6f8297;
   font-size: 13px;
@@ -616,7 +616,7 @@ function handleApiError(error, fallbackMessage) {
 .matrix-scroll {
   overflow: auto;
   border: 1px solid var(--app-line);
-  border-radius: 18px;
+  border-radius: 10px;
   background: #ffffff;
 }
 
@@ -751,7 +751,7 @@ function handleApiError(error, fallbackMessage) {
 
 .close-button {
   min-height: 32px;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .submission-timeline {
@@ -765,7 +765,7 @@ function handleApiError(error, fallbackMessage) {
   justify-items: start;
   gap: 3px;
   min-height: 50px;
-  border-radius: 12px;
+  border-radius: 8px;
   text-align: left;
 }
 
@@ -835,7 +835,7 @@ function handleApiError(error, fallbackMessage) {
 
 .meta-grid div {
   padding: 9px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: rgba(239, 246, 255, 0.72);
   border: 1px solid #deebf7;
 }
@@ -904,7 +904,7 @@ textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #d7e5f3;
-  border-radius: 14px;
+  border-radius: 8px;
   resize: vertical;
 }
 
@@ -915,7 +915,7 @@ button {
   min-height: var(--compact-control-height);
   padding: 0 12px;
   border: 1px solid #d4e4f2;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff;
   color: #18344f;
   cursor: pointer;
@@ -930,7 +930,7 @@ pre {
   overflow: auto;
   margin: 6px 0 10px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #10283d;
   color: #fff;
 }
@@ -941,7 +941,7 @@ pre {
 
 .result-card {
   padding: 9px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #ffffff;
   border: 1px solid #e5eef7;
 }

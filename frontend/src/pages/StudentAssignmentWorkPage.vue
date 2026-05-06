@@ -884,7 +884,7 @@ function handleApiError(error, fallbackMessage) {
   margin-bottom: 10px;
   padding: 0 12px;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 8px;
   color: #31445f;
   text-decoration: none;
 }
@@ -936,7 +936,7 @@ button,
   min-height: var(--compact-control-height);
   padding: 0 11px;
   border: 1px solid var(--app-line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff;
   color: #31445f;
   cursor: pointer;
@@ -987,7 +987,7 @@ button:disabled {
 .ai-state,
 .ai-error {
   padding: 9px 10px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #ffffff;
 }
 
@@ -995,7 +995,7 @@ pre {
   overflow: auto;
   margin: 6px 0 10px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #15263b;
   color: #fff;
 }
@@ -1227,7 +1227,7 @@ pre {
   gap: 10px;
   margin-top: 10px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #ffffff;
 }
 
@@ -1245,7 +1245,7 @@ pre {
   margin-bottom: 10px;
   padding: 9px 10px;
   border: 1px solid #f04438;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff1f0;
   color: #912018;
   box-shadow: 0 8px 20px rgba(180, 35, 24, 0.12);
@@ -1292,7 +1292,7 @@ pre {
 
 .review-metrics div {
   padding: 9px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff;
 }
 
@@ -1332,7 +1332,7 @@ pre {
   gap: 5px;
   padding: 9px;
   border: 1px solid #d8e2ee;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
 }
 
@@ -1423,7 +1423,7 @@ pre {
   margin: 12px;
   padding: 10px 12px;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
 }
 
@@ -1448,7 +1448,7 @@ textarea {
   min-height: 92px;
   padding: 10px;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 8px;
   resize: none;
   font: inherit;
 }

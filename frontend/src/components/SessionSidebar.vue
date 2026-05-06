@@ -157,7 +157,7 @@ function confirmDelete() {
   place-items: center;
   width: 36px;
   height: 36px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #2f67f6 0%, #7ca7ff 100%);
   color: #fff;
   font-weight: 700;
@@ -176,7 +176,7 @@ function confirmDelete() {
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--app-line);
-  border-radius: 16px;
+  border-radius: 10px;
   background: #ffffff;
   color: var(--app-primary);
   cursor: pointer;
@@ -214,7 +214,7 @@ function confirmDelete() {
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .session-row.active {
@@ -226,7 +226,7 @@ function confirmDelete() {
   flex: 1;
   padding: 10px 34px 10px 12px;
   border: none;
-  border-radius: 16px;
+  border-radius: 10px;
   background: transparent;
   text-align: left;
   color: #31445f;
@@ -248,7 +248,7 @@ function confirmDelete() {
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 10px;
+  border-radius: 6px;
   background: #ffffff;
   color: var(--app-text-muted);
   cursor: pointer;
@@ -262,7 +262,7 @@ function confirmDelete() {
   min-width: 108px;
   padding: 6px;
   border: 1px solid var(--app-line);
-  border-radius: 18px;
+  border-radius: 10px;
   background: #ffffff;
   box-shadow: var(--app-shadow-strong);
 }
@@ -271,7 +271,7 @@ function confirmDelete() {
   width: 100%;
   padding: 8px 10px;
   border: none;
-  border-radius: 10px;
+  border-radius: 6px;
   background: transparent;
   text-align: left;
   color: #243b53;
@@ -298,7 +298,7 @@ function confirmDelete() {
 .dialog-card {
   width: min(92vw, 340px);
   padding: 18px;
-  border-radius: 24px;
+  border-radius: 12px;
   background: #fff;
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
 }
@@ -319,7 +319,7 @@ function confirmDelete() {
   margin-bottom: 16px;
   padding: 10px 12px;
   border: 1px solid #d9e2ec;
-  border-radius: 14px;
+  border-radius: 8px;
 }
 
 .dialog-actions {
@@ -333,7 +333,7 @@ function confirmDelete() {
 .danger-btn {
   padding: 8px 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
 }
 

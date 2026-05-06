@@ -607,7 +607,7 @@ function handleApiError(error, fallbackMessage) {
   position: relative;
   min-height: 500px;
   border: 1px solid var(--app-line);
-  border-radius: 26px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: var(--app-shadow);
   overflow: hidden;
@@ -616,7 +616,7 @@ function handleApiError(error, fallbackMessage) {
 .graph-container :deep(.graph-canvas) {
   height: 500px;
   min-height: 500px;
-  border-radius: 26px;
+  border-radius: 12px;
 }
 
 .graph-state {
@@ -627,7 +627,7 @@ function handleApiError(error, fallbackMessage) {
   color: #6f8297;
   font-size: 14px;
   background: rgba(255, 255, 255, 0.88);
-  border-radius: 26px;
+  border-radius: 12px;
   z-index: 2;
 }
 
@@ -682,7 +682,7 @@ function handleApiError(error, fallbackMessage) {
 .recommendation-tip {
   margin: -4px 0 0;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #f3f8ff;
   color: #49657f;
   line-height: 1.45;
@@ -819,7 +819,7 @@ function handleApiError(error, fallbackMessage) {
 .primary-btn,
 .secondary-btn {
   padding: 8px 14px;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: var(--compact-body);
   cursor: pointer;
   transition: all 0.2s;
@@ -878,7 +878,7 @@ function handleApiError(error, fallbackMessage) {
 
 .quiz-question {
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #f8fafc;
   position: relative;
 }
@@ -900,7 +900,7 @@ function handleApiError(error, fallbackMessage) {
   width: 100%;
   padding: 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 14px;
   resize: vertical;
   min-height: 80px;
@@ -952,7 +952,7 @@ function handleApiError(error, fallbackMessage) {
 
 .result-feedback {
   padding: 16px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #f8fafc;
   text-align: left;
   margin-bottom: 16px;

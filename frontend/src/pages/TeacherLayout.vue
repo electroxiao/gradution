@@ -96,6 +96,10 @@ function scheduleGraphPreload() {
   --sidebar-width: 190px;
   --sidebar-collapsed-width: 54px;
   --sidebar-current-width: var(--sidebar-width);
+  --app-radius-xl: 12px;
+  --app-radius-lg: 10px;
+  --app-radius-md: 8px;
+  --app-radius-sm: 6px;
   display: grid;
   grid-template-columns: var(--sidebar-current-width) minmax(0, 1fr);
   min-height: 100vh;
@@ -170,7 +174,7 @@ function scheduleGraphPreload() {
   align-items: center;
   gap: 10px;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: 8px;
   text-decoration: none;
   color: #31445f;
 }
@@ -191,7 +195,7 @@ function scheduleGraphPreload() {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #ffffff;
   border: 1px solid var(--app-line);
   color: #4a658a;
@@ -215,7 +219,7 @@ function scheduleGraphPreload() {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #ffffff;
   color: #31445f;
   cursor: pointer;

@@ -282,7 +282,7 @@ function handleApiError(error, fallbackMessage) {
   justify-content: center;
   min-height: var(--compact-control-height);
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: 6px;
   text-decoration: none;
   white-space: nowrap;
   font-size: var(--compact-body);
@@ -397,7 +397,7 @@ function handleApiError(error, fallbackMessage) {
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid var(--app-line);
-  border-radius: 10px;
+  border-radius: 6px;
   background: #fff;
   color: #31445f;
   font: inherit;
@@ -486,7 +486,7 @@ function handleApiError(error, fallbackMessage) {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--app-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff;
 }
 
@@ -586,7 +586,7 @@ function handleApiError(error, fallbackMessage) {
 .dialog-card {
   width: min(92vw, 380px);
   padding: 18px;
-  border-radius: 24px;
+  border-radius: 12px;
   background: #fff;
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
 }
@@ -613,7 +613,7 @@ function handleApiError(error, fallbackMessage) {
   min-height: 34px;
   padding: 0 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -680,7 +680,7 @@ function handleApiError(error, fallbackMessage) {
 .empty-filter {
   padding: 38px;
   border: 1px dashed #d9e2ed;
-  border-radius: 16px;
+  border-radius: 10px;
   color: var(--app-text-muted);
   text-align: center;
 }

@@ -765,7 +765,7 @@ function handleApiError(error, fallbackMessage) {
   flex-wrap: wrap;
   padding: 10px;
   border: 1px solid var(--app-line);
-  border-radius: 18px;
+  border-radius: 10px;
   background: #ffffff;
   box-shadow: var(--app-shadow);
 }
@@ -786,7 +786,7 @@ function handleApiError(error, fallbackMessage) {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--app-line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff;
   font: inherit;
 }
@@ -799,7 +799,7 @@ function handleApiError(error, fallbackMessage) {
   min-width: 140px;
   padding: 10px 12px;
   border: 1px solid var(--app-line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fff;
   color: #214666;
   font: inherit;
@@ -823,7 +823,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 8px;
   overflow-y: auto;
   border: 1px solid #dce8f5;
-  border-radius: 18px;
+  border-radius: 10px;
   background: #ffffff;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
 }
@@ -866,12 +866,12 @@ function handleApiError(error, fallbackMessage) {
 
 .edge-quick-actions .ghost {
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 button {
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 9px 13px;
   background: #10283d;
   color: #fff;
@@ -906,7 +906,7 @@ button:disabled {
 
 .graph-panel {
   border: 1px solid #e2ebf4;
-  border-radius: 26px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
   position: relative;
@@ -955,7 +955,7 @@ button:disabled {
   color: #6f8297;
   font-size: var(--compact-body);
   background: rgba(255, 255, 255, 0.88);
-  border-radius: 20px;
+  border-radius: 10px;
   z-index: 2;
 }
 
@@ -968,7 +968,7 @@ button:disabled {
 .panel-card {
   min-height: 0;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: #ffffff;
   border: 1px solid #ebf1f7;
   display: grid;
@@ -1102,7 +1102,7 @@ button:disabled {
 
 .feedback.error {
   padding: 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #fff8f8;
   color: #b42318;
 }
@@ -1110,7 +1110,7 @@ button:disabled {
 .modal-feedback {
   margin: 0 0 16px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: 8px;
   background: #eef6ff;
   color: #1f4f7b;
   line-height: 1.6;
@@ -1133,7 +1133,7 @@ button:disabled {
   max-width: 420px;
   background: #ffffff;
   padding: 18px;
-  border-radius: 18px;
+  border-radius: 10px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
 }
 

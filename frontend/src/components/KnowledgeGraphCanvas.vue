@@ -146,7 +146,7 @@ defineExpose({ fitGraph, focusNodes, restartLayout });
   width: 100%;
   height: 680px;
   min-height: 680px;
-  border-radius: 18px;
+  border-radius: 10px;
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
   overflow: hidden;
   user-select: none;

@@ -66,7 +66,7 @@ function escapeHtml(text) {
   margin: 12px 0;
   padding: 14px;
   overflow: auto;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #0f172a;
   color: #e2e8f0;
 }
