@@ -471,7 +471,8 @@
             </div>
           </div>
           <div v-if="activeQuestion.question_type === 'fill_blank'" class="blank-preview">学生将在这里填写答案</div>
-          <pre v-if="activeQuestion.question_type === 'programming'" class="code-preview">{{ activeQuestion.starter_code || "public class Main {\\n    public static void main(String[] args) {\\n    }\\n}" }}</pre>
+          <pre v-if="activeQuestion.question_type === 'programming' && activeQuestion.starter_code?.trim()" class="code-preview">{{ activeQuestion.starter_code }}</pre>
+          <div v-else-if="activeQuestion.question_type === 'programming'" class="blank-preview">未设置初始代码</div>
         </div>
         <p class="preview-note">ⓘ 预览仅供展示，实际样式以学生端为准</p>
       </aside>
@@ -1365,9 +1366,13 @@ function formatApiErrorDetail(detail, fallbackMessage) {
 
 .bank-filters {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px 140px auto;
+  grid-template-columns: minmax(0, 1fr) 85px minmax(0, 215px) auto;
   gap: 10px;
   align-items: end;
+}
+
+.bank-filters .btn {
+  min-height: 41.5px;
 }
 
 .bank-list {

@@ -25,11 +25,11 @@
     </section>
 
     <main v-if="progress" class="progress-layout">
-      <section class="matrix-panel shell-card">
+      <section class="student-panel shell-card">
         <div class="panel-header">
           <div>
-            <h3>学生完成矩阵</h3>
-            <p class="muted">点击格子查看该学生该题的全部提交记录。</p>
+            <h3>学生作业完成情况</h3>
+            <p class="muted">点击学生行查看该学生最近一次提交详情。</p>
           </div>
           <div class="view-tabs">
             <button type="button" :class="{ active: matrixFilter === 'all' }" @click="matrixFilter = 'all'">全部</button>
@@ -38,39 +38,54 @@
           </div>
         </div>
 
-        <div class="matrix-scroll">
-          <div class="matrix-grid" :style="matrixStyle">
-            <div class="matrix-head sticky-left">学生</div>
-            <div v-for="question in progress.questions" :key="question.id" class="matrix-head">
-              {{ question.title || `题目 ${question.sort_order + 1}` }}
-              <small>{{ questionTypeText(question.question_type) }}</small>
+        <div v-if="pagedStudentRows.length" class="student-table">
+          <div class="student-table-head">
+            <span class="col-student">学生</span>
+            <span>提交状态</span>
+            <span>提交时间</span>
+            <span>操作</span>
+          </div>
+          <article
+            v-for="row in pagedStudentRows"
+            :key="row.student.id"
+            class="student-row"
+            @click="openStudentDetail(row)"
+          >
+            <div class="student-copy col-student">
+              <h3>{{ row.student.username }}</h3>
+              <p v-if="row.student.class_name" class="muted">{{ row.student.class_name }}</p>
+              <p v-else class="muted">未分配班级</p>
             </div>
-
-            <template v-for="student in filteredStudents" :key="student.id">
-              <div class="student-cell sticky-left">
-                {{ student.username }}
-                <small v-if="student.class_name">{{ student.class_name }}</small>
+            <div class="status-stack">
+              <span class="status-dot" :class="row.submitted ? 'submitted' : 'unsubmitted'"></span>
+              <div>
+                <strong>{{ row.submitted ? "已提交" : "未提交" }}</strong>
+                <small>{{ row.submittedQuestionCount }}/{{ questionTotal }} 题</small>
               </div>
-              <button
-                v-for="question in progress.questions"
-                :key="`${student.id}-${question.id}`"
-                type="button"
-                class="progress-cell"
-                :class="[cellFor(student.id, question.id).status, { muted: !isCellInFilter(cellFor(student.id, question.id)) }]"
-                @click="selectCell(student, question, cellFor(student.id, question.id))"
-              >
-                <strong>{{ statusText(cellFor(student.id, question.id).status) }}</strong>
-                <span>{{ cellFor(student.id, question.id).submission_count || 0 }} 次提交</span>
-                <small>{{ formatDateTime(cellFor(student.id, question.id).submitted_at) }}</small>
-                <small>
-                  运行 {{ formatRunTime(cellFor(student.id, question.id).run_time_ms) }} /
-                  作答 {{ formatDuration(cellFor(student.id, question.id).duration_seconds) }}
-                </small>
-              </button>
-            </template>
+            </div>
+            <span class="time-cell">{{ formatDateTime(row.latestSubmittedAt) }}</span>
+            <button type="button" class="open-link compact-link" @click.stop="openStudentDetail(row)">
+              查看详情
+            </button>
+          </article>
+        </div>
+        <div v-if="filteredStudentRows.length" class="pagination-bar">
+          <span>共 {{ filteredStudentRows.length }} 名学生，每页 {{ pageSize }} 名</span>
+          <div class="pagination-controls">
+            <button type="button" :disabled="currentPage === 1" @click="setPage(currentPage - 1)">上一页</button>
+            <button
+              v-for="page in pageNumbers"
+              :key="page"
+              type="button"
+              :class="{ active: currentPage === page }"
+              @click="setPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button type="button" :disabled="currentPage === totalPages" @click="setPage(currentPage + 1)">下一页</button>
           </div>
         </div>
-        <div v-if="!filteredStudents.length" class="empty-state">当前筛选下没有学生。</div>
+        <div v-else class="empty-state">当前筛选下没有学生。</div>
       </section>
     </main>
 
@@ -253,7 +268,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
@@ -277,6 +292,8 @@ const errorMessage = ref("");
 const reviewNote = ref("");
 const reviewing = ref(false);
 const matrixFilter = ref("all");
+const currentPage = ref(1);
+const pageSize = 10;
 
 const cellMap = computed(() => {
   const map = new Map();
@@ -285,9 +302,7 @@ const cellMap = computed(() => {
   }
   return map;
 });
-const matrixStyle = computed(() => ({
-  gridTemplateColumns: `180px repeat(${progress.value?.questions.length || 0}, minmax(190px, 1fr))`,
-}));
+const questionTotal = computed(() => progress.value?.questions.length || 0);
 const fullySubmittedStudentIds = computed(() => {
   const ids = new Set();
   if (!progress.value?.questions.length) return ids;
@@ -301,15 +316,42 @@ const fullySubmittedStudentIds = computed(() => {
 });
 const submittedStudents = computed(() => fullySubmittedStudentIds.value.size);
 const unsubmittedStudents = computed(() => Math.max((progress.value?.students.length || 0) - submittedStudents.value, 0));
-const filteredStudents = computed(() => {
+const studentRows = computed(() => {
+  if (!progress.value) return [];
+  return progress.value.students.map((student) => {
+    const cells = progress.value.questions.map((question) => cellFor(student.id, question.id));
+    const submittedCells = cells.filter((cell) => cell.status !== "not_submitted");
+    const latestCell = submittedCells
+      .slice()
+      .sort((a, b) => new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime())[0];
+    const fallbackQuestion = progress.value.questions[0] || null;
+    const detailQuestion =
+      progress.value.questions.find((question) => question.id === latestCell?.question_id) || fallbackQuestion;
+    return {
+      student,
+      submitted: fullySubmittedStudentIds.value.has(student.id),
+      submittedQuestionCount: submittedCells.length,
+      latestSubmittedAt: latestCell?.submitted_at || null,
+      detailCell: latestCell || (detailQuestion ? cellFor(student.id, detailQuestion.id) : null),
+      detailQuestion,
+    };
+  });
+});
+const filteredStudentRows = computed(() => {
   if (!progress.value) return [];
   if (matrixFilter.value === "submitted") {
-    return progress.value.students.filter((student) => fullySubmittedStudentIds.value.has(student.id));
+    return studentRows.value.filter((row) => row.submitted);
   }
   if (matrixFilter.value === "unsubmitted") {
-    return progress.value.students.filter((student) => !fullySubmittedStudentIds.value.has(student.id));
+    return studentRows.value.filter((row) => !row.submitted);
   }
-  return progress.value.students;
+  return studentRows.value;
+});
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredStudentRows.value.length / pageSize)));
+const pageNumbers = computed(() => Array.from({ length: totalPages.value }, (_, index) => index + 1));
+const pagedStudentRows = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return filteredStudentRows.value.slice(start, start + pageSize);
 });
 
 const aiDiagnoses = computed(() => {
@@ -322,6 +364,14 @@ const aiDiagnoses = computed(() => {
 });
 
 onMounted(loadProgress);
+
+watch(matrixFilter, () => {
+  currentPage.value = 1;
+});
+
+watch(totalPages, (value) => {
+  if (currentPage.value > value) currentPage.value = value;
+});
 
 async function loadProgress() {
   try {
@@ -360,6 +410,11 @@ async function selectCell(student, question, cell) {
   }
 }
 
+function openStudentDetail(row) {
+  if (!row.detailQuestion || !row.detailCell) return;
+  selectCell(row.student, row.detailQuestion, row.detailCell);
+}
+
 function closeDetail() {
   selectedCell.value = null;
   selectedStudent.value = null;
@@ -395,12 +450,6 @@ async function submitReview(targetStatus) {
   } finally {
     reviewing.value = false;
   }
-}
-
-function isCellInFilter(cell) {
-  if (matrixFilter.value === "submitted") return cell.status !== "not_submitted";
-  if (matrixFilter.value === "unsubmitted") return cell.status === "not_submitted";
-  return true;
 }
 
 function evidenceText(submission) {
@@ -489,6 +538,10 @@ function formatConfidence(value) {
   return `${Math.round(number * 100)}%`;
 }
 
+function setPage(page) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
+}
+
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
@@ -551,6 +604,21 @@ function handleApiError(error, fallbackMessage) {
   white-space: nowrap;
 }
 
+.open-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--compact-control-height);
+  padding: 0 14px;
+  border: 1px solid var(--app-line);
+  border-radius: 6px;
+  background: #fff;
+  color: #31445f;
+  text-decoration: none;
+  white-space: nowrap;
+  font-size: var(--compact-body);
+}
+
 .summary-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -578,11 +646,11 @@ function handleApiError(error, fallbackMessage) {
   display: block;
 }
 
-.matrix-panel {
+.student-panel {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  overflow: hidden;
+  gap: 14px;
+  padding: 16px;
+  overflow-x: auto;
 }
 
 .view-tabs {
@@ -605,117 +673,174 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .empty-state {
-  padding: 10px;
-  border: 1px solid #e3edf7;
+  padding: 38px;
+  border: 1px dashed #d9e2ed;
   border-radius: 10px;
   background: #ffffff;
-  color: #6f8297;
-  font-size: 13px;
+  color: var(--app-text-muted);
+  text-align: center;
+  font-size: var(--compact-body);
 }
 
-.matrix-scroll {
-  overflow: auto;
-  border: 1px solid var(--app-line);
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.matrix-grid {
+.student-table {
   display: grid;
-  min-width: 760px;
+  width: 100%;
+  min-width: 660px;
+  overflow: hidden;
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  background: #fff;
 }
 
-.matrix-head,
-.student-cell,
-.progress-cell {
-  min-height: 58px;
-  padding: 8px;
-  border-right: 1px solid var(--app-line);
+.student-table-head,
+.student-row {
+  display: grid;
+  grid-template-columns: minmax(300px, 3fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 0.8fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.student-table-head {
+  min-height: 36px;
+  padding: 0 11px;
+  background: #ffffff;
+  color: #2f3f55;
+  font-size: calc(var(--compact-body) * 0.9375);
+  font-weight: 500;
   border-bottom: 1px solid var(--app-line);
 }
 
-.matrix-head {
-  min-height: 38px;
-  background: #eef6ff;
-  color: #6f8297;
-  font-size: var(--compact-caption);
+.student-row {
+  min-height: 58px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--app-line);
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.student-row:last-child {
+  border-bottom: 0;
+}
+
+.student-row:hover {
+  background: #f8fbff;
+}
+
+.student-table-head > span:not(.col-student),
+.student-row > :not(.col-student) {
+  justify-self: center;
+  text-align: center;
+  transform: translateX(-15px);
+}
+
+.col-student,
+.student-copy {
+  min-width: 0;
+}
+
+.student-copy h3 {
+  margin: 0 0 4px;
+  color: var(--app-text);
+  font-size: calc(var(--compact-card-title) * 0.75);
   font-weight: 500;
+  line-height: 1.12;
 }
 
-.sticky-left {
-  position: sticky;
-  left: 0;
-  z-index: 1;
+.student-copy p {
+  margin: 0;
+  font-size: calc(var(--compact-body) * 0.75 + 1px);
+  line-height: 1.3;
 }
 
-.student-cell {
+.status-stack {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--app-text);
+}
+
+.status-stack > div {
   display: grid;
-  align-content: center;
-  background: #fdfefe;
-  color: #10283d;
-  font-size: var(--compact-body);
+  gap: 3px;
+  text-align: left;
+}
+
+.status-stack strong {
+  font-size: 12px;
   font-weight: 500;
 }
 
-.student-cell small,
-.matrix-head small {
-  display: block;
-  margin-top: 4px;
+.status-stack small {
   color: var(--app-text-muted);
   font-size: 11px;
-  font-weight: 500;
 }
 
-.progress-cell {
-  display: grid;
-  gap: 2px;
-  text-align: left;
-  border-top: 0;
-  border-left: 0;
-  background: rgba(248, 251, 255, 0.88);
-  color: #475467;
-  font-size: var(--compact-caption);
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.submitted {
+  background: #12a15c;
+}
+
+.status-dot.unsubmitted {
+  background: #ef4444;
+}
+
+.time-cell {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.compact-link {
+  width: 100%;
+  min-height: 29px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 4px 0;
+  color: var(--app-text-muted);
+  font-size: var(--compact-body);
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pagination-controls button {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  background: #fff;
+  color: #31445f;
   cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 }
 
-.progress-cell:hover {
-  transform: translateY(-1px);
-  box-shadow: inset 0 0 0 1px rgba(31, 95, 153, 0.16);
+.pagination-controls button.active {
+  border-color: var(--app-primary);
+  background: var(--app-primary);
+  color: #fff;
 }
 
-.progress-cell.muted {
-  opacity: 0.38;
-}
-
-.progress-cell strong {
-  color: #10283d;
-}
-
-.progress-cell span,
-.progress-cell small,
-.timeline-item span,
-.timeline-item small {
-  color: #6f8297;
-}
-
-.progress-cell.accepted {
-  background: #ecfdf3;
-}
-
-.progress-cell.wrong_answer {
-  background: #fff7ed;
-}
-
-.progress-cell.runtime_error,
-.progress-cell.timeout,
-.progress-cell.sandbox_error,
-.progress-cell.ai_rejected {
-  background: #fff2f2;
-}
-
-.progress-cell.needs_manual_review {
-  background: #fff4d8;
+.pagination-controls button:disabled {
+  background: #ffffff;
+  color: var(--app-text-soft);
 }
 
 .modal-backdrop {
@@ -780,6 +905,11 @@ function handleApiError(error, fallbackMessage) {
 
 .timeline-item strong {
   color: #10283d;
+}
+
+.timeline-item span,
+.timeline-item small {
+  color: #6f8297;
 }
 
 .status-pill,
@@ -984,7 +1114,8 @@ pre {
   .review-head,
   .review-actions,
   .summary-row,
-  .meta-grid {
+  .meta-grid,
+  .pagination-bar {
     display: grid;
   }
 
