@@ -146,9 +146,6 @@
 
         </template>
 
-        <p v-else class="recommendation-empty">
-          当前还没有足够的候选结点，先围绕这个薄弱点进行针对性训练也可以。
-        </p>
       </aside>
     </div>
 
@@ -231,7 +228,6 @@ const recommendedNodes = ref([]);
 const showQuizPanel = ref(false);
 const quizNodeId = ref("");
 const quizNodeName = ref("");
-const quizNodeStatus = ref("");
 const quizStep = ref("intro");
 const quizQuestion = ref("");
 const userAnswer = ref("");
@@ -320,10 +316,9 @@ async function selectWeakPoint(item) {
 function handleNodeSelect(nodeId) {
   selectedNodeId.value = nodeId;
   const node = findGraphNodeById(graphNodes.value, nodeId);
-  if (!node || node.status === "weak") return;
+  if (!node || !["recommended", "mastered"].includes(node.status)) return;
   quizNodeId.value = nodeId;
   quizNodeName.value = node.name || nodeId;
-  quizNodeStatus.value = node.status || "";
   showQuizPanel.value = true;
   quizStep.value = "intro";
   quizQuestion.value = "";
@@ -335,7 +330,6 @@ function closeQuizPanel() {
   showQuizPanel.value = false;
   quizNodeId.value = "";
   quizNodeName.value = "";
-  quizNodeStatus.value = "";
   quizStep.value = "intro";
   quizQuestion.value = "";
   userAnswer.value = "";
@@ -585,20 +579,12 @@ function handleApiError(error, fallbackMessage) {
   background: #ef4444;
 }
 
-.legend-dot.learning {
-  background: #f59e0b;
-}
-
 .legend-dot.recommended {
   background: #2563eb;
 }
 
 .legend-dot.mastered {
   background: #22c55e;
-}
-
-.legend-dot.unknown {
-  background: #94a3b8;
 }
 
 .graph-container {
@@ -1015,18 +1001,6 @@ function handleApiError(error, fallbackMessage) {
   color: var(--app-text);
   font-size: var(--compact-card-title);
   font-weight: 400;
-}
-
-.weak-caption {
-  margin: 0 0 14px;
-  color: #5f7287;
-  font-size: var(--compact-body);
-  line-height: 1.45;
-}
-
-.weak-status-hint {
-  color: #5f7287;
-  font-size: 12px;
 }
 
 .history-section {
