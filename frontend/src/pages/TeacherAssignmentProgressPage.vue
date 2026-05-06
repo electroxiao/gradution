@@ -102,162 +102,197 @@
         </div>
 
           <div v-if="selectedCell.latest_submission_id && selectedSubmission" class="detail-body">
-            <section class="detail-section">
-              <div class="review-head">
-                <h4>提交时间线</h4>
-                <span class="decision-pill secondary">{{ selectedSubmissions.length }} 次提交</span>
+            <dl class="overview-grid">
+              <div class="overview-card time">
+                <span class="overview-icon" aria-hidden="true">时</span>
+                <div>
+                  <dt>提交时间</dt>
+                  <dd>{{ formatDateTime(selectedSubmission.submitted_at) }}</dd>
+                </div>
               </div>
-              <div class="submission-timeline">
-                <button
-                  v-for="(submission, index) in selectedSubmissions"
-                  :key="submission.id"
-                  type="button"
-                  class="timeline-item"
-                  :class="{ active: submission.id === selectedSubmission.id }"
-                  @click="selectSubmission(submission)"
-                >
-                  <strong>#{{ selectedSubmissions.length - index }} {{ statusText(submission.status) }}</strong>
-                  <span>{{ evidenceText(submission) }}</span>
-                  <small>{{ formatDateTime(submission.submitted_at) }}</small>
-                </button>
+              <div class="overview-card count">
+                <span class="overview-icon" aria-hidden="true">次</span>
+                <div>
+                  <dt>提交次数</dt>
+                  <dd>{{ selectedSubmissions.length || selectedCell.submission_count }} 次</dd>
+                </div>
               </div>
-            </section>
-
-            <dl class="meta-grid">
-              <div>
-                <dt>提交时间</dt>
-                <dd>{{ formatDateTime(selectedSubmission.submitted_at) }}</dd>
+              <div class="overview-card runtime">
+                <span class="overview-icon" aria-hidden="true">运</span>
+                <div>
+                  <dt>运行耗时</dt>
+                  <dd>{{ formatRunTime(selectedSubmission.run_time_ms) }}</dd>
+                </div>
               </div>
-              <div>
-                <dt>提交次数</dt>
-                <dd>{{ selectedSubmissions.length || selectedCell.submission_count }}</dd>
-              </div>
-              <div>
-                <dt>运行耗时</dt>
-                <dd>{{ formatRunTime(selectedSubmission.run_time_ms) }}</dd>
-              </div>
-              <div>
-                <dt>作答耗时</dt>
-                <dd>{{ formatDuration(selectedSubmission.duration_seconds) }}</dd>
+              <div class="overview-card duration">
+                <span class="overview-icon" aria-hidden="true">答</span>
+                <div>
+                  <dt>作答耗时</dt>
+                  <dd>{{ formatDuration(selectedSubmission.duration_seconds) }}</dd>
+                </div>
               </div>
             </dl>
 
-            <section class="detail-section">
-              <h4>薄弱点判定信息</h4>
-              <dl class="meta-grid">
-                <div>
-                  <dt>证据类型</dt>
-                  <dd>{{ evidenceText(selectedSubmission) }}</dd>
+            <div class="detail-content-layout">
+              <aside class="timeline-panel" aria-label="提交时间线">
+                <div class="review-head">
+                  <h4>提交时间线</h4>
+                  <span class="decision-pill secondary">{{ selectedSubmissions.length }} 次提交</span>
                 </div>
-                <div>
-                  <dt>可信度标签</dt>
-                  <dd>{{ trustLabelText(selectedSubmission.trust_label) }}</dd>
+                <div class="submission-timeline">
+                  <button
+                    v-for="(submission, index) in selectedSubmissions"
+                    :key="submission.id"
+                    type="button"
+                    class="timeline-item"
+                    :class="[timelineStatusClass(submission), { active: submission.id === selectedSubmission.id }]"
+                    @click="selectSubmission(submission)"
+                  >
+                    <span class="timeline-marker" aria-hidden="true">{{ timelineStatusIcon(submission) }}</span>
+                    <span class="timeline-copy">
+                      <span class="timeline-title-row">
+                        <strong>#{{ selectedSubmissions.length - index }} {{ statusText(submission.status) }}</strong>
+                        <em v-if="index === 0">最新</em>
+                      </span>
+                      <span class="timeline-evidence">{{ evidenceText(submission) }}</span>
+                      <small>{{ formatDateTime(submission.submitted_at) }}</small>
+                    </span>
+                  </button>
                 </div>
-              </dl>
-              <div v-if="selectedQuestion?.knowledge_nodes?.length" class="tag-list">
-                <span>绑定知识点：</span>
-                <span v-for="node in selectedQuestion.knowledge_nodes" :key="node.id" class="tag-pill">{{ node.node_name }}</span>
-              </div>
-              <div v-if="aiDiagnoses.length" class="diagnosis-summary">
-                <span>AI 诊断：</span>
-                <span v-for="(d, idx) in aiDiagnoses" :key="idx" class="tag-pill diagnosis-tag" :class="d.resolved ? 'resolved' : 'unresolved'">
-                  {{ d.knowledge_node || "unknown" }}
-                  <small>({{ formatConfidence(d.confidence) }})</small>
-                </span>
-              </div>
-            </section>
+              </aside>
 
-            <section class="detail-section">
-              <h4>提交代码</h4>
-              <pre class="code-block">{{ selectedSubmission.code }}</pre>
-            </section>
+              <div class="detail-main-column">
+                <section class="detail-section">
+                  <h4>提交代码</h4>
+                  <ReadonlyCodeBlock :code="selectedSubmission.code || '未提交代码。'" background="#ffffff" />
+                </section>
 
-            <section class="detail-section">
-              <h4>测试结果</h4>
-              <article
-                v-for="item in selectedSubmission.results_json || []"
-                :key="item.case_index"
-                class="result-card"
-                :class="item.status"
-              >
-                <strong>
-                  {{ item.check_mode === "observe_only" ? "运行" : "用例" }}
-                  {{ item.case_index || "编译" }}：{{ statusText(item.status) }}
-                </strong>
-                <p v-if="item.summary">{{ item.summary }}</p>
-                <template v-if="item.is_sample || item.case_index === 0">
-                  <span>输入</span>
-                  <pre>{{ item.input || "(空)" }}</pre>
-                  <template v-if="item.check_mode !== 'observe_only'">
-                    <span>期望输出</span>
-                    <pre>{{ item.expected_output || "(空)" }}</pre>
+                <section class="detail-section">
+                  <h4>测试结果</h4>
+                  <div v-if="selectedResultItems.length" class="result-list">
+                    <article class="result-card">
+                      <div class="result-card-head">
+                        <span class="result-state" :class="resultStateClass(activeResultItem)">
+                          {{ resultStateText(activeResultItem) }}
+                        </span>
+                        <span class="result-runtime">执行用时: {{ formatRunTime(activeResultItem?.elapsed_ms) }}</span>
+                      </div>
+                      <div class="result-case-tabs" role="tablist" aria-label="测试用例">
+                        <button
+                          v-for="(item, index) in selectedResultItems"
+                          :key="`${index}-${item.case_index}-${item.status}`"
+                          type="button"
+                          class="result-case-pill"
+                          :class="[resultStateClass(item), { active: index === selectedResultIndex }]"
+                          role="tab"
+                          :aria-selected="index === selectedResultIndex"
+                          @click="selectedResultIndex = index"
+                        >
+                          <span class="case-check" aria-hidden="true">{{ resultStateIcon(item) }}</span>
+                          {{ resultCaseText(item) }}
+                        </button>
+                      </div>
+                      <p v-if="activeResultItem?.summary">{{ activeResultItem.summary }}</p>
+                      <template v-if="activeResultItem">
+                        <div class="result-field">
+                          <span>输入</span>
+                          <ReadonlyCodeBlock :code="activeResultItem.input || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+                        </div>
+                        <template v-if="activeResultItem.check_mode !== 'observe_only'">
+                          <div class="result-field">
+                            <span>期望输出</span>
+                            <ReadonlyCodeBlock :code="activeResultItem.expected_output || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+                          </div>
+                        </template>
+                        <div class="result-field">
+                          <span>实际输出</span>
+                          <ReadonlyCodeBlock :code="activeResultItem.actual_output || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+                        </div>
+                      </template>
+                      <div v-if="activeResultItem?.stderr" class="result-field">
+                        <span>错误输出</span>
+                        <ReadonlyCodeBlock :code="activeResultItem.stderr" :show-line-numbers="false" compact background="#f7f7f8" />
+                      </div>
+                    </article>
+                  </div>
+                  <p v-else class="section-empty">暂无测试结果。</p>
+                </section>
+
+                <section class="detail-section">
+                  <div class="review-head">
+                    <h4>AI 评审</h4>
+                    <span class="decision-pill">{{ decisionSourceText(selectedSubmission.decision_source) }}</span>
+                  </div>
+                  <template v-if="selectedSubmission.ai_review_json">
+                    <p class="review-summary">{{ selectedSubmission.ai_review_json.summary || "AI 未返回总结。" }}</p>
+                    <dl class="meta-grid">
+                      <div>
+                        <dt>AI 决策</dt>
+                        <dd>{{ statusText(selectedSubmission.ai_review_json.decision || selectedSubmission.status) }}</dd>
+                      </div>
+                      <div>
+                        <dt>评分</dt>
+                        <dd>{{ selectedSubmission.ai_review_json.score ?? "--" }}</dd>
+                      </div>
+                      <div>
+                        <dt>置信度</dt>
+                        <dd>{{ formatConfidence(selectedSubmission.ai_review_json.confidence) }}</dd>
+                      </div>
+                      <div>
+                        <dt>人工复核</dt>
+                        <dd>{{ selectedSubmission.manual_review_required ? "需要" : "无需" }}</dd>
+                      </div>
+                    </dl>
+                    <div v-if="selectedSubmission.ai_review_json.issues?.length" class="review-list">
+                      <strong>风险点</strong>
+                      <ul>
+                        <li v-for="(item, index) in selectedSubmission.ai_review_json.issues" :key="`issue-${index}`">{{ item }}</li>
+                      </ul>
+                    </div>
                   </template>
-                  <span>实际输出</span>
-                  <pre>{{ item.actual_output || "(空)" }}</pre>
-                </template>
-                <pre v-if="item.stderr">{{ item.stderr }}</pre>
-              </article>
-            </section>
+                  <p v-else class="section-empty">暂无 AI 评审。</p>
+                </section>
 
-            <section v-if="selectedSubmission.ai_review_json" class="detail-section">
-              <div class="review-head">
-                <h4>AI 评审</h4>
-                <span class="decision-pill">{{ decisionSourceText(selectedSubmission.decision_source) }}</span>
-              </div>
-              <p class="review-summary">{{ selectedSubmission.ai_review_json.summary || "AI 未返回总结。" }}</p>
-              <dl class="meta-grid">
-                <div>
-                  <dt>AI 决策</dt>
-                  <dd>{{ statusText(selectedSubmission.ai_review_json.decision || selectedSubmission.status) }}</dd>
-                </div>
-                <div>
-                  <dt>评分</dt>
-                  <dd>{{ selectedSubmission.ai_review_json.score ?? "--" }}</dd>
-                </div>
-                <div>
-                  <dt>置信度</dt>
-                  <dd>{{ formatConfidence(selectedSubmission.ai_review_json.confidence) }}</dd>
-                </div>
-                <div>
-                  <dt>人工复核</dt>
-                  <dd>{{ selectedSubmission.manual_review_required ? "需要" : "无需" }}</dd>
-                </div>
-              </dl>
-              <div v-if="selectedSubmission.ai_review_json.issues?.length" class="review-list">
-                <strong>风险点</strong>
-                <ul>
-                  <li v-for="(item, index) in selectedSubmission.ai_review_json.issues" :key="`issue-${index}`">{{ item }}</li>
-                </ul>
-              </div>
-              <div v-if="selectedSubmission.ai_review_json.strengths?.length" class="review-list">
-                <strong>实现优点</strong>
-                <ul>
-                  <li v-for="(item, index) in selectedSubmission.ai_review_json.strengths" :key="`strength-${index}`">{{ item }}</li>
-                </ul>
-              </div>
-            </section>
+                <section class="detail-section">
+                  <h4>实现优点</h4>
+                  <div v-if="selectedSubmission.ai_review_json?.strengths?.length" class="review-list">
+                    <ul>
+                      <li v-for="(item, index) in selectedSubmission.ai_review_json.strengths" :key="`strength-${index}`">{{ item }}</li>
+                    </ul>
+                  </div>
+                  <p v-else class="section-empty">暂无实现优点记录。</p>
+                </section>
 
-            <section class="detail-section">
-              <div class="review-head">
-                <h4>教师复核</h4>
-                <span v-if="selectedSubmission.teacher_review_status" class="decision-pill secondary">
-                  {{ teacherReviewText(selectedSubmission.teacher_review_status) }}
-                </span>
+                <section class="detail-section teacher-review-section">
+                  <div class="review-head">
+                    <h4>教师复核</h4>
+                    <span v-if="selectedSubmission.teacher_review_status" class="decision-pill secondary">
+                      {{ teacherReviewText(selectedSubmission.teacher_review_status) }}
+                    </span>
+                  </div>
+                  <p class="muted" v-if="selectedSubmission.reviewed_by_username">
+                    最近由 {{ selectedSubmission.reviewed_by_username }} 于 {{ formatDateTime(selectedSubmission.reviewed_at) }} 复核
+                  </p>
+                  <textarea
+                    v-model="reviewNote"
+                    rows="3"
+                    placeholder="输入改判备注，例如：SQL 结果对，但事务边界不符合要求。"
+                  />
+                </section>
               </div>
-              <p class="muted" v-if="selectedSubmission.reviewed_by_username">
-                最近由 {{ selectedSubmission.reviewed_by_username }} 于 {{ formatDateTime(selectedSubmission.reviewed_at) }} 复核
-              </p>
-              <textarea
-                v-model="reviewNote"
-                rows="3"
-                placeholder="输入改判备注，例如：SQL 结果对，但事务边界不符合要求。"
-              />
-              <div class="review-actions">
-                <button type="button" :disabled="reviewing" @click="submitReview('accepted')">标记通过</button>
-                <button type="button" :disabled="reviewing" @click="submitReview('needs_manual_review')">保持待复核</button>
-                <button type="button" :disabled="reviewing" @click="submitReview('ai_rejected')">标记未通过</button>
-              </div>
-            </section>
+            </div>
+
+            <div class="review-actions">
+              <button type="button" class="review-button reject" :disabled="reviewing" @click="submitReview('ai_rejected')">
+                标记未通过
+              </button>
+              <button type="button" class="review-button pending" :disabled="reviewing" @click="submitReview('needs_manual_review')">
+                保持待复核
+              </button>
+              <button type="button" class="review-button accept" :disabled="reviewing" @click="submitReview('accepted')">
+                标记通过
+              </button>
+            </div>
           </div>
 
           <p v-else-if="selectedCell.latest_submission_id" class="muted">提交详情加载中...</p>
@@ -277,6 +312,7 @@ import {
   reviewTeacherAssignmentSubmissionApi,
 } from "../api/assignments";
 import PageHeader from "../components/PageHeader.vue";
+import ReadonlyCodeBlock from "../components/ReadonlyCodeBlock.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const route = useRoute();
@@ -293,6 +329,7 @@ const reviewNote = ref("");
 const reviewing = ref(false);
 const matrixFilter = ref("all");
 const currentPage = ref(1);
+const selectedResultIndex = ref(0);
 const pageSize = 10;
 
 const cellMap = computed(() => {
@@ -353,15 +390,11 @@ const pagedStudentRows = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   return filteredStudentRows.value.slice(start, start + pageSize);
 });
-
-const aiDiagnoses = computed(() => {
-  const review = selectedSubmission.value?.ai_review_json;
-  if (!review?.diagnoses?.length) return [];
-  return review.diagnoses.map((d) => ({
-    ...d,
-    resolved: d.graph_resolution?.status === "matched_existing",
-  }));
+const selectedResultItems = computed(() => {
+  const results = selectedSubmission.value?.results_json;
+  return Array.isArray(results) ? results : [];
 });
+const activeResultItem = computed(() => selectedResultItems.value[selectedResultIndex.value] || null);
 
 onMounted(loadProgress);
 
@@ -371,6 +404,14 @@ watch(matrixFilter, () => {
 
 watch(totalPages, (value) => {
   if (currentPage.value > value) currentPage.value = value;
+});
+
+watch(selectedSubmission, () => {
+  selectedResultIndex.value = 0;
+});
+
+watch(selectedResultItems, (items) => {
+  if (selectedResultIndex.value >= items.length) selectedResultIndex.value = 0;
 });
 
 async function loadProgress() {
@@ -457,6 +498,36 @@ function evidenceText(submission) {
   return submission.status === "accepted" ? "通过记录" : "薄弱点证据";
 }
 
+function timelineStatusClass(submission) {
+  return submission?.status === "accepted" ? "passed" : "failed";
+}
+
+function timelineStatusIcon(submission) {
+  return submission?.status === "accepted" ? "✓" : "×";
+}
+
+function isAcceptedResult(item) {
+  return item?.status === "accepted";
+}
+
+function resultStateClass(item) {
+  return isAcceptedResult(item) ? "passed" : "failed";
+}
+
+function resultStateText(item) {
+  return isAcceptedResult(item) ? "通过" : "解答错误";
+}
+
+function resultStateIcon(item) {
+  return isAcceptedResult(item) ? "✓" : "×";
+}
+
+function resultCaseText(item) {
+  if (item?.case_index === 0) return "编译";
+  if (item?.check_mode === "observe_only") return `运行 ${item?.case_index || "-"}`;
+  return `Case ${item?.case_index || "-"}`;
+}
+
 function statusText(status) {
   return {
     not_submitted: "未提交",
@@ -469,14 +540,6 @@ function statusText(status) {
     needs_manual_review: "待人工复核",
     ai_rejected: "AI 判定未通过",
   }[status] || status;
-}
-
-function questionTypeText(value) {
-  return {
-    programming: "编程题",
-    multiple_choice: "选择题",
-    fill_blank: "填空题",
-  }[value || "programming"] || "编程题";
 }
 
 function decisionSourceText(value) {
@@ -499,13 +562,6 @@ function teacherReviewText(value) {
     approved: "教师通过",
     rejected: "教师驳回",
   }[value] || value;
-}
-
-function trustLabelText(value) {
-  return {
-    normal: "正常",
-    suspicious_fast_pass: "异常速通",
-  }[value] || "正常";
 }
 
 function formatDateTime(value) {
@@ -570,8 +626,7 @@ function handleApiError(error, fallbackMessage) {
 
 .detail-header,
 .panel-header,
-.review-head,
-.review-actions {
+.review-head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -854,7 +909,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .detail-dialog {
-  width: min(1080px, 100%);
+  width: min(1320px, 100%);
   max-height: min(860px, calc(100vh - 48px));
   overflow: auto;
   padding: 16px;
@@ -879,35 +934,251 @@ function handleApiError(error, fallbackMessage) {
   border-radius: 8px;
 }
 
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.overview-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #dfe9f3;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.overview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.overview-card.time .overview-icon,
+.overview-card.count .overview-icon {
+  color: #2f7df2;
+}
+
+.overview-card.runtime .overview-icon {
+  color: #13a66b;
+}
+
+.overview-card.duration .overview-icon {
+  color: #f2ae2e;
+}
+
+.overview-card dt,
+.overview-card dd {
+  margin: 0;
+}
+
+.overview-card dt {
+  color: #6f8297;
+  font-size: 12px;
+}
+
+.overview-card dd {
+  margin-top: 5px;
+  color: #10283d;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.detail-content-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.timeline-panel {
+  position: sticky;
+  top: 64px;
+  display: grid;
+  gap: 14px;
+  align-self: start;
+  padding: 14px;
+  border: 1px solid #dfe9f3;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 32px rgba(16, 40, 61, 0.08);
+}
+
 .submission-timeline {
+  position: relative;
   display: grid;
   gap: 8px;
 }
 
 .timeline-item {
+  position: relative;
   display: grid;
-  justify-content: stretch;
-  justify-items: start;
-  gap: 3px;
-  min-height: 50px;
-  border-radius: 8px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 92px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-color: transparent;
+  background: transparent;
   text-align: left;
 }
 
-.timeline-item:hover {
-  box-shadow: inset 0 0 0 1px rgba(31, 95, 153, 0.16);
+.timeline-item::before,
+.timeline-item::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  width: 2px;
+  background: #d9e4ef;
 }
 
-.timeline-item.active {
-  background: #eef6ff;
+.timeline-item::before {
+  top: 0;
+  bottom: calc(50% + 17px);
+}
+
+.timeline-item::after {
+  top: calc(50% + 17px);
+  bottom: -8px;
+}
+
+.timeline-item:first-child::before,
+.timeline-item:last-child::after {
+  display: none;
+}
+
+.timeline-item:hover {
+  box-shadow: none;
+}
+
+.timeline-item:hover .timeline-copy {
+  border-color: #c8dff5;
+}
+
+.timeline-marker {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #cfdbe8;
+  border-radius: 50%;
+  background: #ffffff;
+  color: transparent;
+  font-family: Arial, sans-serif;
+  font-size: 0;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.timeline-marker::before,
+.timeline-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: #ffffff;
+  transform-origin: center;
+}
+
+.timeline-item.passed .timeline-marker {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.timeline-item.passed .timeline-marker::before {
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  background: transparent;
+  transform: translate(-50%, -58%) rotate(-45deg);
+}
+
+.timeline-item.failed .timeline-marker {
+  border-color: #d83d3d;
+  background: #d83d3d;
+  color: #ffffff;
+}
+
+.timeline-item.failed .timeline-marker::before,
+.timeline-item.failed .timeline-marker::after {
+  width: 10px;
+  height: 2px;
+  border-radius: 999px;
+  left: calc(50% - 0.5px);
+  top: calc(50% + 0.5px);
+}
+
+.timeline-item.failed .timeline-marker::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.timeline-item.failed .timeline-marker::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.timeline-copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  min-height: 92px;
+  padding: 13px 16px;
+  border: 1px solid #e2ebf4;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.timeline-item.active .timeline-copy {
   border-color: #a9cbe8;
+  background: #eef6ff;
+}
+
+.timeline-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.timeline-title-row em {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #dfeeff;
+  color: #2f7df2;
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
 }
 
 .timeline-item strong {
   color: #10283d;
+  min-width: 0;
 }
 
-.timeline-item span,
+.timeline-evidence,
 .timeline-item small {
   color: #6f8297;
 }
@@ -956,6 +1227,23 @@ function handleApiError(error, fallbackMessage) {
   gap: 10px;
 }
 
+.detail-body {
+  gap: 16px;
+}
+
+.detail-main-column {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.detail-section {
+  padding: 14px;
+  border: 1px solid #e0e9f2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -986,24 +1274,6 @@ function handleApiError(error, fallbackMessage) {
   color: #10283d;
 }
 
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tag-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--compact-pill-height);
-  padding: 0 8px;
-  border-radius: 999px;
-  background: #eef6ff;
-  color: #1f5f99;
-  font-size: 12px;
-  font-weight: 500;
-}
-
 .decision-pill {
   background: #eef6ff;
   color: #1f5f99;
@@ -1023,6 +1293,17 @@ function handleApiError(error, fallbackMessage) {
   margin: 0;
   padding-left: 18px;
   color: #475467;
+}
+
+.section-empty {
+  margin: 0;
+  color: #7c8da0;
+  font-size: var(--compact-body);
+}
+
+.result-list {
+  display: grid;
+  gap: 10px;
 }
 
 textarea,
@@ -1056,55 +1337,170 @@ button:disabled {
   cursor: not-allowed;
 }
 
-pre {
-  overflow: auto;
-  margin: 6px 0 10px;
-  padding: 10px;
-  border-radius: 8px;
-  background: #10283d;
-  color: #fff;
-}
-
-.code-block {
-  max-height: 360px;
-}
-
 .result-card {
-  padding: 9px;
+  display: grid;
+  gap: 16px;
+  padding: 14px;
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid #e5eef7;
+  color: #243447;
 }
 
-.result-card.accepted {
-  background: #ecfdf3;
+.result-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
 }
 
-.result-card.wrong_answer {
-  background: #fff7ed;
+.result-state {
+  font-size: 22px;
+  line-height: 1.15;
 }
 
-.result-card.runtime_error,
-.result-card.timeout,
-.result-card.sandbox_error,
-.result-card.ai_rejected,
-.feedback.error {
-  background: #fff2f2;
+.result-state.passed {
+  color: #16a34a;
+}
+
+.result-state.failed {
   color: #b42318;
 }
 
-.result-card.needs_manual_review {
-  background: #fff4d8;
-  color: #9a6700;
+.result-runtime {
+  color: #8a919b;
+  font-size: 14px;
+}
+
+.result-case-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.result-case-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7c838d;
+  cursor: pointer;
+}
+
+.result-case-pill.active {
+  background: #f0f1f3;
+  color: #243447;
+}
+
+.case-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.result-case-pill.passed .case-check {
+  background: #16a34a;
+}
+
+.result-case-pill.failed .case-check {
+  background: #b42318;
+}
+
+.result-field {
+  display: grid;
+  gap: 8px;
+}
+
+.result-field > span {
+  color: #8a919b;
+  font-size: 13px;
+}
+
+.feedback.error {
+  background: #fff2f2;
+  color: #b42318;
 }
 
 .feedback {
   padding: 11px 13px;
 }
 
+.teacher-review-section textarea {
+  min-height: 90px;
+}
+
+.review-actions {
+  position: sticky;
+  bottom: -16px;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin: 0 -16px -16px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--app-line);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+}
+
+.review-button {
+  min-height: 30px;
+  width: auto;
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.review-button.reject {
+  border-color: #f3b8b8;
+  background: #fff2f2;
+  color: #b42318;
+}
+
+.review-button.pending {
+  border-color: #d8dee8;
+  background: #f5f7fa;
+  color: #475467;
+}
+
+.review-button.accept {
+  border-color: #1f6feb;
+  background: #1f6feb;
+  color: #ffffff;
+}
+
+.detail-dialog :is(h3, h4, strong, dt, dd, button, .status-pill, .decision-pill, .overview-icon, .review-button) {
+  font-weight: 400;
+}
+
 @media (max-width: 1180px) {
   .summary-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .detail-content-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-panel {
+    position: static;
   }
 }
 
@@ -1112,16 +1508,25 @@ pre {
   .panel-header,
   .detail-header,
   .review-head,
-  .review-actions,
   .summary-row,
+  .overview-grid,
   .meta-grid,
   .pagination-bar {
     display: grid;
   }
 
   .summary-row,
+  .overview-grid,
   .meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .overview-card {
+    padding: 12px;
+  }
+
+  .review-actions {
+    justify-content: stretch;
   }
 
   .review-actions button {
@@ -1141,37 +1546,4 @@ pre {
   }
 }
 
-.diagnosis-summary {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.diagnosis-summary > span:first-child {
-  color: #6f8297;
-  font-size: 12px;
-}
-
-.diagnosis-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.diagnosis-tag.resolved {
-  background: #dff7e7;
-  color: #027a48;
-}
-
-.diagnosis-tag.unresolved {
-  background: #fff8ea;
-  color: #9a6700;
-}
-
-.diagnosis-tag small {
-  font-size: 10px;
-  opacity: 0.75;
-}
 </style>

@@ -610,9 +610,9 @@ def submit_assignment_question(
     db.commit()
     db.refresh(submission)
     return AssignmentRunResultResponse(
-        submission=_submission_to_response(submission),
+        submission=_submission_to_response(submission, student_visible=True),
         status=status_value,
-        results=results,
+        results=_student_visible_results(results),
         ai_review=ai_review,
         decision_source=decision_source,
         manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
@@ -814,9 +814,9 @@ def _submit_objective_assignment_question(
     db.commit()
     db.refresh(submission)
     return AssignmentRunResultResponse(
-        submission=_submission_to_response(submission),
+        submission=_submission_to_response(submission, student_visible=True),
         status=status_value,
-        results=results,
+        results=_student_visible_results(results),
         ai_review=ai_review,
         decision_source=decision_source,
         manual_review_required=status_value == "needs_manual_review" or bool((ai_review or {}).get("manual_review_required")),
@@ -834,7 +834,7 @@ def list_student_submissions(db: Session, student: User, assignment_id: int) -> 
         .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
         .all()
     )
-    return [_submission_to_response(item) for item in submissions]
+    return [_submission_to_response(item, student_visible=True) for item in submissions]
 
 
 def get_teacher_assignment_progress(db: Session, teacher: User, assignment_id: int) -> AssignmentProgressResponse:
@@ -1525,7 +1525,7 @@ def _assignment_detail(
             for item in assignment.assignees
             if item.student and item.student.class_name
         }),
-        submissions=[_submission_to_response(item) for item in submissions],
+        submissions=[_submission_to_response(item, student_visible=not teacher_view) for item in submissions],
     )
 
 
@@ -1562,6 +1562,26 @@ def _sum_run_time_ms(results_json) -> int | None:
     if not values:
         return None
     return sum(values)
+
+
+def _student_visible_results(results_json):
+    if not isinstance(results_json, list):
+        return results_json
+    visible_results = []
+    for item in results_json:
+        if not isinstance(item, dict):
+            visible_results.append(item)
+            continue
+        visible = dict(item)
+        if not visible.get("is_sample", True):
+            visible["input"] = ""
+            visible["expected_output"] = ""
+            visible["actual_output"] = ""
+            if visible.get("status") == "accepted":
+                visible["stderr"] = ""
+            visible.setdefault("summary", "隐藏测试用例")
+        visible_results.append(visible)
+    return visible_results
 
 
 def _normalize_grading_mode(value: str | None) -> str:
@@ -1835,7 +1855,10 @@ def _submission_requires_manual_review(submission: AssignmentSubmission) -> bool
     return submission.status == "needs_manual_review" or bool(ai_review.get("manual_review_required"))
 
 
-def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmissionResponse:
+def _submission_to_response(
+    submission: AssignmentSubmission,
+    student_visible: bool = False,
+) -> AssignmentSubmissionResponse:
     return AssignmentSubmissionResponse(
         id=submission.id,
         assignment_id=submission.assignment_id,
@@ -1844,7 +1867,7 @@ def _submission_to_response(submission: AssignmentSubmission) -> AssignmentSubmi
         code=submission.code,
         answer=submission.answer_json,
         status=submission.status,
-        results_json=submission.results_json,
+        results_json=_student_visible_results(submission.results_json) if student_visible else submission.results_json,
         ai_review_json=submission.ai_review_json,
         decision_source=submission.final_decision_source,
         manual_review_required=_submission_requires_manual_review(submission),

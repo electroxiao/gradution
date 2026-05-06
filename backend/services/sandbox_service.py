@@ -206,10 +206,10 @@ def _case_result(index: int, test_case: AssignmentTestCase, run_result: dict, el
         "is_sample": test_case.is_sample,
         "status": status,
         "passed": passed,
-        "input": test_case.input_data if test_case.is_sample else "",
-        "expected_output": test_case.expected_output if test_case.is_sample else "",
-        "actual_output": actual if test_case.is_sample else "",
-        "stderr": run_result.get("stderr", "") if test_case.is_sample or status != "accepted" else "",
+        "input": test_case.input_data,
+        "expected_output": test_case.expected_output,
+        "actual_output": actual,
+        "stderr": run_result.get("stderr", ""),
         "elapsed_ms": elapsed_ms,
     }
     if not test_case.is_sample and status != "accepted":
