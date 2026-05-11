@@ -121,36 +121,68 @@
             <strong>测试用例已通过，但 AI 判定未通过</strong>
             <p>请根据题目要求调整实现后重新提交。</p>
           </div>
-          <div class="result-list">
-            <div v-for="item in lastResult.results" :key="item.case_index" class="result-item" :class="item.status">
-              <strong>{{ resultTitle(item) }}</strong>
-              <p v-if="item.summary">{{ item.summary }}</p>
-              <template v-if="shouldShowCaseIo(item)">
-                <span>输入</span>
-                <pre>{{ item.input || "(空)" }}</pre>
-                <template v-if="item.check_mode !== 'observe_only'">
-                  <span>期望输出</span>
-                  <pre>{{ item.expected_output || "(空)" }}</pre>
+          <div v-if="lastResultItems.length" class="result-list">
+            <article class="result-card">
+              <div class="result-card-head">
+                <span class="result-state" :class="resultStateClass(activeResultItem)">
+                  {{ resultStateText(activeResultItem) }}
+                </span>
+                <span class="result-runtime">执行用时: {{ formatRunTime(activeResultItem?.elapsed_ms) }}</span>
+              </div>
+              <div class="result-case-tabs" role="tablist" aria-label="测试用例">
+                <button
+                  v-for="(item, index) in lastResultItems"
+                  :key="`${index}-${item.case_index}-${item.status}`"
+                  type="button"
+                  class="result-case-pill"
+                  :class="[resultStateClass(item), { active: index === selectedResultIndex }]"
+                  role="tab"
+                  :aria-selected="index === selectedResultIndex"
+                  @click="selectedResultIndex = index"
+                >
+                  <span class="case-check" aria-hidden="true">{{ resultStateIcon(item) }}</span>
+                  {{ resultCaseText(item) }}
+                </button>
+              </div>
+              <p v-if="activeResultItem?.summary">{{ activeResultItem.summary }}</p>
+              <template v-if="activeResultItem">
+                <div class="result-field">
+                  <span>输入</span>
+                  <ReadonlyCodeBlock :code="activeResultItem.input || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+                </div>
+                <template v-if="activeResultItem.check_mode !== 'observe_only'">
+                  <div class="result-field">
+                    <span>期望输出</span>
+                    <ReadonlyCodeBlock :code="activeResultItem.expected_output || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+                  </div>
                 </template>
-                <span>实际输出</span>
-                <pre>{{ item.actual_output || "(空)" }}</pre>
+                <div class="result-field">
+                  <span>实际输出</span>
+                  <ReadonlyCodeBlock :code="activeResultItem.actual_output || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+                </div>
               </template>
-              <pre v-if="item.stderr">{{ item.stderr }}</pre>
-            </div>
+              <div v-if="activeResultItem?.stderr" class="result-field">
+                <span>错误输出</span>
+                <ReadonlyCodeBlock :code="activeResultItem.stderr" :show-line-numbers="false" compact background="#f7f7f8" />
+              </div>
+            </article>
           </div>
+          <p v-else class="section-empty">暂无测试结果。</p>
 
           <section v-if="lastResult?.ai_review" class="ai-review-block">
-            <header>
+            <header class="review-head">
               <h3>AI 判定</h3>
-              <span class="review-badge">{{ decisionSourceText(lastResult.decision_source) }}</span>
+              <span class="decision-pill">{{ decisionSourceText(lastResult.decision_source) }}</span>
             </header>
-            <p class="review-summary">{{ lastResult.ai_review.summary || "AI 未返回总结。" }}</p>
-            <dl class="review-metrics">
+            <dl class="meta-grid compact-meta">
               <div>
                 <dt>判定结果</dt>
-                <dd>{{ statusText(lastResult.ai_review.decision || lastResult.status) }}</dd>
+                <dd :class="decisionStatusClass(lastResult.ai_review.decision || lastResult.status)">
+                  {{ statusText(lastResult.ai_review.decision || lastResult.status) }}
+                </dd>
               </div>
             </dl>
+            <p class="review-summary">{{ lastResult.ai_review.summary || "AI 未返回总结。" }}</p>
             <div v-if="lastResult.ai_review.issues?.length" class="review-list">
               <strong>风险点</strong>
               <ul>
@@ -246,6 +278,7 @@ import {
 import CodeEditor from "../components/CodeEditor.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
 import PageHeader from "../components/PageHeader.vue";
+import ReadonlyCodeBlock from "../components/ReadonlyCodeBlock.vue";
 import { useAuthStore } from "../stores/auth";
 import { clearAuthSession } from "../utils/authStorage";
 
@@ -287,6 +320,7 @@ const editorPane = ref(null);
 const problemPaneWidth = ref(320);
 const aiPaneWidth = ref(360);
 const resultPaneHeight = ref(0);
+const selectedResultIndex = ref(0);
 
 const sampleCases = computed(() => activeQuestion.value?.test_cases?.filter((item) => item.is_sample) || []);
 const isProgrammingQuestion = computed(() => (activeQuestion.value?.question_type || "programming") === "programming");
@@ -334,6 +368,11 @@ const lastResult = computed(() => {
   if (!activeQuestion.value) return null;
   return lastResultByQuestion.value[activeQuestion.value.id] || null;
 });
+const lastResultItems = computed(() => {
+  const results = lastResult.value?.results;
+  return Array.isArray(results) ? results : [];
+});
+const activeResultItem = computed(() => lastResultItems.value[selectedResultIndex.value] || null);
 const labGridStyle = computed(() => {
   return {
     "--problem-pane-width": `${problemPaneWidth.value}px`,
@@ -404,6 +443,7 @@ function selectQuestion(question) {
   }
   aiMessage.value = "";
   successMessage.value = "";
+  selectedResultIndex.value = 0;
   clearAiHelp();
 }
 
@@ -523,6 +563,7 @@ async function showPreviousSubmissionResult() {
       return;
     }
     ensureDefaultResultPaneHeight();
+    selectedResultIndex.value = 0;
     lastResultByQuestion.value[activeQuestion.value.id] = submissionToRunResult(previousSubmission);
   } catch (error) {
     handleApiError(error, "加载上次提交结果失败。");
@@ -753,6 +794,7 @@ function statusText(status) {
     timeout: "超时",
     sandbox_error: "沙箱错误",
     ai_rejected: "AI 判定未通过",
+    teacher_rejected: "教师判定未通过",
     submitted: "判题中",
     published: "已发布",
     closed: "已关闭",
@@ -781,18 +823,35 @@ function decisionSourceText(value) {
   }[value] || "系统判定";
 }
 
-function resultTitle(item) {
-  if (item?.case_index === 0) {
-    return `编译阶段：${statusText(item.status)}`;
-  }
-  if (item?.check_mode === "observe_only") {
-    return `运行 ${item?.case_index || "-"}：${statusText(item?.status)}`;
-  }
-  return `用例 ${item?.case_index || "-"}：${statusText(item?.status)}`;
+function decisionStatusClass(status) {
+  return status === "accepted" ? "decision-accepted" : "decision-rejected";
 }
 
-function shouldShowCaseIo(item) {
-  return item?.case_index !== 0 && item?.is_sample;
+function formatRunTime(value) {
+  if (value === null || value === undefined) return "--";
+  return `${value} ms`;
+}
+
+function isAcceptedResult(item) {
+  return item?.status === "accepted";
+}
+
+function resultStateClass(item) {
+  return isAcceptedResult(item) ? "passed" : "failed";
+}
+
+function resultStateText(item) {
+  return isAcceptedResult(item) ? "通过" : "解答错误";
+}
+
+function resultStateIcon(item) {
+  return isAcceptedResult(item) ? "✓" : "×";
+}
+
+function resultCaseText(item) {
+  if (item?.case_index === 0) return "编译";
+  if (item?.check_mode === "observe_only") return `运行 ${item?.case_index || "-"}`;
+  return `Case ${item?.case_index || "-"}`;
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -1187,6 +1246,107 @@ pre {
   margin-bottom: 10px;
 }
 
+.review-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.section-empty {
+  margin: 0;
+  color: #7c8da0;
+  font-size: var(--compact-body);
+}
+
+.result-card {
+  display: grid;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #e5eef7;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #243447;
+}
+
+.result-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+}
+
+.result-state {
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.result-state.passed {
+  color: #16a34a;
+}
+
+.result-state.failed {
+  color: #b42318;
+}
+
+.result-runtime {
+  color: #8a919b;
+  font-size: 14px;
+}
+
+.result-case-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.result-case-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7c838d;
+  cursor: pointer;
+}
+
+.result-case-pill.active {
+  background: #f0f1f3;
+  color: #243447;
+}
+
+.case-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.result-case-pill.passed .case-check {
+  background: #16a34a;
+}
+
+.result-case-pill.failed .case-check {
+  background: #b42318;
+}
+
+.result-field {
+  display: grid;
+  gap: 8px;
+}
+
+.result-field > span {
+  color: #8a919b;
+  font-size: 13px;
+}
+
 .ai-review-block {
   display: grid;
   gap: 10px;
@@ -1196,12 +1356,14 @@ pre {
   background: #ffffff;
 }
 
-.review-badge {
-  padding: 4px 8px;
+.decision-pill {
+  padding: 5px 10px;
   border-radius: 999px;
-  background: #ffffff;
-  color: #35639f;
+  background: #eef6ff;
+  color: #1f5f99;
   font-size: var(--compact-caption);
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .ai-reject-alert {
@@ -1237,8 +1399,9 @@ pre {
   background: #fff1f0;
 }
 
-.result-console.ai-rejected-result .review-badge,
-.result-console.ai-rejected-result .result-status.ai_rejected {
+.result-console.ai-rejected-result .decision-pill,
+.result-console.ai-rejected-result .result-status.ai_rejected,
+.result-console.ai-rejected-result .result-status.teacher_rejected {
   background: #d92d20;
   color: #fff;
 }
@@ -1248,28 +1411,41 @@ pre {
   color: #34495f;
 }
 
-.review-metrics {
+.meta-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
 }
 
-.review-metrics div {
-  padding: 9px;
-  border-radius: 8px;
-  background: #fff;
+.meta-grid div {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-.review-metrics dt {
+.meta-grid dt {
   color: #6f8297;
   font-size: 12px;
 }
 
-.review-metrics dd {
+.meta-grid dd {
   margin: 4px 0 0;
   color: var(--app-text);
   font-weight: 400;
+}
+
+.meta-grid dd.decision-accepted {
+  color: #16a34a;
+}
+
+.meta-grid dd.decision-rejected {
+  color: #b42318;
+}
+
+.compact-meta {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .review-list strong {
@@ -1343,16 +1519,19 @@ pre {
 .result-item.timeout,
 .result-item.sandbox_error,
 .result-item.ai_rejected,
+.result-item.teacher_rejected,
 .feedback.error {
   background: #fff8f8;
   color: #b42318;
 }
 
-.result-item.ai_rejected {
+.result-item.ai_rejected,
+.result-item.teacher_rejected {
   border: 1px solid #f97066;
 }
 
 .result-status.ai_rejected,
+.result-status.teacher_rejected,
 .result-status.wrong_answer,
 .result-status.runtime_error,
 .result-status.timeout,

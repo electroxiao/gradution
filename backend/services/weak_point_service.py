@@ -8,6 +8,7 @@ from backend.services.knowledge_progress_service import (
     list_unmastered_weak_point_rows,
     mark_node_weak,
     mark_weak_point_mastered_by_node_id,
+    resolve_existing_graph_node_names,
 )
 
 
@@ -31,7 +32,7 @@ def extract_core_nodes(facts: list) -> list[str]:
 
 def upsert_weak_points(db: Session, user: User, session: ChatSession, node_names: list[str]) -> list[str]:
     added: list[str] = []
-    for node_name in node_names:
+    for node_name in resolve_existing_graph_node_names(node_names):
         if mark_node_weak(db, user, node_name, source_session_id=session.id):
             added.append(node_name)
 

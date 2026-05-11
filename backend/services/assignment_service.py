@@ -58,7 +58,7 @@ from backend.services.sandbox_service import run_java_submission
 VALID_ASSIGNMENT_STATUSES = {"draft", "published", "closed"}
 VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid", "observed_ai"}
 VALID_AI_REVIEW_LEVELS = {"light", "deep"}
-VALID_REVIEW_STATUSES = {"accepted", "ai_rejected"}
+VALID_REVIEW_STATUSES = {"accepted", "teacher_rejected"}
 VALID_QUESTION_TYPES = {"programming", "multiple_choice", "fill_blank"}
 FAST_PASS_THRESHOLD_SECONDS = 60
 

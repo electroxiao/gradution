@@ -33,6 +33,38 @@ def get_or_create_knowledge_node(db: Session, node_name: str) -> KnowledgeNode:
     return node
 
 
+def resolve_existing_graph_node_names(node_names: list[str]) -> list[str]:
+    candidates = [str(node_name).strip() for node_name in node_names if str(node_name).strip()]
+    if not candidates:
+        return []
+
+    try:
+        driver = GraphDatabase.driver(settings.neo4j_uri, auth=settings.neo4j_auth)
+        try:
+            with driver.session(database=settings.neo4j_db_name) as session:
+                records = session.run(
+                    """
+                    UNWIND $names AS name
+                    MATCH (n:Knowledge {name: name})
+                    RETURN DISTINCT n.name AS name
+                    """,
+                    names=candidates,
+                )
+                existing_names = {record["name"] for record in records if record["name"]}
+        finally:
+            driver.close()
+    except Exception:
+        return []
+
+    resolved = []
+    seen = set()
+    for candidate in candidates:
+        if candidate in existing_names and candidate not in seen:
+            resolved.append(candidate)
+            seen.add(candidate)
+    return resolved
+
+
 def get_knowledge_state(db: Session, user: User, node_name: str) -> UserKnowledgeState | None:
     return (
         db.query(UserKnowledgeState)

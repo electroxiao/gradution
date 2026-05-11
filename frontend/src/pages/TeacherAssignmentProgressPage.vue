@@ -227,7 +227,9 @@
                     <dl class="meta-grid compact-meta">
                       <div>
                         <dt>判定结果</dt>
-                        <dd>{{ statusText(selectedSubmission.ai_review_json.decision || selectedSubmission.status) }}</dd>
+                        <dd :class="decisionStatusClass(selectedSubmission.ai_review_json.decision || selectedSubmission.status)">
+                          {{ statusText(selectedSubmission.ai_review_json.decision || selectedSubmission.status) }}
+                        </dd>
                       </div>
                     </dl>
                     <p class="review-summary">{{ selectedSubmission.ai_review_json.summary || "AI 未返回总结。" }}</p>
@@ -276,7 +278,7 @@
             </div>
 
             <div class="review-actions">
-              <button type="button" class="review-button reject" :disabled="reviewing" @click="submitReview('ai_rejected')">
+              <button type="button" class="review-button reject" :disabled="reviewing" @click="submitReview('teacher_rejected')">
                 标记未通过
               </button>
               <button type="button" class="review-button accept" :disabled="reviewing" @click="submitReview('accepted')">
@@ -518,6 +520,10 @@ function resultCaseText(item) {
   return `Case ${item?.case_index || "-"}`;
 }
 
+function decisionStatusClass(status) {
+  return status === "accepted" ? "decision-accepted" : "decision-rejected";
+}
+
 function statusText(status) {
   return {
     not_submitted: "未提交",
@@ -528,6 +534,7 @@ function statusText(status) {
     timeout: "超时",
     sandbox_error: "沙箱错误",
     ai_rejected: "AI 判定未通过",
+    teacher_rejected: "教师判定未通过",
   }[status] || status;
 }
 
@@ -1185,7 +1192,8 @@ function handleApiError(error, fallbackMessage) {
 .status-pill.runtime_error,
 .status-pill.timeout,
 .status-pill.sandbox_error,
-.status-pill.ai_rejected {
+.status-pill.ai_rejected,
+.status-pill.teacher_rejected {
   background: #fff2f2;
   color: #b42318;
 }
@@ -1222,10 +1230,10 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .meta-grid div {
-  padding: 9px;
-  border-radius: 8px;
-  background: rgba(239, 246, 255, 0.72);
-  border: 1px solid #deebf7;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .meta-grid dt {
@@ -1237,6 +1245,14 @@ function handleApiError(error, fallbackMessage) {
   margin: 4px 0 0;
   color: #10283d;
   font-weight: 500;
+}
+
+.meta-grid dd.decision-accepted {
+  color: #16a34a;
+}
+
+.meta-grid dd.decision-rejected {
+  color: #b42318;
 }
 
 .compact-meta {

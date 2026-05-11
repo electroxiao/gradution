@@ -302,7 +302,7 @@ class AssignmentSubmissionHistoryResponse(BaseModel):
 
 
 class AssignmentReviewRequest(BaseModel):
-    status: str = Field(pattern="^(accepted|ai_rejected)$")
+    status: str = Field(pattern="^(accepted|teacher_rejected)$")
     note: str = Field(default="", max_length=2000)
 
 

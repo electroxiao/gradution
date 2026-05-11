@@ -1,11 +1,8 @@
-import json
-
 from neo4j import GraphDatabase
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
 from backend.models.user import User
-from backend.services.chat_service import get_openai_client
 from backend.services.knowledge_progress_service import (
     build_graph_state_map,
     get_graph_node_color,
@@ -24,24 +21,6 @@ RECOMMENDATION_STATUS_COLOR_MAP = {
 }
 
 
-def _parse_json_object(text: str) -> dict | None:
-    if not text:
-        return None
-
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    if start == -1 or end <= start:
-        return None
-
-    try:
-        parsed = json.loads(text[start:end])
-    except Exception:
-        return None
-    return parsed if isinstance(parsed, dict) else None
-
-
-
-
 def _load_target_weak_point(db: Session, user: User, weak_point_id: int | None):
     rows = list_unmastered_weak_point_rows(db, user)
     if not rows:
@@ -51,7 +30,7 @@ def _load_target_weak_point(db: Session, user: User, weak_point_id: int | None):
         return rows[0][0], rows[0][1], rows
 
     for weak_point, node in rows:
-        if weak_point.id == weak_point_id:
+        if node.id == weak_point_id:
             return weak_point, node, rows
 
     return None, None, rows
@@ -180,90 +159,37 @@ def _build_recommendation_fallback(target_name: str, candidates: list[dict]) -> 
     }
 
 
-def _recommend_nodes_with_llm(target: dict, candidates: list[dict], state_map: dict[str, str]) -> dict:
+def _recommend_nodes(target: dict, candidates: list[dict], state_map: dict[str, str]) -> dict:
     fallback = _build_recommendation_fallback(target["name"], candidates)
     if not candidates:
         return fallback
 
-    client = get_openai_client()
-    candidate_lines = []
-    for item in candidates:
-        candidate_lines.append(
-            f"- id={item['id']} | desc={item.get('desc', '') or '无描述'} | source={item.get('source', 'unknown')} | relation={item.get('relation') or 'none'} | direction={item.get('direction') or 'none'} | status={state_map.get(item['id'], 'unknown')}"
-        )
+    def score(item: dict) -> tuple[int, int, str]:
+        status = state_map.get(item["id"], "unknown")
+        source_score = 0 if item.get("source") == "dependency" else 1
+        status_score = 1 if status == "mastered" else 0
+        direction_score = 0 if item.get("direction") == "in" else 1
+        return (status_score, source_score, direction_score, item["id"])
 
-    prompt = f"""
-你是自适应编程辅导系统里的学习路径推荐助手。请根据当前薄弱点和候选知识点，推荐最值得优先学习的已有结点。
+    ranked = sorted(candidates, key=score)[:3]
+    recommended_ids = [item["id"] for item in ranked]
+    learning_order = recommended_ids + [target["id"]]
 
-要求：
-1. 只从候选结点中选择，不要编造新结点。
-2. 推荐 1 到 3 个结点。
-3. learning_order 必须以当前薄弱点作为最后一步。
-4. 如果某个候选结点显然更适合作为前置概念，应排在前面。
-5. 只返回 JSON 对象，不要附加解释文字。
+    reasons = {}
+    for item in ranked:
+        if state_map.get(item["id"]) == "mastered":
+            reasons[item["id"]] = "这个结点你已经掌握，可作为回顾支点，帮助衔接当前薄弱点。"
+        elif item.get("source") == "dependency":
+            reasons[item["id"]] = "它与当前薄弱点存在直接依赖关系，先补齐更利于理解后续内容。"
+        else:
+            reasons[item["id"]] = "它与当前薄弱点在名称或描述上相关，适合作为补充复习内容。"
 
-当前薄弱点：
-- id={target['id']}
-- name={target['name']}
-- desc={target.get('desc', '') or '无描述'}
-
-候选结点：
-{chr(10).join(candidate_lines)}
-
-返回格式：
-{{
-  "recommended_node_ids": ["候选id1", "候选id2"],
-  "learning_order": ["候选id1", "候选id2", "{target['id']}"],
-  "summary": "一段简短说明",
-  "reasons": {{
-    "候选id1": "推荐原因",
-    "候选id2": "推荐原因"
-  }}
-}}
-"""
-
-    try:
-        response = client.chat.completions.create(
-            model=settings.llm_model_name,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-        parsed = _parse_json_object(response.choices[0].message.content or "")
-        if not parsed:
-            return fallback
-
-        candidate_ids = {item["id"] for item in candidates}
-        recommended_ids = [
-            node_id
-            for node_id in parsed.get("recommended_node_ids", [])
-            if isinstance(node_id, str) and node_id in candidate_ids
-        ][:3]
-        if not recommended_ids:
-            return fallback
-
-        learning_order = [
-            node_id
-            for node_id in parsed.get("learning_order", [])
-            if isinstance(node_id, str) and (node_id in candidate_ids or node_id == target["id"])
-        ]
-        if target["id"] not in learning_order:
-            learning_order.append(target["id"])
-
-        summary = parsed.get("summary") or fallback["summary"]
-        raw_reasons = parsed.get("reasons") if isinstance(parsed.get("reasons"), dict) else {}
-        reasons = {
-            node_id: str(raw_reasons.get(node_id) or fallback["reasons"].get(node_id) or "")
-            for node_id in recommended_ids
-        }
-
-        return {
-            "recommended_node_ids": recommended_ids,
-            "learning_order": learning_order,
-            "summary": summary,
-            "reasons": reasons,
-        }
-    except Exception:
-        return fallback
+    return {
+        "recommended_node_ids": recommended_ids,
+        "learning_order": learning_order,
+        "summary": f"建议先复习 {', '.join(recommended_ids)}，再回到 {target['name']} 做针对性训练。",
+        "reasons": reasons,
+    }
 
 
 def _select_path_edges(all_edges: list[dict], ordered_node_ids: list[str]) -> list[dict]:
@@ -306,7 +232,7 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
         with driver.session(database=DB_NAME) as session:
             target = _query_node_details(session, target_node.node_name)
             candidates = _query_candidate_nodes(session, target["name"], target.get("desc", ""))
-            recommendation = _recommend_nodes_with_llm(target, candidates, state_map)
+            recommendation = _recommend_nodes(target, candidates, state_map)
 
             recommended_ids = recommendation["recommended_node_ids"]
             selected_node_ids = []

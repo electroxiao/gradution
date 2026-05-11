@@ -194,7 +194,7 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import {
@@ -224,6 +224,10 @@ const graphCanvas = ref(null);
 const recommendationSummary = ref("");
 const learningOrder = ref([]);
 const recommendedNodes = ref([]);
+const graphCache = new Map();
+const graphRequests = new Map();
+let graphPrefetchTimer = null;
+let graphCacheVersion = 0;
 
 const showQuizPanel = ref(false);
 const quizNodeId = ref("");
@@ -239,6 +243,13 @@ const isSubmitting = ref(false);
 onMounted(async () => {
   await Promise.all([loadWeakPoints(), loadWeakPointHistory()]);
   await loadGraph();
+  scheduleGraphPrefetch();
+});
+
+onBeforeUnmount(() => {
+  if (graphPrefetchTimer) {
+    clearTimeout(graphPrefetchTimer);
+  }
 });
 
 async function loadWeakPoints(options = {}) {
@@ -282,26 +293,89 @@ async function loadGraph(nodeId = currentWeakPointId.value) {
     return;
   }
 
+  const cachedGraph = graphCache.get(nodeId);
+  if (cachedGraph) {
+    applyGraphData(cachedGraph);
+    await restartGraphCanvas();
+    return;
+  }
+
   isGraphLoading.value = true;
   try {
-    const { data } = await getWeakPointsGraphApi(nodeId);
-    graphNodes.value = data.nodes || [];
-    graphEdges.value = data.edges || [];
-    learningOrder.value = data.learning_order || [];
-    recommendationSummary.value = data.summary || "";
-    recommendedNodes.value = data.recommended_nodes || [];
-    currentWeakPointName.value = data.target?.name || currentWeakPointName.value;
-    selectedNodeId.value = data.target?.id || "";
-    await nextTick();
-    if (graphCanvas.value && graphNodes.value.length) {
-      graphCanvas.value.restartLayout?.();
-    }
+    const data = await fetchGraphData(nodeId);
+    applyGraphData(data);
+    await restartGraphCanvas();
   } catch (error) {
     console.error("加载图谱失败:", error);
     handleApiError(error, "加载图谱失败。");
   } finally {
     isGraphLoading.value = false;
   }
+}
+
+async function fetchGraphData(nodeId) {
+  if (graphCache.has(nodeId)) {
+    return graphCache.get(nodeId);
+  }
+  if (graphRequests.has(nodeId)) {
+    return graphRequests.get(nodeId);
+  }
+
+  const requestVersion = graphCacheVersion;
+  const request = getWeakPointsGraphApi(nodeId)
+    .then(({ data }) => {
+      if (requestVersion === graphCacheVersion) {
+        graphCache.set(nodeId, data);
+      }
+      return data;
+    })
+    .finally(() => {
+      graphRequests.delete(nodeId);
+    });
+  graphRequests.set(nodeId, request);
+  return request;
+}
+
+function applyGraphData(data = {}) {
+  graphNodes.value = data.nodes || [];
+  graphEdges.value = data.edges || [];
+  learningOrder.value = data.learning_order || [];
+  recommendationSummary.value = data.summary || "";
+  recommendedNodes.value = data.recommended_nodes || [];
+  currentWeakPointName.value = data.target?.name || currentWeakPointName.value;
+  selectedNodeId.value = data.target?.id || "";
+}
+
+async function restartGraphCanvas() {
+  await nextTick();
+  if (graphCanvas.value && graphNodes.value.length) {
+    graphCanvas.value.restartLayout?.();
+  }
+}
+
+function scheduleGraphPrefetch() {
+  if (graphPrefetchTimer) {
+    clearTimeout(graphPrefetchTimer);
+  }
+
+  graphPrefetchTimer = setTimeout(async () => {
+    for (const item of weakPoints.value) {
+      if (!item?.id || item.id === currentWeakPointId.value || graphCache.has(item.id)) {
+        continue;
+      }
+      try {
+        await fetchGraphData(item.id);
+      } catch (error) {
+        console.debug("预加载薄弱点图谱失败:", error);
+      }
+    }
+  }, 250);
+}
+
+function clearGraphCache() {
+  graphCacheVersion += 1;
+  graphCache.clear();
+  graphRequests.clear();
 }
 
 async function selectWeakPoint(item) {
@@ -433,11 +507,13 @@ function shouldAutoArchiveCurrentWeakPoint() {
 async function completeCurrentWeakPoint() {
   if (!currentWeakPointId.value) return;
   await markMasteredApi(currentWeakPointId.value);
+  clearGraphCache();
   await Promise.all([
     loadWeakPoints({ preferredId: null }),
     loadWeakPointHistory(),
   ]);
   await loadGraph();
+  scheduleGraphPrefetch();
   closeQuizPanel();
 }
 
