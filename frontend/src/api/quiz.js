@@ -1,15 +1,5 @@
-import http, { API_BASE_URL } from "./http";
+import { API_BASE_URL } from "./http";
 import { getAccessToken } from "../utils/authStorage";
-
-export const generateQuizApi = (nodeId) =>
-  http.post(`/api/quiz/generate`, { node_id: nodeId });
-
-export const submitQuizAnswerApi = (nodeId, payload) =>
-  http.post(`/api/quiz/submit`, {
-    node_id: nodeId,
-    answer: payload.answer,
-    question: payload.question,
-  });
 
 export async function streamGenerateQuizApi(nodeId, onChunk) {
   const token = getAccessToken();

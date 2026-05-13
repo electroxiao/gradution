@@ -147,30 +147,30 @@ def test_assignment_submission_integration_flow(
     assert student_detail_response.json()["questions"][0]["id"] == question_id
 
     submit_response = client.post(
-        f"/api/assignments/{assignment_id}/questions/{question_id}/submit",
+        f"/api/assignments/{assignment_id}/submit",
         headers=student_headers,
         json={
-            "code": (
-                "import java.io.*;\n"
-                "public class Main {\n"
-                "  public static void main(String[] args) throws Exception {\n"
-                "    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n"
-                "    String line = br.readLine();\n"
-                "    System.out.println(line == null ? \"\" : line);\n"
-                "  }\n"
-                "}\n"
-            )
+            "answers": [
+                {
+                    "question_id": question_id,
+                    "code": (
+                        "import java.io.*;\n"
+                        "public class Main {\n"
+                        "  public static void main(String[] args) throws Exception {\n"
+                        "    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n"
+                        "    String line = br.readLine();\n"
+                        "    System.out.println(line == null ? \"\" : line);\n"
+                        "  }\n"
+                        "}\n"
+                    ),
+                }
+            ]
         },
     )
     assert_status(submit_response, 200)
     submit_data = submit_response.json()
-    assert "submission" in submit_data
-    assert "results" in submit_data
-    assert submit_data["status"] in {"accepted", "ai_rejected"}
-    assert submit_data["submission"]["assignment_id"] == assignment_id
-    assert submit_data["submission"]["question_id"] == question_id
-    assert isinstance(submit_data["results"], list)
-    assert submit_data["results"], submit_data
+    assert submit_data["submitted_count"] == 1
+    assert len(submit_data["submission_ids"]) == 1
 
     submissions_response = client.get(
         f"/api/assignments/{assignment_id}/submissions",
@@ -178,7 +178,7 @@ def test_assignment_submission_integration_flow(
     )
     assert_status(submissions_response, 200)
     assert any(
-        item["id"] == submit_data["submission"]["id"]
+        item["id"] == submit_data["submission_ids"][0]
         for item in submissions_response.json()
     )
 
@@ -253,14 +253,29 @@ def test_mixed_assignment_class_publish_and_question_bank(
     login_response = client.post("/api/auth/login", json={"username": usernames[0], "password": password})
     assert_status(login_response, 200)
     student_headers = auth_headers(login_response.json()["access_token"])
-    question_id = assignment["questions"][0]["id"]
+    choice_question_id = assignment["questions"][0]["id"]
+    fill_question_id = assignment["questions"][1]["id"]
     submit_response = client.post(
-        f"/api/assignments/{assignment['id']}/questions/{question_id}/submit",
+        f"/api/assignments/{assignment['id']}/submit",
         headers=student_headers,
-        json={"answer": "A"},
+        json={
+            "answers": [
+                {"question_id": choice_question_id, "answer": "A"},
+                {"question_id": fill_question_id, "answer": "close"},
+            ]
+        },
     )
     assert_status(submit_response, 200)
     data = submit_response.json()
-    assert data["status"] in {"accepted", "ai_rejected"}
-    assert data["decision_source"] == "local_multiple_choice"
-    assert data["submission"]["answer"] == "A"
+    assert data["submitted_count"] == 2
+    submissions_response = client.get(
+        f"/api/assignments/{assignment['id']}/submissions",
+        headers=student_headers,
+    )
+    assert_status(submissions_response, 200)
+    choice_submission = next(
+        item for item in submissions_response.json()
+        if item["question_id"] == choice_question_id
+    )
+    assert choice_submission["status"] in {"accepted", "wrong_answer", "submitted"}
+    assert choice_submission["answer"] == "A"

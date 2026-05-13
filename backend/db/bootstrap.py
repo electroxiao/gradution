@@ -15,8 +15,6 @@ def ensure_schema_and_seed(engine: Engine) -> None:
     _ensure_assignment_grading_columns(engine)
     _ensure_assignment_type_and_bank_columns(engine)
     _ensure_assignment_graph_linkage(engine)
-    _drop_removed_mastery_artifacts(engine)
-    _drop_removed_assignment_review_artifacts(engine)
     _ensure_teacher_seed(engine)
     _ensure_student_class_seed(engine)
 
@@ -208,41 +206,6 @@ def _ensure_assignment_graph_linkage(engine: Engine) -> None:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_label VARCHAR(64) NULL"))
             if "trust_score" not in submission_columns:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_score FLOAT NULL"))
-
-
-def _drop_removed_mastery_artifacts(engine: Engine) -> None:
-    inspector = inspect(engine)
-    try:
-        table_names = set(inspector.get_table_names())
-        submission_columns = {column["name"] for column in inspector.get_columns("assignment_submissions")} if "assignment_submissions" in table_names else set()
-    except Exception:
-        return
-
-    with engine.begin() as connection:
-        if "user_concept_mastery" in table_names:
-            connection.execute(text("DROP TABLE user_concept_mastery"))
-        if "assignment_submissions" in table_names and "excluded_from_mastery_update" in submission_columns:
-            connection.execute(text("ALTER TABLE assignment_submissions DROP COLUMN excluded_from_mastery_update"))
-
-
-def _drop_removed_assignment_review_artifacts(engine: Engine) -> None:
-    inspector = inspect(engine)
-    try:
-        table_names = set(inspector.get_table_names())
-        question_columns = {column["name"] for column in inspector.get_columns("assignment_questions")} if "assignment_questions" in table_names else set()
-        question_bank_columns = {column["name"] for column in inspector.get_columns("question_bank_items")} if "question_bank_items" in table_names else set()
-        submission_columns = {column["name"] for column in inspector.get_columns("assignment_submissions")} if "assignment_submissions" in table_names else set()
-    except Exception:
-        return
-
-    with engine.begin() as connection:
-        for column in ("ai_grading_pass_threshold", "ai_grading_confidence_threshold"):
-            if "assignment_questions" in table_names and column in question_columns:
-                connection.execute(text(f"ALTER TABLE assignment_questions DROP COLUMN {column}"))
-            if "question_bank_items" in table_names and column in question_bank_columns:
-                connection.execute(text(f"ALTER TABLE question_bank_items DROP COLUMN {column}"))
-        if "assignment_submissions" in table_names and "teacher_review_status" in submission_columns:
-            connection.execute(text("ALTER TABLE assignment_submissions DROP COLUMN teacher_review_status"))
 
 
 def _ensure_teacher_seed(engine: Engine) -> None:

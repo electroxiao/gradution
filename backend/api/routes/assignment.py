@@ -13,19 +13,16 @@ from backend.schemas.assignment import (
     AssignmentGenerateTestCasesRequest,
     AssignmentQuestionsUpdateRequest,
     AssignmentReviewRequest,
-    AssignmentSubmitRequest,
     AssignmentUpdateRequest,
     QuestionBankItemCreateRequest,
 )
 from backend.services.assignment_service import (
-    assignment_ai_help,
     assignment_ai_help_stream,
     create_assignment,
     create_question_bank_item,
     delete_assignment,
     delete_question_bank_item,
     generate_assignment_focus,
-    generate_assignment_question,
     generate_assignment_questions,
     generate_assignment_test_cases,
     get_student_assignment_detail,
@@ -41,7 +38,6 @@ from backend.services.assignment_service import (
     review_assignment_submission,
     grade_assignment_submissions_in_background,
     submit_assignment,
-    submit_assignment_question,
     update_assignment,
     update_assignment_questions,
 )
@@ -65,15 +61,6 @@ def post_teacher_assignment(
     current_user: User = Depends(get_current_teacher),
 ):
     return create_assignment(db, current_user, payload)
-
-
-@teacher_router.post("/generate-question")
-def post_generate_assignment_question(
-    payload: AssignmentGenerateQuestionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_teacher),
-):
-    return generate_assignment_question(db, payload)
 
 
 @teacher_router.post("/generate-questions")
@@ -247,17 +234,6 @@ def get_assignment_submissions(
     return list_student_submissions(db, current_user, assignment_id)
 
 
-@student_router.post("/{assignment_id}/questions/{question_id}/submit")
-def post_assignment_submission(
-    assignment_id: int,
-    question_id: int,
-    payload: AssignmentSubmitRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return submit_assignment_question(db, current_user, assignment_id, question_id, payload.code, payload.started_at, payload.answer)
-
-
 @student_router.post("/{assignment_id}/submit")
 def post_assignment_bulk_submission(
     assignment_id: int,
@@ -269,17 +245,6 @@ def post_assignment_bulk_submission(
     result = submit_assignment(db, current_user, assignment_id, payload)
     background_tasks.add_task(grade_assignment_submissions_in_background, result["submission_ids"])
     return result
-
-
-@student_router.post("/{assignment_id}/questions/{question_id}/ai-help")
-def post_assignment_ai_help(
-    assignment_id: int,
-    question_id: int,
-    payload: AssignmentAiHelpRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return assignment_ai_help(db, current_user, assignment_id, question_id, payload)
 
 
 @student_router.post("/{assignment_id}/questions/{question_id}/ai-help/stream")

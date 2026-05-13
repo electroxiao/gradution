@@ -206,7 +206,6 @@ npm --prefix frontend run dev
 - 学生提交题目后，后端先保存提交记录，再根据提交状态更新薄弱点。
 - 只要提交状态不是 `accepted`，系统就会把该题绑定的所有知识点标记为学生未掌握薄弱点。
 - 通过提交不会自动标记知识点已掌握，也不会维护单独的掌握度分数。
-- 旧的 `user_concept_mastery` 掌握度表和 `excluded_from_mastery_update` 提交字段已废弃，启动时会被清理。
 
 ## 关键页面
 

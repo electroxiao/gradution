@@ -17,8 +17,6 @@ export const updateTeacherAssignmentApi = (assignmentId, payload) =>
   http.patch(`/api/teacher/assignments/${assignmentId}`, payload);
 export const updateTeacherAssignmentQuestionsApi = (assignmentId, payload) =>
   http.put(`/api/teacher/assignments/${assignmentId}/questions`, payload);
-export const generateAssignmentQuestionApi = (payload) =>
-  http.post("/api/teacher/assignments/generate-question", payload);
 export const generateAssignmentQuestionsApi = (payload) =>
   http.post("/api/teacher/assignments/generate-questions", payload);
 export const generateAssignmentTestCasesApi = (payload) =>
@@ -38,12 +36,8 @@ export const listStudentAssignmentsApi = () => http.get("/api/assignments");
 export const getStudentAssignmentApi = (assignmentId) => http.get(`/api/assignments/${assignmentId}`);
 export const listStudentAssignmentSubmissionsApi = (assignmentId) =>
   http.get(`/api/assignments/${assignmentId}/submissions`);
-export const submitAssignmentQuestionApi = (assignmentId, questionId, payload) =>
-  http.post(`/api/assignments/${assignmentId}/questions/${questionId}/submit`, payload);
 export const submitAssignmentApi = (assignmentId, payload) =>
   http.post(`/api/assignments/${assignmentId}/submit`, payload);
-export const askAssignmentAiHelpApi = (assignmentId, questionId, payload) =>
-  http.post(`/api/assignments/${assignmentId}/questions/${questionId}/ai-help`, payload);
 
 export async function streamAssignmentAiHelpApi(assignmentId, questionId, payload, handlers = {}) {
   const token = getAccessToken();

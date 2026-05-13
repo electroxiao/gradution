@@ -11,7 +11,6 @@ from backend.core.config import settings
 from backend.models.chat import ChatMessage, ChatSession
 from backend.models.user import User
 from backend.schemas.chat import (
-    ChatTurnResponse,
     MessageCreateRequest,
     MessageResponse,
     SessionResponse,
@@ -127,86 +126,6 @@ def _generate_session_title(client: OpenAI, user_input: str, assistant_output: s
     except Exception as error:
         print(f"[chat_title] 自动生成标题失败: {error}")
         return _fallback_session_title(user_input)
-
-
-def send_message(db: Session, user: User, session_id: int, payload: MessageCreateRequest) -> ChatTurnResponse:
-    request_started_at = perf_counter()
-    session = _get_user_session(db, user, session_id)
-    user_message = ChatMessage(session_id=session.id, role="user", content=payload.content)
-    db.add(user_message)
-    db.flush()
-
-    history = _build_history(db, session.id, exclude_message_id=user_message.id)
-    driver = get_neo4j_driver()
-    client = get_openai_client()
-    should_autogenerate_title = _should_autogenerate_title(session, history)
-
-    reasoning_trace: list = []
-    retrieval_trace: list = []
-
-    keyword_started_at = perf_counter()
-    keywords = rag_engine.extract_keywords_with_llm(
-        client,
-        payload.content,
-        history=history,
-        trace=reasoning_trace,
-    )
-    keyword_elapsed = perf_counter() - keyword_started_at
-
-    graph_started_at = perf_counter()
-    facts = rag_engine.query_graph_with_reasoning(
-        driver,
-        client,
-        payload.content,
-        keywords=keywords,
-        max_depth=payload.rag_depth,
-        width=payload.rag_width,
-        reasoning_trace=reasoning_trace,
-        retrieval_trace=retrieval_trace,
-    )
-    graph_elapsed = perf_counter() - graph_started_at
-
-    answer_started_at = perf_counter()
-    answer = "".join(rag_engine.ask_deepseek_stream(client, payload.content, facts, history=history))
-    answer_elapsed = perf_counter() - answer_started_at
-
-    print(
-        "[chat_timing] "
-        f"session={session.id} "
-        f"keyword={keyword_elapsed:.2f}s "
-        f"graph={graph_elapsed:.2f}s "
-        f"answer={answer_elapsed:.2f}s "
-        f"total={perf_counter() - request_started_at:.2f}s"
-    )
-
-    user_message.keywords_json = keywords
-    user_message.facts_json = facts
-
-    assistant_message = ChatMessage(
-        session_id=session.id,
-        role="assistant",
-        content=answer,
-        keywords_json=keywords,
-        facts_json=facts,
-        reasoning_trace_json=reasoning_trace,
-        retrieval_trace_json=retrieval_trace,
-    )
-    db.add(assistant_message)
-
-    if should_autogenerate_title:
-        session.title = _generate_session_title(client, payload.content, answer)
-
-    db.commit()
-    db.refresh(user_message)
-    db.refresh(assistant_message)
-
-    weak_points_added = upsert_weak_points(db, user, session, extract_core_nodes(facts))
-    response = ChatTurnResponse(
-        user_message=_message_to_schema(user_message),
-        assistant_message=_message_to_schema(assistant_message),
-        weak_points_added=weak_points_added,
-    )
-    return response
 
 
 def stream_message(db: Session, user: User, session_id: int, payload: MessageCreateRequest):
@@ -340,4 +259,3 @@ def _message_to_schema(message: ChatMessage) -> MessageResponse:
 
 def _sse_event(event: str, payload: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-

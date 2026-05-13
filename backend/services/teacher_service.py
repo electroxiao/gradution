@@ -688,15 +688,6 @@ def delete_graph_edge(edge_id: str) -> dict:
     return {"ok": True}
 
 
-def _ensure_node_exists(session, node_name: str) -> None:
-    row = session.run(
-        "MATCH (n:Knowledge {name: $name}) RETURN n.name AS name LIMIT 1",
-        name=node_name,
-    ).single()
-    if not row:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Node not found: {node_name}")
-
-
 def _ensure_node_exists_or_create(session, node_name: str) -> list[dict]:
     normalized = node_name.strip()
     row = session.run(

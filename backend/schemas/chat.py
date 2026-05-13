@@ -37,7 +37,3 @@ class MessageResponse(BaseModel):
     created_at: datetime
 
 
-class ChatTurnResponse(BaseModel):
-    user_message: MessageResponse
-    assistant_message: MessageResponse
-    weak_points_added: list[str]

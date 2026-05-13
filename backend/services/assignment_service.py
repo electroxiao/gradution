@@ -22,7 +22,6 @@ from backend.models.knowledge import KnowledgeNode
 from backend.models.user import User
 from backend.schemas.assignment import (
     AssignmentAiHelpRequest,
-    AssignmentAiHelpResponse,
     AssignmentBulkSubmitRequest,
     AssignmentCreateRequest,
     AssignmentDetailResponse,
@@ -38,7 +37,6 @@ from backend.schemas.assignment import (
     AssignmentQuestionInput,
     AssignmentQuestionsUpdateRequest,
     AssignmentReviewRequest,
-    AssignmentRunResultResponse,
     AssignmentStudentRef,
     AssignmentSubmissionDetailResponse,
     AssignmentSubmissionHistoryResponse,
@@ -143,71 +141,6 @@ def update_assignment_questions(
     _sync_assignment_questions_to_bank(db, teacher, assignment)
     db.commit()
     return get_teacher_assignment_detail(db, teacher, assignment_id)
-
-
-def generate_assignment_question(db: Session, payload: AssignmentGenerateQuestionRequest) -> AssignmentGeneratedQuestionResponse:
-    requested_total = payload.programming_count + payload.multiple_choice_count + payload.fill_blank_count
-    if requested_total != 1 or payload.programming_count != 1:
-        return generate_assignment_questions(db, payload)
-    prompt = f"""
-你是一名 Java 编程作业设计助手。请根据教师要求生成一道 Java 编程题草稿和 2 到 4 个测试用例。
-
-知识点：{payload.knowledge_point or "未指定"}
-教师要求：{payload.requirement}
-
-要求：
-1. 题目面向 Java 初学者，主类固定为 Main，从标准输入读取，从标准输出打印。
-2. 测试用例包含 input_data、expected_output、is_sample、sort_order。
-3. 至少 1 个示例测试，至少 1 个隐藏测试。
-4. 只返回 JSON，不要解释。
-
-JSON 格式：
-{{
-  "title": "题目标题",
-  "prompt": "题目描述，包含输入输出要求",
-  "language": "java",
-  "test_cases": [
-    {{"input_data": "输入", "expected_output": "输出", "is_sample": true, "sort_order": 0}}
-  ]
-}}
-"""
-    client = get_openai_client()
-    try:
-        response = client.chat.completions.create(
-            model=settings.llm_model_name,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.5,
-        )
-        content = response.choices[0].message.content or ""
-        data = _parse_json_object(content)
-        test_cases = [
-            AssignmentTestCaseInput(
-                input_data=item.get("input_data", ""),
-                expected_output=item.get("expected_output", ""),
-                is_sample=bool(item.get("is_sample", False)),
-                sort_order=int(item.get("sort_order", index)),
-            )
-            for index, item in enumerate(data.get("test_cases", []))
-        ]
-        if not test_cases:
-            test_cases = [AssignmentTestCaseInput(input_data="", expected_output="", is_sample=True, sort_order=0)]
-        title = data.get("title") or "Java 编程题"
-        prompt_text = data.get("prompt") or payload.requirement
-        knowledge_nodes = _recommend_assignment_knowledge_nodes(db, title, prompt_text, payload)
-        return AssignmentGeneratedQuestionResponse(
-            title=title,
-            prompt=prompt_text,
-            question_type="programming",
-            language="java",
-            test_cases=test_cases,
-            knowledge_node_ids=[item["id"] for item in knowledge_nodes],
-            knowledge_nodes=knowledge_nodes,
-        )
-    except Exception as error:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"生成题目失败：{error}",
-        ) from error
 
 
 def generate_assignment_questions(db: Session, payload: AssignmentGenerateQuestionRequest) -> AssignmentGeneratedQuestionResponse:
@@ -555,62 +488,6 @@ def get_student_assignment_detail(db: Session, student: User, assignment_id: int
     return _assignment_detail(db, assignment, teacher_view=False, student=student)
 
 
-def submit_assignment_question(
-    db: Session,
-    student: User,
-    assignment_id: int,
-    question_id: int,
-    code: str,
-    started_at: datetime | None = None,
-    answer=None,
-) -> AssignmentRunResultResponse:
-    assignment = _get_student_assignment(db, student, assignment_id)
-    question = _get_assignment_question(assignment, question_id)
-    question_type = _normalize_question_type(question.question_type)
-    if question_type != "programming":
-        return _submit_objective_assignment_question(db, student, assignment, question, answer, started_at)
-    if question.language != "java":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前仅支持 Java 作业。")
-    if _normalize_grading_mode(question.grading_mode) in {"testcase", "hybrid"} and not question.test_cases:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该题目尚未配置测试用例。")
-
-    submitted_at = datetime.now()
-    previous_submission = _get_previous_submission(db, student.id, assignment.id, question.id)
-    started_at = _resolve_submission_started_at(started_at, previous_submission)
-    duration_seconds = _duration_seconds(started_at, submitted_at)
-    status_value, results, ai_review, decision_source = _grade_submission(assignment, question, code)
-    previous_code = (previous_submission.code or "") if previous_submission else ""
-    trust_label, trust_score = _resolve_submission_trust(status_value, duration_seconds, code, previous_code)
-    submission = AssignmentSubmission(
-        assignment_id=assignment.id,
-        question_id=question.id,
-        student_id=student.id,
-        code=code,
-        answer_json=None,
-        status=status_value,
-        results_json=results,
-        ai_review_json=ai_review,
-        final_decision_source=decision_source,
-        trust_label=trust_label,
-        trust_score=trust_score,
-        started_at=started_at,
-        duration_seconds=duration_seconds,
-        submitted_at=submitted_at,
-    )
-    db.add(submission)
-    db.flush()
-    _mark_wrong_submission_bound_nodes_weak(db, student, question, submission)
-    db.commit()
-    db.refresh(submission)
-    return AssignmentRunResultResponse(
-        submission=_submission_to_response(submission, student_visible=True),
-        status=status_value,
-        results=_student_visible_results(results),
-        ai_review=ai_review,
-        decision_source=decision_source,
-    )
-
-
 def submit_assignment(
     db: Session,
     student: User,
@@ -751,63 +628,6 @@ def _grade_pending_assignment_submission(db: Session, submission_id: int) -> Non
         ]
         submission.final_decision_source = "background_error"
         db.commit()
-
-
-def _submit_objective_assignment_question(
-    db: Session,
-    student: User,
-    assignment: Assignment,
-    question: AssignmentQuestion,
-    answer,
-    started_at: datetime | None = None,
-) -> AssignmentRunResultResponse:
-    if answer is None or (isinstance(answer, str) and not answer.strip()):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先填写答案。")
-    submitted_at = datetime.now()
-    previous_submission = _get_previous_submission(db, student.id, assignment.id, question.id)
-    started_at = _resolve_submission_started_at(started_at, previous_submission)
-    duration_seconds = _duration_seconds(started_at, submitted_at)
-    normalized_answer = _normalize_answer(answer)
-    if _normalize_question_type(question.question_type) == "multiple_choice":
-        status_value, results, ai_review, decision_source = _grade_multiple_choice_locally(question, normalized_answer)
-    else:
-        ai_review = _run_ai_objective_review(assignment, question, normalized_answer)
-        status_value = _resolve_ai_only_status(question, ai_review)
-        results = [
-            {
-                "case_index": 1,
-                "status": status_value,
-                "check_mode": "ai_objective_review",
-                "summary": ai_review.get("summary") if isinstance(ai_review, dict) else "",
-            }
-        ]
-        decision_source = "ai_objective_review"
-    submission = AssignmentSubmission(
-        assignment_id=assignment.id,
-        question_id=question.id,
-        student_id=student.id,
-        code="",
-        answer_json=normalized_answer,
-        status=status_value,
-        results_json=results,
-        ai_review_json=ai_review,
-        final_decision_source=decision_source,
-        started_at=started_at,
-        duration_seconds=duration_seconds,
-        submitted_at=submitted_at,
-    )
-    db.add(submission)
-    db.flush()
-    _mark_wrong_submission_bound_nodes_weak(db, student, question, submission)
-    db.commit()
-    db.refresh(submission)
-    return AssignmentRunResultResponse(
-        submission=_submission_to_response(submission, student_visible=True),
-        status=status_value,
-        results=_student_visible_results(results),
-        ai_review=ai_review,
-        decision_source=decision_source,
-    )
 
 
 def list_student_submissions(db: Session, student: User, assignment_id: int) -> list[AssignmentSubmissionResponse]:
@@ -1022,34 +842,6 @@ def review_assignment_submission(
     return get_teacher_submission_detail(db, teacher, assignment_id, submission_id)
 
 
-def assignment_ai_help(
-    db: Session,
-    student: User,
-    assignment_id: int,
-    question_id: int,
-    payload: AssignmentAiHelpRequest,
-) -> AssignmentAiHelpResponse:
-    client, help_context, keywords, facts, reasoning_trace, retrieval_trace = _prepare_assignment_rag_help(
-        db,
-        student,
-        assignment_id,
-        question_id,
-        payload,
-    )
-
-    try:
-        answer = _generate_assignment_rag_help(client, help_context, facts)
-        return AssignmentAiHelpResponse(
-            answer=answer,
-            keywords=[str(item) for item in keywords],
-            facts=facts,
-            reasoning_trace=reasoning_trace,
-            retrieval_trace=retrieval_trace,
-        )
-    except Exception as error:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"AI 帮助失败：{error}") from error
-
-
 def assignment_ai_help_stream(
     db: Session,
     student: User,
@@ -1117,7 +909,7 @@ def _prepare_assignment_rag_help(
             retrieval_trace=retrieval_trace,
         )
     except Exception as error:
-        print(f"[assignment_ai_help] 图谱检索失败: {error}")
+        print(f"[assignment_ai_help_stream] 图谱检索失败: {error}")
         keywords = []
         facts = []
         retrieval_trace.append(
@@ -1173,16 +965,6 @@ def _build_assignment_help_prompt(help_context: str, facts: list) -> str:
 【作业上下文】
 {help_context}
 """
-
-
-def _generate_assignment_rag_help(client, help_context: str, facts: list) -> str:
-    prompt = _build_assignment_help_prompt(help_context, facts)
-    response = client.chat.completions.create(
-        model=settings.llm_model_name,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.35,
-    )
-    return (response.choices[0].message.content or "").strip()
 
 
 def _stream_assignment_rag_help(client, help_context: str, facts: list):
@@ -2297,12 +2079,6 @@ def _merge_focus(auto_focus: list[str], teacher_focus: list[str]) -> list[str]:
 
 
 def _resolve_ai_only_status(question: AssignmentQuestion, ai_review: dict) -> str:
-    if not isinstance(ai_review, dict):
-        return "ai_rejected"
-    return "accepted" if ai_review.get("decision") == "accepted" else "ai_rejected"
-
-
-def _resolve_hybrid_status(question: AssignmentQuestion, ai_review: dict) -> str:
     if not isinstance(ai_review, dict):
         return "ai_rejected"
     return "accepted" if ai_review.get("decision") == "accepted" else "ai_rejected"

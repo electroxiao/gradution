@@ -1,4 +1,3 @@
-import json
 from neo4j import GraphDatabase
 from openai import OpenAI
 
@@ -45,54 +44,6 @@ def get_node_context_from_neo4j(node_id: str) -> dict:
     return context
 
 
-def generate_quiz_question(node_id: str, db=None, user=None) -> dict:
-    context = get_node_context(node_id, db=db, user=user)
-
-    related_str = ""
-    if context["related_concepts"]:
-        related_str = "相关概念：" + "、".join(
-            item["name"] for item in context["related_concepts"][:5]
-        )
-
-    prompt = f"""
-你是一名 Java 编程教学专家。请根据以下知识点信息，生成一道选择题或简答题。
-
-知识点：{context['name']}
-描述：{context['desc'] or '无详细描述'}
-{related_str}
-
-请生成一道针对该知识点的练习题，要求：
-1. 题目应该测试学生对核心概念的理解
-2. 难度适中，适合初学者
-3. 题目要有明确的正确答案
-4. 只生成问题本身，禁止输出答案
-
-只返回 JSON 格式，格式如下：
-{{"question": "题目内容", "hint": "可选的提示"}}
-"""
-
-    client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
-
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-        )
-        content = response.choices[0].message.content
-
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        if start != -1 and end > start:
-            quiz_data = json.loads(content[start:end])
-            return {"question": quiz_data.get("question", ""), "hint": quiz_data.get("hint", "")}
-
-        return {"question": content, "hint": ""}
-    except Exception as e:
-        print(f"生成题目失败: {e}")
-        return {"question": f"请解释 {node_id} 的核心概念和用法。", "hint": ""}
-
-
 def stream_generate_quiz_question(node_id: str, db=None, user=None):
     context = get_node_context(node_id, db=db, user=user)
 
@@ -136,102 +87,6 @@ def stream_generate_quiz_question(node_id: str, db=None, user=None):
     except Exception as e:
         print(f"流式生成题目失败: {e}")
         yield f"请解释 {node_id} 的核心概念和用法。"
-
-
-def submit_and_judge_answer(node_id: str, question: str, answer: str, db, user) -> dict:
-    context = get_node_context(node_id, db=db, user=user)
-
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "mark_node_mastered",
-                "description": "当用户回答正确时，调用此函数标记知识点已掌握",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "node_id": {
-                            "type": "string",
-                            "description": "知识点节点ID",
-                        }
-                    },
-                    "required": ["node_id"],
-                },
-            },
-        }
-    ]
-
-    prompt = f"""
-你是一名 Java 编程教学专家。请判断学生的回答是否正确。
-
-知识点：{context['name']}
-描述：{context['desc'] or '无详细描述'}
-
-题目：{question}
-
-学生回答：{answer}
-
-请判断：
-1. 学生回答是否正确（理解了核心概念）
-2. 反馈要简洁但有用，保留最关键的判断理由和必要纠正
-
-如果学生回答正确，请调用 mark_node_mastered 函数来标记该知识点已掌握。
-
-返回 JSON 格式：
-{{"is_correct": true/false, "feedback": "简短反馈，1到2句话，建议不超过60个字", "mastered": true/false}}
-
-额外要求：
-1. feedback 控制在 1 到 2 句话
-2. 不要复述题目
-3. 不要长篇展开讲解
-4. 正确时说明“回答正确”并点出 1 个关键依据
-5. 错误时指出 1 到 2 个关键问题，并给出最短纠正
-"""
-
-    client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
-
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[{"role": "user", "content": prompt}],
-            tools=tools,
-            tool_choice="auto",
-            temperature=0.3,
-        )
-
-        message = response.choices[0].message
-        mastered = False
-
-        if message.tool_calls:
-            for tool_call in message.tool_calls:
-                if tool_call.function.name == "mark_node_mastered":
-                    args = json.loads(tool_call.function.arguments)
-                    if args.get("node_id"):
-                        mark_node_mastered(db, user, args["node_id"])
-                        db.commit()
-                        mastered = True
-
-        content = message.content or ""
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        if start != -1 and end > start:
-            result = json.loads(content[start:end])
-            result["mastered"] = mastered or result.get("is_correct", False)
-            return result
-
-        is_correct = "正确" in content or "对" in content
-        return {
-            "is_correct": is_correct,
-            "feedback": content,
-            "mastered": is_correct,
-        }
-    except Exception as e:
-        print(f"判题失败: {e}")
-        return {
-            "is_correct": False,
-            "feedback": f"判题过程出错：{str(e)}",
-            "mastered": False,
-        }
 
 
 def stream_judge_answer(node_id: str, question: str, answer: str, db, user):

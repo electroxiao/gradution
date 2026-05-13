@@ -83,12 +83,6 @@ class AssignmentGenerateFocusRequest(BaseModel):
     ai_review_level: str = Field(default="deep", max_length=32)
 
 
-class AssignmentSubmitRequest(BaseModel):
-    code: str = Field(default="")
-    answer: Any = None
-    started_at: datetime | None = None
-
-
 class AssignmentBulkQuestionSubmitRequest(BaseModel):
     question_id: int
     code: str = Field(default="")
@@ -202,22 +196,6 @@ class AssignmentDetailResponse(BaseModel):
     submissions: list[AssignmentSubmissionResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
-
-
-class AssignmentRunResultResponse(BaseModel):
-    submission: AssignmentSubmissionResponse
-    status: str
-    results: list[dict[str, Any]]
-    ai_review: Any = None
-    decision_source: str | None = None
-
-
-class AssignmentAiHelpResponse(BaseModel):
-    answer: str
-    keywords: list[str] = Field(default_factory=list)
-    facts: list[Any] = Field(default_factory=list)
-    reasoning_trace: list[Any] = Field(default_factory=list)
-    retrieval_trace: list[Any] = Field(default_factory=list)
 
 
 class AssignmentGeneratedQuestionResponse(BaseModel):

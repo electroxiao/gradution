@@ -11,7 +11,6 @@ from backend.services.chat_service import (
     list_messages,
     list_sessions,
     rename_session,
-    send_message,
     stream_message,
 )
 
@@ -58,16 +57,6 @@ def get_messages(
     current_user: User = Depends(get_current_user),
 ):
     return list_messages(db, current_user, session_id)
-
-
-@router.post("/sessions/{session_id}/messages")
-def post_message(
-    session_id: int,
-    payload: MessageCreateRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return send_message(db, current_user, session_id, payload)
 
 
 @router.post("/sessions/{session_id}/messages/stream")

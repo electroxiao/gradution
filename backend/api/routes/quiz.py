@@ -7,10 +7,8 @@ from sqlalchemy.orm import Session
 from backend.api.deps import get_current_user, get_db
 from backend.models.user import User
 from backend.services.quiz_service import (
-    generate_quiz_question,
     stream_generate_quiz_question,
     stream_judge_answer,
-    submit_and_judge_answer,
 )
 
 router = APIRouter(prefix="/api/quiz", tags=["quiz"])
@@ -24,16 +22,6 @@ class SubmitAnswerRequest(BaseModel):
     node_id: str
     question: str
     answer: str
-
-
-@router.post("/generate")
-def generate_quiz(
-    request: GenerateQuizRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    quiz = generate_quiz_question(request.node_id, db, current_user)
-    return quiz
 
 
 @router.post("/generate/stream")
@@ -55,22 +43,6 @@ def generate_quiz_stream(
             "Connection": "keep-alive",
         },
     )
-
-
-@router.post("/submit")
-def submit_answer(
-    request: SubmitAnswerRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    result = submit_and_judge_answer(
-        request.node_id,
-        request.question,
-        request.answer,
-        db,
-        current_user,
-    )
-    return result
 
 
 @router.post("/submit/stream")
