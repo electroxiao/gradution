@@ -44,7 +44,6 @@ from backend.schemas.assignment import (
     AssignmentSummaryResponse,
     AssignmentTestCaseInput,
     AssignmentUpdateRequest,
-    QuestionBankItemCreateRequest,
     QuestionBankItemResponse,
 )
 from backend.services import rag_engine
@@ -445,8 +444,8 @@ def list_question_bank_items(
     return [_question_bank_item_response(row, db) for row in rows]
 
 
-def create_question_bank_item(db: Session, teacher: User, payload: QuestionBankItemCreateRequest) -> QuestionBankItemResponse:
-    row = _upsert_question_bank_item(db, teacher, payload, source=payload.source or "manual", increment_reuse=False)
+def create_question_bank_item(db: Session, teacher: User, payload: AssignmentQuestionInput) -> QuestionBankItemResponse:
+    row = _upsert_question_bank_item(db, teacher, payload, increment_reuse=False)
     db.commit()
     db.refresh(row)
     return _question_bank_item_response(row, db)
@@ -1402,7 +1401,7 @@ def _question_type_counts(assignment: Assignment) -> dict[str, int]:
 
 def _sync_assignment_questions_to_bank(db: Session, teacher: User, assignment: Assignment) -> None:
     for question in assignment.questions:
-        payload = QuestionBankItemCreateRequest(
+        payload = AssignmentQuestionInput(
             title=question.title or "",
             prompt=question.prompt,
             question_type=_normalize_question_type(question.question_type),
@@ -1427,16 +1426,14 @@ def _sync_assignment_questions_to_bank(db: Session, teacher: User, assignment: A
                 )
                 for test_case in sorted(question.test_cases, key=lambda item: (item.sort_order, item.id))
             ],
-            source="assignment",
         )
-        _upsert_question_bank_item(db, teacher, payload, source="assignment", increment_reuse=False)
+        _upsert_question_bank_item(db, teacher, payload, increment_reuse=False)
 
 
 def _upsert_question_bank_item(
     db: Session,
     teacher: User,
-    payload: QuestionBankItemCreateRequest,
-    source: str = "assignment",
+    payload: AssignmentQuestionInput,
     increment_reuse: bool = False,
 ) -> QuestionBankItem:
     question_type = _normalize_question_type(payload.question_type)
@@ -1460,8 +1457,6 @@ def _upsert_question_bank_item(
         "ai_grading_focus_json": _normalize_ai_focus(payload.ai_grading_focus),
         "test_cases_json": [item.model_dump() if hasattr(item, "model_dump") else item for item in payload.test_cases],
         "knowledge_node_ids_json": [int(item) for item in payload.knowledge_node_ids if str(item).strip()],
-        "difficulty": (payload.difficulty or "medium").strip(),
-        "source": source,
     }
     if row:
         for key, value in values.items():
@@ -1544,8 +1539,6 @@ def _question_bank_item_response(row: QuestionBankItem, db: Session | None = Non
         ],
         knowledge_node_ids=knowledge_node_ids,
         knowledge_nodes=_question_bank_item_knowledge_nodes(db, row),
-        difficulty=row.difficulty or "medium",
-        source=row.source or "assignment",
         reuse_count=int(row.reuse_count or 0),
         created_at=row.created_at,
         updated_at=row.updated_at,

@@ -151,8 +151,6 @@ class QuestionBankItem(Base):
     ai_grading_focus_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     test_cases_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     knowledge_node_ids_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
-    difficulty: Mapped[str] = mapped_column(String(32), default="medium", server_default="medium", index=True)
-    source: Mapped[str] = mapped_column(String(32), default="assignment", server_default="assignment", index=True)
     content_hash: Mapped[str] = mapped_column(String(64), index=True)
     reuse_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

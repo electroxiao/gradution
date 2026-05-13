@@ -157,8 +157,6 @@ def _ensure_assignment_type_and_bank_columns(engine: Engine) -> None:
                         ai_grading_focus_json JSON NULL,
                         test_cases_json JSON NULL,
                         knowledge_node_ids_json JSON NULL,
-                        difficulty VARCHAR(32) NOT NULL DEFAULT 'medium',
-                        source VARCHAR(32) NOT NULL DEFAULT 'assignment',
                         content_hash VARCHAR(64) NOT NULL,
                         reuse_count INT NOT NULL DEFAULT 0,
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -170,8 +168,6 @@ def _ensure_assignment_type_and_bank_columns(engine: Engine) -> None:
             )
             connection.execute(text("CREATE INDEX ix_question_bank_items_teacher_id ON question_bank_items (teacher_id)"))
             connection.execute(text("CREATE INDEX ix_question_bank_items_question_type ON question_bank_items (question_type)"))
-            connection.execute(text("CREATE INDEX ix_question_bank_items_difficulty ON question_bank_items (difficulty)"))
-            connection.execute(text("CREATE INDEX ix_question_bank_items_source ON question_bank_items (source)"))
             connection.execute(text("CREATE INDEX ix_question_bank_items_content_hash ON question_bank_items (content_hash)"))
 
 

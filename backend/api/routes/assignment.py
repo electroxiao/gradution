@@ -11,10 +11,10 @@ from backend.schemas.assignment import (
     AssignmentGenerateFocusRequest,
     AssignmentGenerateQuestionRequest,
     AssignmentGenerateTestCasesRequest,
+    AssignmentQuestionInput,
     AssignmentQuestionsUpdateRequest,
     AssignmentReviewRequest,
     AssignmentUpdateRequest,
-    QuestionBankItemCreateRequest,
 )
 from backend.services.assignment_service import (
     assignment_ai_help_stream,
@@ -102,7 +102,7 @@ def get_question_bank(
 
 @teacher_router.post("/question-bank")
 def post_question_bank_item(
-    payload: QuestionBankItemCreateRequest,
+    payload: AssignmentQuestionInput,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):

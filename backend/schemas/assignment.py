@@ -284,11 +284,6 @@ class AssignmentReviewRequest(BaseModel):
     note: str = Field(default="", max_length=2000)
 
 
-class QuestionBankItemCreateRequest(AssignmentQuestionInput):
-    difficulty: str = Field(default="medium", max_length=32)
-    source: str = Field(default="manual", max_length=32)
-
-
 class QuestionBankItemResponse(BaseModel):
     id: int
     title: str
@@ -305,8 +300,6 @@ class QuestionBankItemResponse(BaseModel):
     test_cases: list[AssignmentTestCaseInput] = Field(default_factory=list)
     knowledge_node_ids: list[int] = Field(default_factory=list)
     knowledge_nodes: list[dict[str, Any]] = Field(default_factory=list)
-    difficulty: str = "medium"
-    source: str = "assignment"
     reuse_count: int = 0
     created_at: datetime
     updated_at: datetime
