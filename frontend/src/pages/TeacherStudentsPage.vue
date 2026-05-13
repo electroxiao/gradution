@@ -6,20 +6,29 @@
 
     <div class="students-layout">
       <aside class="student-list">
-        <button
-          v-for="student in students"
-          :key="student.id"
-          class="student-item"
-          :class="{ active: student.id === activeStudentId }"
-          @click="selectStudent(student.id)"
-        >
-          <strong>{{ student.username }}</strong>
-          <span>{{ student.class_name || "未分班" }} · {{ student.weak_point_count }} 个薄弱点</span>
-        </button>
+        <template v-if="isStudentsLoading">
+          <div v-for="index in 6" :key="`student-list-skeleton-${index}`" class="skeleton-row"></div>
+        </template>
+        <template v-else>
+          <button
+            v-for="student in students"
+            :key="student.id"
+            class="student-item"
+            :class="{ active: student.id === activeStudentId }"
+            @click="selectStudent(student.id)"
+          >
+            <strong>{{ student.username }}</strong>
+            <span>{{ student.class_name || "未分班" }} · {{ student.weak_point_count }} 个薄弱点</span>
+          </button>
+        </template>
       </aside>
 
       <section class="student-detail">
-        <div v-if="activeStudent" class="detail-header">
+        <div v-if="isStudentsLoading" class="detail-header skeleton-stack">
+          <div class="skeleton-line" style="width: 160px"></div>
+          <div class="skeleton-line" style="width: 240px"></div>
+        </div>
+        <div v-else-if="activeStudent" class="detail-header">
           <div>
             <h3>{{ activeStudent.username }}</h3>
             <p>{{ activeStudent.class_name || "未分班" }} · 当前未掌握 {{ studentWeakPoints.length }} 个节点</p>
@@ -31,14 +40,16 @@
             <h4>当前未掌握节点</h4>
             <span>{{ studentWeakPoints.length }} 个</span>
           </div>
-          <div v-if="studentWeakPoints.length" class="weak-cards">
+          <div v-if="isStudentsLoading || isWeakPointsLoading" class="weak-cards" aria-label="学生薄弱点加载中">
+            <div v-for="index in 6" :key="`student-weakpoint-skeleton-${index}`" class="skeleton-row"></div>
+          </div>
+          <div v-else-if="studentWeakPoints.length" class="weak-cards">
             <article v-for="item in studentWeakPoints" :key="item.id" class="weak-card">
               <strong>{{ item.node_name }}</strong>
               <span>最近出现 {{ formatDate(item.last_seen_at) }}</span>
             </article>
           </div>
-          <div v-else-if="isWeakPointsLoading" class="empty">正在加载薄弱点...</div>
-          <div v-else class="empty">该学生当前没有未掌握薄弱点。</div>
+          <div v-else-if="hasStudentsLoaded" class="empty">该学生当前没有未掌握薄弱点。</div>
         </section>
 
       </section>
@@ -59,6 +70,8 @@ const students = ref([]);
 const activeStudentId = ref(null);
 const studentWeakPoints = ref([]);
 const errorMessage = ref("");
+const isStudentsLoading = ref(true);
+const hasStudentsLoaded = ref(false);
 const isWeakPointsLoading = ref(false);
 let activeRequestId = 0;
 
@@ -71,6 +84,7 @@ onMounted(async () => {
 });
 
 async function loadStudents() {
+  isStudentsLoading.value = true;
   try {
     const { data } = await listTeacherStudentsApi();
     students.value = data;
@@ -79,6 +93,9 @@ async function loadStudents() {
     }
   } catch (error) {
     handleApiError(error, "加载学生列表失败。");
+  } finally {
+    hasStudentsLoaded.value = true;
+    isStudentsLoading.value = false;
   }
 }
 

@@ -9,7 +9,11 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="progress" class="summary-row">
+    <section v-if="isInitialLoading" class="summary-row">
+      <article v-for="index in 3" :key="`progress-summary-skeleton-${index}`" class="skeleton-card"></article>
+    </section>
+
+    <section v-else-if="progress" class="summary-row">
       <article class="summary-card shell-card">
         <span>发布学生</span>
         <strong>{{ progress.students.length }}</strong>
@@ -24,7 +28,22 @@
       </article>
     </section>
 
-    <main v-if="progress" class="progress-layout">
+    <main v-if="isInitialLoading" class="progress-layout">
+      <section class="student-panel shell-card">
+        <div class="panel-header">
+          <div class="skeleton-stack">
+            <div class="skeleton-line" style="width: 180px"></div>
+            <div class="skeleton-line" style="width: 260px"></div>
+          </div>
+        </div>
+        <div class="skeleton-table" aria-label="作业完成情况加载中">
+          <div class="skeleton-row"></div>
+          <div v-for="index in 7" :key="`progress-row-skeleton-${index}`" class="skeleton-row"></div>
+        </div>
+      </section>
+    </main>
+
+    <main v-else-if="progress" class="progress-layout">
       <section class="student-panel shell-card">
         <div class="panel-header">
           <div>
@@ -85,7 +104,7 @@
             <button type="button" :disabled="currentPage === totalPages" @click="setPage(currentPage + 1)">下一页</button>
           </div>
         </div>
-        <div v-else class="empty-state">当前筛选下没有学生。</div>
+        <div v-else-if="hasLoaded" class="empty-state">当前筛选下没有学生。</div>
       </section>
     </main>
 
@@ -317,6 +336,8 @@ const selectedQuestion = ref(null);
 const selectedSubmission = ref(null);
 const selectedSubmissions = ref([]);
 const errorMessage = ref("");
+const hasLoaded = ref(false);
+const isInitialLoading = ref(true);
 const reviewNote = ref("");
 const reviewing = ref(false);
 const matrixFilter = ref("all");
@@ -407,11 +428,15 @@ watch(selectedResultItems, (items) => {
 });
 
 async function loadProgress() {
+  if (!hasLoaded.value) isInitialLoading.value = true;
   try {
     const { data } = await getTeacherAssignmentProgressApi(assignmentId);
     progress.value = data;
   } catch (error) {
     handleApiError(error, "加载完成情况失败。");
+  } finally {
+    hasLoaded.value = true;
+    isInitialLoading.value = false;
   }
 }
 

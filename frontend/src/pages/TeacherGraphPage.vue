@@ -46,8 +46,8 @@
           <span class="graph-mode-copy">编辑正式图谱中的节点与关系</span>
         </div>
 
-        <div v-if="isGraphLoading" class="graph-state">图谱加载中...</div>
-        <div v-else-if="!graph.nodes.length" class="graph-state">当前没有可展示的知识图谱节点。</div>
+        <div v-if="isGraphLoading" class="skeleton-graph" aria-label="知识图谱加载中"></div>
+        <div v-else-if="hasGraphLoaded && !graph.nodes.length" class="graph-state">当前没有可展示的知识图谱节点。</div>
 
         <KnowledgeGraphCanvas
           v-if="graph.nodes.length && !isGraphLoading"
@@ -310,7 +310,8 @@ defineOptions({ name: "TeacherGraphPage" });
 const router = useRouter();
 const keyword = ref("");
 const errorMessage = ref("");
-const isGraphLoading = ref(false);
+const isGraphLoading = ref(true);
+const hasGraphLoaded = ref(false);
 const isGraphSuggesting = ref(false);
 const fullGraph = ref({ nodes: [], edges: [] });
 const graph = ref({ nodes: [], edges: [] });
@@ -359,6 +360,8 @@ async function loadGraph() {
   if (cachedGraph) {
     fullGraph.value = cachedGraph;
     graph.value = cachedGraph;
+    hasGraphLoaded.value = true;
+    isGraphLoading.value = false;
     return;
   }
 
@@ -366,6 +369,8 @@ async function loadGraph() {
   if (staleGraph) {
     fullGraph.value = staleGraph;
     graph.value = staleGraph;
+    hasGraphLoaded.value = true;
+    isGraphLoading.value = false;
     refreshFullGraphCacheInBackground();
     return;
   }
@@ -378,6 +383,7 @@ async function loadGraph() {
   } catch (error) {
     handleApiError(error, "加载图谱失败。");
   } finally {
+    hasGraphLoaded.value = true;
     isGraphLoading.value = false;
   }
 }
@@ -633,6 +639,7 @@ async function searchGraph() {
   } catch (error) {
     handleApiError(error, "搜索图谱失败。");
   } finally {
+    hasGraphLoaded.value = true;
     isGraphLoading.value = false;
   }
 }

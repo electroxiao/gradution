@@ -3,7 +3,11 @@
     <PageHeader title="学习工作台">
     </PageHeader>
 
-    <section class="summary-row">
+    <section v-if="isDashboardLoading" class="summary-row">
+      <article v-for="index in 4" :key="`student-dashboard-summary-skeleton-${index}`" class="skeleton-card"></article>
+    </section>
+
+    <section v-else class="summary-row">
       <article class="summary-card">
         <span class="summary-dot blue" />
         <span>作业总数</span>
@@ -39,7 +43,10 @@
           <router-link class="app-button-ghost" to="/assignments">全部作业</router-link>
         </div>
 
-        <div v-if="pendingAssignments.length" class="assignment-list">
+        <div v-if="isAssignmentsLoading" class="assignment-list skeleton-stack" aria-label="待完成作业加载中">
+          <div v-for="index in 4" :key="`pending-assignment-skeleton-${index}`" class="skeleton-row"></div>
+        </div>
+        <div v-else-if="pendingAssignments.length" class="assignment-list">
           <article v-for="item in pendingAssignments.slice(0, 4)" :key="item.id" class="assignment-item">
             <div class="item-main">
               <div class="item-head">
@@ -55,7 +62,7 @@
             </div>
           </article>
         </div>
-        <div v-else class="empty-state">
+        <div v-else-if="assignmentsLoaded" class="empty-state">
           <h3>当前没有待完成作业</h3>
           <p>可以继续问 AI，或者查看薄弱点训练。</p>
           <div class="empty-actions">
@@ -97,13 +104,16 @@
             </div>
             <router-link class="app-button-ghost" to="/weak-points">去训练</router-link>
           </div>
-          <div v-if="weakPoints.length" class="weak-list">
+          <div v-if="isWeakPointsLoading" class="weak-list skeleton-stack" aria-label="薄弱点加载中">
+            <div v-for="index in 5" :key="`dashboard-weakpoint-skeleton-${index}`" class="skeleton-row"></div>
+          </div>
+          <div v-else-if="weakPoints.length" class="weak-list">
             <article v-for="item in weakPoints.slice(0, 5)" :key="item.id || item.node_id || item.name">
               <strong>{{ item.name || item.node_name || item.title }}</strong>
               <p>{{ item.reason || item.description }}</p>
             </article>
           </div>
-          <div v-else class="empty-state compact">
+          <div v-else-if="weakPointsLoaded" class="empty-state compact">
             <h3>暂无薄弱点</h3>
             <p>先在 AI 对话中围绕 Java 知识点提问。</p>
           </div>
@@ -127,11 +137,16 @@ const assignments = ref([]);
 const weakPoints = ref([]);
 const assignmentError = ref("");
 const weakPointError = ref("");
+const assignmentsLoaded = ref(false);
+const weakPointsLoaded = ref(false);
+const isAssignmentsLoading = ref(true);
+const isWeakPointsLoading = ref(true);
 
 const pendingAssignments = computed(() => {
   return assignments.value.filter((item) => (item.accepted_count || 0) < (item.question_count || 0));
 });
 const acceptedTotal = computed(() => assignments.value.reduce((sum, item) => sum + (item.accepted_count || 0), 0));
+const isDashboardLoading = computed(() => isAssignmentsLoading.value || isWeakPointsLoading.value);
 
 onMounted(() => {
   loadAssignments();
@@ -139,20 +154,28 @@ onMounted(() => {
 });
 
 async function loadAssignments() {
+  isAssignmentsLoading.value = true;
   try {
     const { data } = await listStudentAssignmentsApi();
     assignments.value = data;
   } catch (error) {
     handleApiError(error, "作业加载失败。", assignmentError);
+  } finally {
+    assignmentsLoaded.value = true;
+    isAssignmentsLoading.value = false;
   }
 }
 
 async function loadWeakPoints() {
+  isWeakPointsLoading.value = true;
   try {
     const { data } = await listWeakPointsApi();
     weakPoints.value = data;
   } catch (error) {
     handleApiError(error, "薄弱点加载失败。", weakPointError);
+  } finally {
+    weakPointsLoaded.value = true;
+    isWeakPointsLoading.value = false;
   }
 }
 

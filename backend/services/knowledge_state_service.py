@@ -2,12 +2,12 @@ from sqlalchemy.orm import Session
 
 from backend.core.config import settings
 from backend.models.user import User
-from backend.services.chat_service import get_neo4j_driver
 from backend.services.knowledge_progress_service import (
     build_graph_state_map,
     get_graph_node_color,
     list_unmastered_weak_point_rows,
 )
+from backend.services.neo4j_service import get_neo4j_driver
 
 DB_NAME = settings.neo4j_db_name
 

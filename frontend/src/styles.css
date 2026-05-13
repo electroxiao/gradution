@@ -42,6 +42,11 @@
   --compact-card-padding: 12px;
   --compact-control-height: 36px;
   --compact-pill-height: 24px;
+  --motion-fast: 120ms;
+  --motion-dialog: 160ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --skeleton-base: #eef2f6;
+  --skeleton-shine: #f8fafc;
 }
 
 * {
@@ -75,11 +80,11 @@ input,
 textarea,
 select {
   transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease,
-    background-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
+    border-color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
 }
 
 button:focus-visible,
@@ -288,6 +293,118 @@ button:disabled {
   border-color: #cce7d8;
   background: #f1fbf5;
   color: #0d8f56;
+}
+
+.skeleton-block,
+.skeleton-line,
+.skeleton-pill,
+.skeleton-card,
+.skeleton-row,
+.skeleton-graph {
+  position: relative;
+  overflow: hidden;
+  background: var(--skeleton-base);
+}
+
+.skeleton-block::after,
+.skeleton-line::after,
+.skeleton-pill::after,
+.skeleton-card::after,
+.skeleton-row::after,
+.skeleton-graph::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--skeleton-shine), transparent);
+  animation: skeleton-shimmer 1.15s var(--motion-ease) infinite;
+}
+
+.skeleton-card {
+  min-height: 66px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-xl);
+  box-shadow: var(--app-shadow);
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+}
+
+.skeleton-pill {
+  width: 72px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.skeleton-row {
+  min-height: 58px;
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+}
+
+.skeleton-graph {
+  min-height: 500px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  box-shadow: var(--app-shadow);
+}
+
+.skeleton-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.skeleton-table {
+  display: grid;
+  gap: 10px;
+}
+
+.skeleton-table .skeleton-row:first-child {
+  min-height: 42px;
+}
+
+.dialog-backdrop,
+.modal-backdrop,
+.modal-overlay {
+  animation: dialog-backdrop-in var(--motion-dialog) var(--motion-ease) both;
+}
+
+.dialog-card,
+.error-dialog,
+.bank-dialog,
+.confirm-dialog,
+.detail-dialog,
+.modal-card {
+  animation: dialog-card-in var(--motion-dialog) var(--motion-ease) both;
+  transform-origin: center;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes dialog-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dialog-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .app-chip,

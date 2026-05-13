@@ -8,7 +8,11 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section class="summary-row">
+    <section v-if="isInitialLoading" class="summary-row">
+      <article v-for="index in 4" :key="`teacher-assignment-summary-skeleton-${index}`" class="skeleton-card"></article>
+    </section>
+
+    <section v-else class="summary-row">
       <article class="summary-item shell-card blue">
         <div class="summary-icon">作</div>
         <div class="summary-copy">
@@ -39,7 +43,17 @@
       </article>
     </section>
 
-    <section v-if="assignments.length" class="assignment-panel shell-card">
+    <section v-if="isInitialLoading" class="assignment-panel shell-card">
+      <div class="list-head">
+        <h3>作业列表</h3>
+      </div>
+      <div class="skeleton-table" aria-label="作业管理加载中">
+        <div class="skeleton-row"></div>
+        <div v-for="index in 5" :key="`teacher-assignment-row-skeleton-${index}`" class="skeleton-row"></div>
+      </div>
+    </section>
+
+    <section v-else-if="assignments.length" class="assignment-panel shell-card">
       <div class="list-head">
         <h3>作业列表</h3>
         <div class="filter-tabs">
@@ -121,7 +135,7 @@
       </div>
     </Teleport>
 
-    <div v-if="!errorMessage && !assignments.length" class="empty shell-card">
+    <div v-if="hasLoaded && !errorMessage && !assignments.length" class="empty shell-card">
       <strong>还没有作业</strong>
       <p>新建一份 Java 编程作业后，可以在这里跟踪发布和提交情况。</p>
       <router-link class="primary-link" to="/teacher/assignments/new">创建第一份作业</router-link>
@@ -140,6 +154,8 @@ import { clearAuthSession } from "../utils/authStorage";
 const router = useRouter();
 const assignments = ref([]);
 const errorMessage = ref("");
+const hasLoaded = ref(false);
+const isInitialLoading = ref(true);
 const deleteTarget = ref(null);
 const deletingAssignmentId = ref(null);
 const activeFilter = ref("all");
@@ -182,11 +198,15 @@ watch(totalPages, (value) => {
 });
 
 async function loadAssignments() {
+  if (!hasLoaded.value) isInitialLoading.value = true;
   try {
     const { data } = await listTeacherAssignmentsApi();
     assignments.value = data;
   } catch (error) {
     handleApiError(error, "加载作业失败。");
+  } finally {
+    hasLoaded.value = true;
+    isInitialLoading.value = false;
   }
 }
 

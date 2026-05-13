@@ -3,7 +3,6 @@ from functools import lru_cache
 from time import perf_counter
 
 from fastapi import HTTPException, status
-from neo4j import GraphDatabase
 from openai import OpenAI
 from sqlalchemy.orm import Session
 
@@ -16,6 +15,7 @@ from backend.schemas.chat import (
     SessionResponse,
     SessionUpdateRequest,
 )
+from backend.services.neo4j_service import close_neo4j_driver, get_neo4j_driver
 from backend.services import rag_engine
 from backend.services.weak_point_service import extract_core_nodes, upsert_weak_points
 
@@ -24,22 +24,15 @@ def get_openai_client() -> OpenAI:
     return OpenAI(api_key=settings.llm_api_key or None, base_url=settings.llm_base_url)
 
 
-@lru_cache(maxsize=1)
-def get_neo4j_driver():
-    return GraphDatabase.driver(settings.neo4j_uri, auth=settings.neo4j_auth)
-
-
 def close_cached_clients() -> None:
     openai_client = get_openai_client()
     close_method = getattr(openai_client, "close", None)
     if callable(close_method):
         close_method()
 
-    driver = get_neo4j_driver()
-    driver.close()
+    close_neo4j_driver()
 
     get_openai_client.cache_clear()
-    get_neo4j_driver.cache_clear()
 
 
 def list_sessions(db: Session, user: User) -> list[SessionResponse]:

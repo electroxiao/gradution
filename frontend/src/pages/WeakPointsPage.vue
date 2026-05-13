@@ -2,7 +2,11 @@
   <section class="app-page weak-page">
     <PageHeader title="我的薄弱点" />
 
-    <section class="summary-row">
+    <section v-if="isInitialLoading" class="summary-row">
+      <article v-for="index in 2" :key="`weak-summary-skeleton-${index}`" class="skeleton-card"></article>
+    </section>
+
+    <section v-else class="summary-row">
       <article class="summary-card">
         <span class="summary-dot blue" />
         <span>当前待掌握</span>
@@ -28,7 +32,7 @@
           </div>
         </div>
         <div class="graph-container">
-          <div v-if="isGraphLoading" class="graph-state">图谱加载中...</div>
+          <div v-if="isInitialLoading || isGraphLoading" class="skeleton-graph" aria-label="薄弱点图谱加载中"></div>
           <div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱节点，请先完成作业或在聊天页面提问以记录薄弱点。</div>
           <KnowledgeGraphCanvas
             v-else
@@ -184,7 +188,7 @@
       </div>
     </section>
 
-    <section v-else-if="!errorMessage && !graphNodes.length && !showQuizPanel" class="panel empty-state">
+    <section v-else-if="!isInitialLoading && !errorMessage && !graphNodes.length && !showQuizPanel" class="panel empty-state">
       <div class="empty-orbit" />
       <h2>当前没有待补齐的薄弱点</h2>
       <p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识节点。</p>
@@ -219,6 +223,7 @@ const graphEdges = ref([]);
 const selectedNodeId = ref("");
 const currentWeakPointId = ref(null);
 const currentWeakPointName = ref("");
+const isInitialLoading = ref(true);
 const isGraphLoading = ref(false);
 const graphCanvas = ref(null);
 const recommendationSummary = ref("");
@@ -242,9 +247,15 @@ const isGenerating = ref(false);
 const isSubmitting = ref(false);
 
 onMounted(async () => {
-  await Promise.all([loadWeakPoints(), loadWeakPointHistory()]);
-  await loadGraph();
-  scheduleGraphPrefetch();
+  try {
+    const historyPromise = loadWeakPointHistory();
+    await loadWeakPoints();
+    const graphPromise = loadGraph();
+    scheduleGraphPrefetch();
+    await Promise.allSettled([historyPromise, graphPromise]);
+  } finally {
+    isInitialLoading.value = false;
+  }
 });
 
 onBeforeUnmount(() => {

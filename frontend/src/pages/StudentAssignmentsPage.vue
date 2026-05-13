@@ -2,7 +2,11 @@
   <section class="student-page">
     <PageHeader title="我的作业" />
 
-    <section class="summary-row">
+    <section v-if="isInitialLoading" class="summary-row">
+      <article v-for="index in 3" :key="`assignment-summary-skeleton-${index}`" class="skeleton-card"></article>
+    </section>
+
+    <section v-else class="summary-row">
       <article class="summary-card blue">
         <div class="summary-icon">作</div>
         <div class="summary-copy">
@@ -28,7 +32,17 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="assignments.length" class="assignment-panel">
+    <section v-if="isInitialLoading" class="assignment-panel">
+      <div class="list-head">
+        <h2>作业列表</h2>
+      </div>
+      <div class="skeleton-table" aria-label="作业列表加载中">
+        <div class="skeleton-row"></div>
+        <div v-for="index in 4" :key="`assignment-row-skeleton-${index}`" class="skeleton-row"></div>
+      </div>
+    </section>
+
+    <section v-else-if="assignments.length" class="assignment-panel">
       <div class="list-head">
         <h2>作业列表</h2>
       </div>
@@ -80,7 +94,7 @@
       </div>
     </section>
 
-    <section v-else-if="!errorMessage" class="empty">
+    <section v-else-if="hasLoaded && !errorMessage" class="empty">
       <h2>当前没有作业</h2>
       <p>教师发布作业后会出现在这里。</p>
       <div class="empty-actions">
@@ -102,6 +116,8 @@ import { clearAuthSession } from "../utils/authStorage";
 const router = useRouter();
 const assignments = ref([]);
 const errorMessage = ref("");
+const hasLoaded = ref(false);
+const isInitialLoading = ref(true);
 const currentPage = ref(1);
 const pageSize = 10;
 const pendingCount = computed(() => {
@@ -118,11 +134,15 @@ const pagedAssignments = computed(() => {
 onMounted(loadAssignments);
 
 async function loadAssignments() {
+  if (!hasLoaded.value) isInitialLoading.value = true;
   try {
     const { data } = await listStudentAssignmentsApi();
     assignments.value = data;
   } catch (error) {
     handleApiError(error, "加载作业失败。");
+  } finally {
+    hasLoaded.value = true;
+    isInitialLoading.value = false;
   }
 }
 

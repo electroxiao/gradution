@@ -1,10 +1,10 @@
 from sqlalchemy.orm import Session
-from neo4j import GraphDatabase
 
 from backend.core.config import settings
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
+from backend.services.neo4j_service import get_neo4j_driver
 
 GRAPH_STATUS_COLOR_MAP = {
     "weak": "#ef4444",
@@ -39,20 +39,17 @@ def resolve_existing_graph_node_names(node_names: list[str]) -> list[str]:
         return []
 
     try:
-        driver = GraphDatabase.driver(settings.neo4j_uri, auth=settings.neo4j_auth)
-        try:
-            with driver.session(database=settings.neo4j_db_name) as session:
-                records = session.run(
-                    """
-                    UNWIND $names AS name
-                    MATCH (n:Knowledge {name: name})
-                    RETURN DISTINCT n.name AS name
-                    """,
-                    names=candidates,
-                )
-                existing_names = {record["name"] for record in records if record["name"]}
-        finally:
-            driver.close()
+        driver = get_neo4j_driver()
+        with driver.session(database=settings.neo4j_db_name) as session:
+            records = session.run(
+                """
+                UNWIND $names AS name
+                MATCH (n:Knowledge {name: name})
+                RETURN DISTINCT n.name AS name
+                """,
+                names=candidates,
+            )
+            existing_names = {record["name"] for record in records if record["name"]}
     except Exception:
         return []
 
@@ -129,20 +126,17 @@ def _filter_rows_existing_in_graph(rows: list[tuple[UserWeakPoint, KnowledgeNode
     if not names:
         return rows
     try:
-        driver = GraphDatabase.driver(settings.neo4j_uri, auth=settings.neo4j_auth)
-        try:
-            with driver.session(database=settings.neo4j_db_name) as session:
-                records = session.run(
-                    """
-                    UNWIND $names AS name
-                    MATCH (n:Knowledge {name: name})
-                    RETURN DISTINCT n.name AS name
-                    """,
-                    names=names,
-                )
-                existing_names = {record["name"] for record in records if record["name"]}
-        finally:
-            driver.close()
+        driver = get_neo4j_driver()
+        with driver.session(database=settings.neo4j_db_name) as session:
+            records = session.run(
+                """
+                UNWIND $names AS name
+                MATCH (n:Knowledge {name: name})
+                RETURN DISTINCT n.name AS name
+                """,
+                names=names,
+            )
+            existing_names = {record["name"] for record in records if record["name"]}
     except Exception:
         return rows
     return [(weak_point, node) for weak_point, node in rows if node.node_name in existing_names]

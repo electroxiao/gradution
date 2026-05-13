@@ -78,7 +78,7 @@ class _CandidateSession:
 
 
 def test_resolve_existing_graph_node_names_keeps_only_exact_graph_names() -> None:
-    with patch("backend.services.knowledge_progress_service.GraphDatabase.driver", return_value=_FakeDriver()):
+    with patch("backend.services.knowledge_progress_service.get_neo4j_driver", return_value=_FakeDriver()):
         assert resolve_existing_graph_node_names(["集合", "ArrayList", "集合"]) == ["ArrayList"]
 
 
