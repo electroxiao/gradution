@@ -228,6 +228,7 @@ const graphCache = new Map();
 const graphRequests = new Map();
 let graphPrefetchTimer = null;
 let graphCacheVersion = 0;
+const GRAPH_PREFETCH_CONCURRENCY = 3;
 
 const showQuizPanel = ref(false);
 const quizNodeId = ref("");
@@ -359,15 +360,20 @@ function scheduleGraphPrefetch() {
   }
 
   graphPrefetchTimer = setTimeout(async () => {
-    for (const item of weakPoints.value) {
-      if (!item?.id || item.id === currentWeakPointId.value || graphCache.has(item.id)) {
-        continue;
-      }
-      try {
-        await fetchGraphData(item.id);
-      } catch (error) {
-        console.debug("预加载薄弱点图谱失败:", error);
-      }
+    const prefetchItems = weakPoints.value.filter(
+      (item) => item?.id && item.id !== currentWeakPointId.value && !graphCache.has(item.id)
+    );
+
+    for (let index = 0; index < prefetchItems.length; index += GRAPH_PREFETCH_CONCURRENCY) {
+      const batch = prefetchItems.slice(index, index + GRAPH_PREFETCH_CONCURRENCY);
+      await Promise.allSettled(
+        batch.map((item) =>
+          fetchGraphData(item.id).catch((error) => {
+            console.debug("预加载薄弱点图谱失败:", error);
+            throw error;
+          })
+        )
+      );
     }
   }, 250);
 }

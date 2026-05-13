@@ -152,11 +152,21 @@ def list_unmastered_weak_node_names(db: Session, user: User) -> list[str]:
     return [node.node_name for _, node in list_unmastered_weak_point_rows(db, user)]
 
 
-def build_graph_state_map(db: Session, user: User) -> dict[str, str]:
+def build_graph_state_map(
+    db: Session,
+    user: User,
+    *,
+    weak_rows: list[tuple[UserWeakPoint, KnowledgeNode]] | None = None,
+) -> dict[str, str]:
     rows = db.query(UserKnowledgeState).filter(UserKnowledgeState.user_id == user.id).all()
     states = {row.node_id: row.status for row in rows}
 
-    for node_name in list_unmastered_weak_node_names(db, user):
+    unmastered_names = (
+        [node.node_name for _, node in weak_rows if node and node.node_name]
+        if weak_rows is not None
+        else list_unmastered_weak_node_names(db, user)
+    )
+    for node_name in unmastered_names:
         if states.get(node_name) != "mastered":
             states[node_name] = "weak"
 

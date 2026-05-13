@@ -1,16 +1,14 @@
-from neo4j import GraphDatabase
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
 from backend.models.user import User
+from backend.services.chat_service import get_neo4j_driver
 from backend.services.knowledge_progress_service import (
     build_graph_state_map,
     get_graph_node_color,
     list_unmastered_weak_point_rows,
 )
 
-NEO4J_URI = settings.neo4j_uri
-NEO4J_AUTH = settings.neo4j_auth
 DB_NAME = settings.neo4j_db_name
 
 RECOMMENDATION_STATUS_COLOR_MAP = {
@@ -79,6 +77,9 @@ def _query_candidate_nodes(session, target_name: str, target_desc: str, limit: i
             "direction": record["direction"] or "",
             "source": "dependency",
         }
+
+    if len(candidates) >= limit:
+        return list(candidates.values())[:limit]
 
     keyword_terms = [term for term in {target_name, *(target_name.split()), *(target_desc.split())} if term][:4]
     if keyword_terms:
@@ -225,31 +226,27 @@ def get_weak_points_graph(db: Session, user: User, weak_point_id: int | None = N
             "edges": [],
         }
 
-    state_map = build_graph_state_map(db, user)
-    driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
+    state_map = build_graph_state_map(db, user, weak_rows=weak_rows)
+    driver = get_neo4j_driver()
 
-    try:
-        with driver.session(database=DB_NAME) as session:
-            target = _query_node_details(session, target_node.node_name)
-            candidates = _query_candidate_nodes(session, target["name"], target.get("desc", ""))
-            recommendation = _recommend_nodes(target, candidates, state_map)
+    with driver.session(database=DB_NAME) as session:
+        target = _query_node_details(session, target_node.node_name)
+        candidates = _query_candidate_nodes(session, target["name"], target.get("desc", ""))
+        recommendation = _recommend_nodes(target, candidates, state_map)
 
-            recommended_ids = recommendation["recommended_node_ids"]
-            selected_node_ids = []
-            for node_id in [*recommended_ids, target["id"]]:
-                if node_id not in selected_node_ids:
-                    selected_node_ids.append(node_id)
+        recommended_ids = recommendation["recommended_node_ids"]
+        selected_node_ids = []
+        for node_id in [*recommended_ids, target["id"]]:
+            if node_id not in selected_node_ids:
+                selected_node_ids.append(node_id)
 
-            node_details_map = {target["id"]: target}
-            for candidate in candidates:
-                if candidate["id"] in selected_node_ids:
-                    node_details_map[candidate["id"]] = candidate
+        node_details_map = {target["id"]: target}
+        for candidate in candidates:
+            if candidate["id"] in selected_node_ids:
+                node_details_map[candidate["id"]] = candidate
 
-            all_edges = _query_edges_for_nodes(session, selected_node_ids)
-            graph_edges = _select_path_edges(all_edges, recommendation["learning_order"])
-
-    finally:
-        driver.close()
+        all_edges = _query_edges_for_nodes(session, selected_node_ids)
+        graph_edges = _select_path_edges(all_edges, recommendation["learning_order"])
 
     graph_nodes = []
     recommended_nodes = []
