@@ -1,5 +1,5 @@
 <template>
-  <section class="progress-page">
+  <section v-if="!isInitialLoading" class="progress-page content-ready">
     <PageHeader :title="progress?.title || '作业完成情况'" title-tag="h2">
       <template #actions>
         <router-link class="secondary-link" :to="`/teacher/assignments/${assignmentId}`">编辑作业</router-link>
@@ -9,11 +9,7 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="isInitialLoading" class="summary-row">
-      <article v-for="index in 3" :key="`progress-summary-skeleton-${index}`" class="skeleton-card"></article>
-    </section>
-
-    <section v-else-if="progress" class="summary-row">
+    <section v-if="!isInitialLoading && progress" class="summary-row">
       <article class="summary-card shell-card">
         <span>发布学生</span>
         <strong>{{ progress.students.length }}</strong>
@@ -28,22 +24,7 @@
       </article>
     </section>
 
-    <main v-if="isInitialLoading" class="progress-layout">
-      <section class="student-panel shell-card">
-        <div class="panel-header">
-          <div class="skeleton-stack">
-            <div class="skeleton-line" style="width: 180px"></div>
-            <div class="skeleton-line" style="width: 260px"></div>
-          </div>
-        </div>
-        <div class="skeleton-table" aria-label="作业完成情况加载中">
-          <div class="skeleton-row"></div>
-          <div v-for="index in 7" :key="`progress-row-skeleton-${index}`" class="skeleton-row"></div>
-        </div>
-      </section>
-    </main>
-
-    <main v-else-if="progress" class="progress-layout">
+    <main v-if="!isInitialLoading && progress" class="progress-layout">
       <section class="student-panel shell-card">
         <div class="panel-header">
           <div>

@@ -1,5 +1,5 @@
 <template>
-  <section class="assignment-page">
+  <section v-if="!isInitialLoading" class="assignment-page content-ready">
     <PageHeader title="作业管理" title-tag="h2">
       <template #actions>
         <router-link class="primary-link create-link" to="/teacher/assignments/new">新建作业</router-link>
@@ -8,11 +8,7 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="isInitialLoading" class="summary-row">
-      <article v-for="index in 4" :key="`teacher-assignment-summary-skeleton-${index}`" class="skeleton-card"></article>
-    </section>
-
-    <section v-else class="summary-row">
+    <section v-if="!isInitialLoading" class="summary-row">
       <article class="summary-item shell-card blue">
         <div class="summary-icon">作</div>
         <div class="summary-copy">
@@ -43,17 +39,7 @@
       </article>
     </section>
 
-    <section v-if="isInitialLoading" class="assignment-panel shell-card">
-      <div class="list-head">
-        <h3>作业列表</h3>
-      </div>
-      <div class="skeleton-table" aria-label="作业管理加载中">
-        <div class="skeleton-row"></div>
-        <div v-for="index in 5" :key="`teacher-assignment-row-skeleton-${index}`" class="skeleton-row"></div>
-      </div>
-    </section>
-
-    <section v-else-if="assignments.length" class="assignment-panel shell-card">
+    <section v-if="!isInitialLoading && assignments.length" class="assignment-panel shell-card">
       <div class="list-head">
         <h3>作业列表</h3>
         <div class="filter-tabs">

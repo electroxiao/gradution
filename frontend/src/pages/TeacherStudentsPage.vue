@@ -1,15 +1,12 @@
 <template>
-  <section class="students-page">
+  <section v-if="!isInitialLoading" class="students-page content-ready">
     <PageHeader title="学生薄弱点" title-tag="h2" />
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
     <div class="students-layout">
       <aside class="student-list">
-        <template v-if="isStudentsLoading">
-          <div v-for="index in 6" :key="`student-list-skeleton-${index}`" class="skeleton-row"></div>
-        </template>
-        <template v-else>
+        <template v-if="!isStudentsLoading">
           <button
             v-for="student in students"
             :key="student.id"
@@ -24,11 +21,7 @@
       </aside>
 
       <section class="student-detail">
-        <div v-if="isStudentsLoading" class="detail-header skeleton-stack">
-          <div class="skeleton-line" style="width: 160px"></div>
-          <div class="skeleton-line" style="width: 240px"></div>
-        </div>
-        <div v-else-if="activeStudent" class="detail-header">
+        <div v-if="!isStudentsLoading && activeStudent" class="detail-header">
           <div>
             <h3>{{ activeStudent.username }}</h3>
             <p>{{ activeStudent.class_name || "未分班" }} · 当前未掌握 {{ studentWeakPoints.length }} 个节点</p>
@@ -40,10 +33,7 @@
             <h4>当前未掌握节点</h4>
             <span>{{ studentWeakPoints.length }} 个</span>
           </div>
-          <div v-if="isStudentsLoading || isWeakPointsLoading" class="weak-cards" aria-label="学生薄弱点加载中">
-            <div v-for="index in 6" :key="`student-weakpoint-skeleton-${index}`" class="skeleton-row"></div>
-          </div>
-          <div v-else-if="studentWeakPoints.length" class="weak-cards">
+          <div v-if="!isStudentsLoading && !isWeakPointsLoading && studentWeakPoints.length" class="weak-cards">
             <article v-for="item in studentWeakPoints" :key="item.id" class="weak-card">
               <strong>{{ item.node_name }}</strong>
               <span>最近出现 {{ formatDate(item.last_seen_at) }}</span>
@@ -70,6 +60,7 @@ const students = ref([]);
 const activeStudentId = ref(null);
 const studentWeakPoints = ref([]);
 const errorMessage = ref("");
+const isInitialLoading = ref(true);
 const isStudentsLoading = ref(true);
 const hasStudentsLoaded = ref(false);
 const isWeakPointsLoading = ref(false);
@@ -89,13 +80,14 @@ async function loadStudents() {
     const { data } = await listTeacherStudentsApi();
     students.value = data;
     if (students.value.length) {
-      selectStudent(students.value[0].id);
+      await selectStudent(students.value[0].id);
     }
   } catch (error) {
     handleApiError(error, "加载学生列表失败。");
   } finally {
     hasStudentsLoaded.value = true;
     isStudentsLoading.value = false;
+    isInitialLoading.value = false;
   }
 }
 

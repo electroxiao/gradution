@@ -1,12 +1,8 @@
 <template>
-  <section class="student-page">
+  <section v-if="!isInitialLoading" class="student-page content-ready">
     <PageHeader title="我的作业" />
 
-    <section v-if="isInitialLoading" class="summary-row">
-      <article v-for="index in 3" :key="`assignment-summary-skeleton-${index}`" class="skeleton-card"></article>
-    </section>
-
-    <section v-else class="summary-row">
+    <section v-if="!isInitialLoading" class="summary-row">
       <article class="summary-card blue">
         <div class="summary-icon">作</div>
         <div class="summary-copy">
@@ -32,17 +28,7 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="isInitialLoading" class="assignment-panel">
-      <div class="list-head">
-        <h2>作业列表</h2>
-      </div>
-      <div class="skeleton-table" aria-label="作业列表加载中">
-        <div class="skeleton-row"></div>
-        <div v-for="index in 4" :key="`assignment-row-skeleton-${index}`" class="skeleton-row"></div>
-      </div>
-    </section>
-
-    <section v-else-if="assignments.length" class="assignment-panel">
+    <section v-if="!isInitialLoading && assignments.length" class="assignment-panel">
       <div class="list-head">
         <h2>作业列表</h2>
       </div>

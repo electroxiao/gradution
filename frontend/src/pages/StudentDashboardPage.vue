@@ -1,13 +1,9 @@
 <template>
-  <section class="app-page dashboard-page">
+  <section v-if="!isDashboardLoading" class="app-page dashboard-page content-ready">
     <PageHeader title="学习工作台">
     </PageHeader>
 
-    <section v-if="isDashboardLoading" class="summary-row">
-      <article v-for="index in 4" :key="`student-dashboard-summary-skeleton-${index}`" class="skeleton-card"></article>
-    </section>
-
-    <section v-else class="summary-row">
+    <section v-if="!isDashboardLoading" class="summary-row">
       <article class="summary-card">
         <span class="summary-dot blue" />
         <span>作业总数</span>
@@ -43,10 +39,7 @@
           <router-link class="app-button-ghost" to="/assignments">全部作业</router-link>
         </div>
 
-        <div v-if="isAssignmentsLoading" class="assignment-list skeleton-stack" aria-label="待完成作业加载中">
-          <div v-for="index in 4" :key="`pending-assignment-skeleton-${index}`" class="skeleton-row"></div>
-        </div>
-        <div v-else-if="pendingAssignments.length" class="assignment-list">
+        <div v-if="!isAssignmentsLoading && pendingAssignments.length" class="assignment-list">
           <article v-for="item in pendingAssignments.slice(0, 4)" :key="item.id" class="assignment-item">
             <div class="item-main">
               <div class="item-head">
@@ -104,10 +97,7 @@
             </div>
             <router-link class="app-button-ghost" to="/weak-points">去训练</router-link>
           </div>
-          <div v-if="isWeakPointsLoading" class="weak-list skeleton-stack" aria-label="薄弱点加载中">
-            <div v-for="index in 5" :key="`dashboard-weakpoint-skeleton-${index}`" class="skeleton-row"></div>
-          </div>
-          <div v-else-if="weakPoints.length" class="weak-list">
+          <div v-if="!isWeakPointsLoading && weakPoints.length" class="weak-list">
             <article v-for="item in weakPoints.slice(0, 5)" :key="item.id || item.node_id || item.name">
               <strong>{{ item.name || item.node_name || item.title }}</strong>
               <p>{{ item.reason || item.description }}</p>

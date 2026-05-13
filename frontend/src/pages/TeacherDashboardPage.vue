@@ -1,5 +1,5 @@
 <template>
-  <section class="app-page dashboard-page">
+  <section v-if="!isInitialLoading" class="app-page dashboard-page content-ready">
     <PageHeader title="数据看板" title-tag="h2">
       <template #actions>
         <button class="app-button-ghost" @click="loadDashboard">刷新数据</button>
@@ -8,11 +8,7 @@
 
     <div v-if="errorMessage" class="app-feedback error">{{ errorMessage }}</div>
 
-    <section v-if="isInitialLoading" class="metrics-grid">
-      <article v-for="index in 3" :key="`dashboard-metric-skeleton-${index}`" class="skeleton-card"></article>
-    </section>
-
-    <section v-else-if="dashboard" class="metrics-grid">
+    <section v-if="!isInitialLoading && dashboard" class="metrics-grid">
       <article class="metric-card">
         <span>学生总数</span>
         <strong>{{ dashboard.total_students }}</strong>
@@ -34,10 +30,7 @@
         </div>
       </div>
 
-      <div v-if="isInitialLoading" class="rank-list skeleton-stack" aria-label="数据看板加载中">
-        <div v-for="index in 5" :key="`dashboard-rank-skeleton-${index}`" class="skeleton-row"></div>
-      </div>
-      <div v-else-if="dashboard?.top_nodes?.length" class="rank-list">
+      <div v-if="!isInitialLoading && dashboard?.top_nodes?.length" class="rank-list">
         <article v-for="(item, index) in dashboard.top_nodes" :key="item.id" class="rank-item">
           <div class="rank-index">{{ index + 1 }}</div>
           <div class="rank-copy">

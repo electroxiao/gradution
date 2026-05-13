@@ -381,6 +381,10 @@ button:disabled {
   transform-origin: center;
 }
 
+.content-ready {
+  animation: content-ready-in 140ms var(--motion-ease) both;
+}
+
 @keyframes skeleton-shimmer {
   100% {
     transform: translateX(100%);
@@ -404,6 +408,15 @@ button:disabled {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes content-ready-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

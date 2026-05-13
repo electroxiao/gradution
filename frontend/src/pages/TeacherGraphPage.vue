@@ -1,5 +1,5 @@
 <template>
-  <section class="graph-page">
+  <section v-if="!isInitialGraphLoading" class="graph-page content-ready">
     <PageHeader title="知识图谱管理" title-tag="h2" />
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
@@ -46,8 +46,7 @@
           <span class="graph-mode-copy">编辑正式图谱中的节点与关系</span>
         </div>
 
-        <div v-if="isGraphLoading" class="skeleton-graph" aria-label="知识图谱加载中"></div>
-        <div v-else-if="hasGraphLoaded && !graph.nodes.length" class="graph-state">当前没有可展示的知识图谱节点。</div>
+        <div v-if="hasGraphLoaded && !isGraphLoading && !graph.nodes.length" class="graph-state">当前没有可展示的知识图谱节点。</div>
 
         <KnowledgeGraphCanvas
           v-if="graph.nodes.length && !isGraphLoading"
@@ -311,6 +310,7 @@ const router = useRouter();
 const keyword = ref("");
 const errorMessage = ref("");
 const isGraphLoading = ref(true);
+const isInitialGraphLoading = ref(true);
 const hasGraphLoaded = ref(false);
 const isGraphSuggesting = ref(false);
 const fullGraph = ref({ nodes: [], edges: [] });
@@ -362,6 +362,7 @@ async function loadGraph() {
     graph.value = cachedGraph;
     hasGraphLoaded.value = true;
     isGraphLoading.value = false;
+    isInitialGraphLoading.value = false;
     return;
   }
 
@@ -371,6 +372,7 @@ async function loadGraph() {
     graph.value = staleGraph;
     hasGraphLoaded.value = true;
     isGraphLoading.value = false;
+    isInitialGraphLoading.value = false;
     refreshFullGraphCacheInBackground();
     return;
   }
@@ -385,6 +387,7 @@ async function loadGraph() {
   } finally {
     hasGraphLoaded.value = true;
     isGraphLoading.value = false;
+    isInitialGraphLoading.value = false;
   }
 }
 
