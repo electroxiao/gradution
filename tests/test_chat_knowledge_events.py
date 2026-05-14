@@ -43,6 +43,26 @@ class FakeClient:
         self.chat = type("Chat", (), {"completions": FakeCompletions(content)})()
 
 
+class EmptyChoicesClient:
+    def __init__(self):
+        completions = type(
+            "Completions",
+            (),
+            {"create": lambda self, **kwargs: type("Response", (), {"choices": []})()},
+        )()
+        self.chat = type("Chat", (), {"completions": completions})()
+
+
+class RaisingCompletions:
+    def create(self, **kwargs):
+        raise RuntimeError("LLM unavailable")
+
+
+class RaisingClient:
+    def __init__(self):
+        self.chat = type("Chat", (), {"completions": RaisingCompletions()})()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def backend_ready():
     return None
@@ -226,6 +246,28 @@ def test_parse_candidate_json_returns_empty_for_non_string_content():
     assert _parse_candidate_json({"name": "数组"}) == []
 
 
+def test_extract_candidates_from_turn_returns_empty_for_sdk_exception():
+    assert (
+        extract_candidates_from_turn(
+            RaisingClient(),
+            user_content="ArrayList 为什么报错？",
+            assistant_content="需要检查泛型和下标。",
+        )
+        == []
+    )
+
+
+def test_extract_candidates_from_turn_returns_empty_for_empty_choices():
+    assert (
+        extract_candidates_from_turn(
+            EmptyChoicesClient(),
+            user_content="ArrayList 为什么报错？",
+            assistant_content="需要检查泛型和下标。",
+        )
+        == []
+    )
+
+
 def test_record_turn_knowledge_events_only_writes_existing_nodes_and_leaves_progress_tables_untouched(isolated_db):
     user = _student(isolated_db)
     _node(isolated_db, "空指针异常")
@@ -252,6 +294,24 @@ def test_record_turn_knowledge_events_only_writes_existing_nodes_and_leaves_prog
     assert isolated_db.query(KnowledgeNode).count() == 1
     assert isolated_db.query(UserWeakPoint).count() == 0
     assert isolated_db.query(UserKnowledgeState).count() == 0
+
+
+def test_record_turn_knowledge_events_requires_python_exact_node_name_match(isolated_db):
+    user = _student(isolated_db)
+    _node(isolated_db, "arraylist")
+    session, user_message, assistant_message = _turn(isolated_db, user)
+
+    inserted = record_turn_knowledge_events(
+        isolated_db,
+        FakeClient('[{"name": "ArrayList", "confidence": 0.9, "evidence": "大小写不同"}]'),
+        user,
+        session,
+        user_message,
+        assistant_message,
+    )
+
+    assert inserted == []
+    assert isolated_db.query(ChatKnowledgeEvent).count() == 0
 
 
 def test_record_turn_knowledge_events_is_idempotent_for_same_turn_and_node(isolated_db):

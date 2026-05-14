@@ -65,12 +65,15 @@ def extract_candidates_from_turn(
 助教回答：
 {assistant_content}
 """
-    response = client.chat.completions.create(
-        model=settings.llm_model_name,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.1,
-    )
-    content = response.choices[0].message.content or "[]"
+    try:
+        response = client.chat.completions.create(
+            model=settings.llm_model_name,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.1,
+        )
+        content = response.choices[0].message.content or "[]"
+    except Exception:
+        return []
     return _parse_candidate_json(content)
 
 
@@ -131,11 +134,13 @@ def record_turn_knowledge_events(
     if not candidate_by_name:
         return []
 
+    candidate_names = list(candidate_by_name)
     nodes = (
         db.query(KnowledgeNode)
-        .filter(KnowledgeNode.node_name.in_(list(candidate_by_name)))
+        .filter(KnowledgeNode.node_name.in_(candidate_names))
         .all()
     )
+    nodes = [node for node in nodes if node.node_name in candidate_by_name]
     if not nodes:
         return []
 
@@ -156,7 +161,7 @@ def record_turn_knowledge_events(
 
     events: list[ChatKnowledgeEvent] = []
     inserted_names: list[str] = []
-    for node in sorted(nodes, key=lambda row: list(candidate_by_name).index(row.node_name)):
+    for node in sorted(nodes, key=lambda row: candidate_names.index(row.node_name)):
         if node.id in existing_node_ids:
             continue
         candidate = candidate_by_name[node.node_name]
