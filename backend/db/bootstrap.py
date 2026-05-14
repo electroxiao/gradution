@@ -15,6 +15,7 @@ def ensure_schema_and_seed(engine: Engine) -> None:
     _ensure_assignment_grading_columns(engine)
     _ensure_assignment_type_and_bank_columns(engine)
     _ensure_assignment_graph_linkage(engine)
+    _ensure_chat_knowledge_events_table(engine)
     _ensure_teacher_seed(engine)
     _ensure_student_class_seed(engine)
 
@@ -202,6 +203,48 @@ def _ensure_assignment_graph_linkage(engine: Engine) -> None:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_label VARCHAR(64) NULL"))
             if "trust_score" not in submission_columns:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_score FLOAT NULL"))
+
+
+def _ensure_chat_knowledge_events_table(engine: Engine) -> None:
+    inspector = inspect(engine)
+    try:
+        table_names = set(inspector.get_table_names())
+    except Exception:
+        return
+
+    if "chat_knowledge_events" in table_names:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                CREATE TABLE chat_knowledge_events (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    session_id INTEGER NOT NULL,
+                    user_message_id INTEGER NOT NULL,
+                    assistant_message_id INTEGER NOT NULL,
+                    knowledge_node_id INTEGER NOT NULL,
+                    confidence FLOAT NULL,
+                    evidence_text TEXT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT uq_chat_knowledge_event_turn_node UNIQUE (
+                        user_id,
+                        session_id,
+                        user_message_id,
+                        assistant_message_id,
+                        knowledge_node_id
+                    )
+                )
+                """
+            )
+        )
+        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_user_id ON chat_knowledge_events (user_id)"))
+        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_session_id ON chat_knowledge_events (session_id)"))
+        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_user_message_id ON chat_knowledge_events (user_message_id)"))
+        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_assistant_message_id ON chat_knowledge_events (assistant_message_id)"))
+        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_knowledge_node_id ON chat_knowledge_events (knowledge_node_id)"))
 
 
 def _ensure_teacher_seed(engine: Engine) -> None:
