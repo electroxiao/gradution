@@ -428,6 +428,32 @@ def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db
     assert any(event.startswith("event: assistant_done") for event in events)
 
 
+def test_stream_message_schedules_extraction_before_assistant_done(isolated_db, monkeypatch):
+    user = _student(isolated_db)
+    session = ChatSession(user_id=user.id, title="已有对话")
+    isolated_db.add(session)
+    isolated_db.flush()
+    sequence = []
+
+    monkeypatch.setattr(chat_service, "get_openai_client", lambda: FakeStreamClient())
+    monkeypatch.setattr(
+        chat_service,
+        "_schedule_turn_knowledge_extraction",
+        lambda *args, **kwargs: sequence.append("scheduled"),
+    )
+
+    for event in chat_service.stream_message(
+        isolated_db,
+        user,
+        session.id,
+        MessageCreateRequest(content="为什么会空指针？"),
+    ):
+        if event.startswith("event: assistant_done"):
+            sequence.append("assistant_done")
+
+    assert sequence == ["scheduled", "assistant_done"]
+
+
 def test_stream_message_rolls_back_and_yields_error_when_direct_stream_fails(isolated_db, monkeypatch):
     user = _student(isolated_db)
     session = ChatSession(user_id=user.id, title="已有对话")

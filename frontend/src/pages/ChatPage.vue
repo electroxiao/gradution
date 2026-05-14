@@ -224,6 +224,7 @@ async function sendMessage() {
   const draftContent = content.value;
   const tempUserId = `user-${Date.now()}`;
   const tempAssistantId = `assistant-${Date.now()}`;
+  let streamedUserMessageId = null;
   const tempUser = {
     tempId: tempUserId,
     role: "user",
@@ -259,6 +260,7 @@ async function sendMessage() {
       },
       {
         async onUserMessage(data) {
+          streamedUserMessageId = data.id;
           const userIndex = messages.value.findIndex((item) => item.tempId === tempUserId);
           if (userIndex >= 0) {
             messages.value.splice(userIndex, 1, { ...data, streaming: false });
@@ -291,7 +293,9 @@ async function sendMessage() {
       },
     );
   } catch (error) {
-    const userIndex = messages.value.findIndex((item) => item.tempId === tempUserId);
+    const userIndex = messages.value.findIndex(
+      (item) => item.tempId === tempUserId || item.id === streamedUserMessageId,
+    );
     const index = messages.value.findIndex((item) => item.tempId === tempAssistantId);
     if (userIndex >= 0) {
       messages.value.splice(userIndex, 1);

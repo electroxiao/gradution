@@ -218,19 +218,19 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
         f"total={perf_counter() - request_started_at:.2f}s"
     )
 
-    yield _sse_event(
-        "assistant_done",
-        {
-            "assistant_message": assistant_schema.model_dump(mode="json"),
-            "weak_points_added": [],
-        },
-    )
     _schedule_turn_knowledge_extraction(
         user_id=user.id,
         session_id=session.id,
         user_message_id=user_message.id,
         assistant_message_id=assistant_message.id,
         previous_context=history[-2:],
+    )
+    yield _sse_event(
+        "assistant_done",
+        {
+            "assistant_message": assistant_schema.model_dump(mode="json"),
+            "weak_points_added": [],
+        },
     )
 
 

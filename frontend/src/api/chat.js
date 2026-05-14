@@ -57,6 +57,7 @@ export async function streamMessageApi(sessionId, payload, handlers = {}) {
         handlers.onAssistantDone?.(parsed.data);
       } else if (parsed.event === "error") {
         handlers.onError?.(parsed.data);
+        throw new Error(parsed.data?.message || parsed.data?.detail || "流式请求失败");
       }
     }
   }
