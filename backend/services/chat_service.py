@@ -1,5 +1,7 @@
 import json
+import logging
 from functools import lru_cache
+from threading import Thread
 from time import perf_counter
 
 from fastapi import HTTPException, status
@@ -7,6 +9,7 @@ from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
+from backend.db.session import SessionLocal
 from backend.models.chat import ChatMessage, ChatSession
 from backend.models.user import User
 from backend.schemas.chat import (
@@ -15,9 +18,11 @@ from backend.schemas.chat import (
     SessionResponse,
     SessionUpdateRequest,
 )
-from backend.services.neo4j_service import close_neo4j_driver, get_neo4j_driver
-from backend.services import rag_engine
-from backend.services.weak_point_service import extract_core_nodes, upsert_weak_points
+from backend.services.chat_knowledge_event_service import record_turn_knowledge_events
+from backend.services.neo4j_service import close_neo4j_driver
+
+logger = logging.getLogger(__name__)
+
 
 @lru_cache(maxsize=1)
 def get_openai_client() -> OpenAI:
@@ -121,6 +126,38 @@ def _generate_session_title(client: OpenAI, user_input: str, assistant_output: s
         return _fallback_session_title(user_input)
 
 
+def _stream_direct_tutor_answer(client: OpenAI, user_input: str, history: list[dict]):
+    system_prompt = """你是一个面向学生的 Java 编程作业辅导老师。
+请直接回答学生当前问题，优先帮助学生理解概念、定位错误和形成调试思路。
+要求：
+1. 使用中文，语气耐心、清晰。
+2. 不要编造项目知识图谱中没有提供的事实。
+3. 可以给出简短 Java 示例，但不要替学生完成整份作业。
+4. 先回答核心原因，再给出可执行的检查步骤。"""
+    messages = [{"role": "system", "content": system_prompt}]
+    for item in history[-6:]:
+        role = item.get("role")
+        content = item.get("content")
+        if role in {"user", "assistant"} and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": user_input})
+
+    stream = client.chat.completions.create(
+        model=settings.llm_model_name,
+        messages=messages,
+        temperature=0.2,
+        stream=True,
+    )
+    for chunk in stream:
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            continue
+        delta = getattr(choices[0], "delta", None)
+        content = getattr(delta, "content", None)
+        if content:
+            yield content
+
+
 def stream_message(db: Session, user: User, session_id: int, payload: MessageCreateRequest):
     request_started_at = perf_counter()
     session = _get_user_session(db, user, session_id)
@@ -129,44 +166,20 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     db.flush()
 
     history = _build_history(db, session.id, exclude_message_id=user_message.id)
-    driver = get_neo4j_driver()
     client = get_openai_client()
     should_autogenerate_title = _should_autogenerate_title(session, history)
 
-    reasoning_trace: list = []
-    retrieval_trace: list = []
-
-    keyword_started_at = perf_counter()
-    keywords = rag_engine.extract_keywords_with_llm(
-        client,
-        payload.content,
-        history=history,
-        trace=reasoning_trace,
-    )
-    keyword_elapsed = perf_counter() - keyword_started_at
-
-    graph_started_at = perf_counter()
-    facts = rag_engine.query_graph_with_reasoning(
-        driver,
-        client,
-        payload.content,
-        keywords=keywords,
-        max_depth=payload.rag_depth,
-        width=payload.rag_width,
-        reasoning_trace=reasoning_trace,
-        retrieval_trace=retrieval_trace,
-    )
-    graph_elapsed = perf_counter() - graph_started_at
-
-    user_message.keywords_json = keywords
-    user_message.facts_json = facts
+    user_message.keywords_json = []
+    user_message.facts_json = []
+    user_message.reasoning_trace_json = []
+    user_message.retrieval_trace_json = []
     db.flush()
 
     yield _sse_event("user_message", _message_to_schema(user_message).model_dump(mode="json"))
 
     answer_started_at = perf_counter()
     chunks: list[str] = []
-    for chunk in rag_engine.ask_deepseek_stream(client, payload.content, facts, history=history):
+    for chunk in _stream_direct_tutor_answer(client, payload.content, history):
         chunks.append(chunk)
         yield _sse_event("assistant_delta", {"content": chunk})
     answer = "".join(chunks)
@@ -176,10 +189,10 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
         session_id=session.id,
         role="assistant",
         content=answer,
-        keywords_json=keywords,
-        facts_json=facts,
-        reasoning_trace_json=reasoning_trace,
-        retrieval_trace_json=retrieval_trace,
+        keywords_json=[],
+        facts_json=[],
+        reasoning_trace_json=[],
+        retrieval_trace_json=[],
     )
     db.add(assistant_message)
 
@@ -190,14 +203,11 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     db.refresh(user_message)
     db.refresh(assistant_message)
 
-    weak_points_added = upsert_weak_points(db, user, session, extract_core_nodes(facts))
     assistant_schema = _message_to_schema(assistant_message)
 
     print(
         "[chat_timing] "
         f"session={session.id} "
-        f"keyword={keyword_elapsed:.2f}s "
-        f"graph={graph_elapsed:.2f}s "
         f"answer={answer_elapsed:.2f}s "
         f"total={perf_counter() - request_started_at:.2f}s"
     )
@@ -206,9 +216,94 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
         "assistant_done",
         {
             "assistant_message": assistant_schema.model_dump(mode="json"),
-            "weak_points_added": weak_points_added,
+            "weak_points_added": [],
         },
     )
+    _schedule_turn_knowledge_extraction(
+        user_id=user.id,
+        session_id=session.id,
+        user_message_id=user_message.id,
+        assistant_message_id=assistant_message.id,
+        previous_context=history[-2:],
+    )
+
+
+def _schedule_turn_knowledge_extraction(
+    *,
+    user_id: int,
+    session_id: int,
+    user_message_id: int,
+    assistant_message_id: int,
+    previous_context: list[dict] | None = None,
+) -> None:
+    thread = Thread(
+        target=_run_turn_knowledge_extraction,
+        kwargs={
+            "user_id": user_id,
+            "session_id": session_id,
+            "user_message_id": user_message_id,
+            "assistant_message_id": assistant_message_id,
+            "previous_context": previous_context,
+        },
+        daemon=True,
+    )
+    thread.start()
+
+
+def _run_turn_knowledge_extraction(
+    *,
+    user_id: int,
+    session_id: int,
+    user_message_id: int,
+    assistant_message_id: int,
+    previous_context: list[dict] | None = None,
+) -> None:
+    task_db = SessionLocal()
+    try:
+        user = task_db.get(User, user_id)
+        session = task_db.get(ChatSession, session_id)
+        user_message = task_db.get(ChatMessage, user_message_id)
+        assistant_message = task_db.get(ChatMessage, assistant_message_id)
+        if not all([user, session, user_message, assistant_message]):
+            logger.warning(
+                "跳过聊天知识点抽取，记录不存在: user=%s session=%s user_message=%s assistant_message=%s",
+                user_id,
+                session_id,
+                user_message_id,
+                assistant_message_id,
+            )
+            return
+
+        context_text = None
+        if previous_context:
+            context_text = json.dumps(previous_context, ensure_ascii=False)
+        inserted_nodes = record_turn_knowledge_events(
+            task_db,
+            get_openai_client(),
+            user,
+            session,
+            user_message,
+            assistant_message,
+            previous_context=context_text,
+        )
+        task_db.commit()
+        logger.info(
+            "聊天知识点抽取完成: session=%s user_message=%s assistant_message=%s nodes=%s",
+            session_id,
+            user_message_id,
+            assistant_message_id,
+            inserted_nodes,
+        )
+    except Exception:
+        task_db.rollback()
+        logger.exception(
+            "聊天知识点抽取失败: session=%s user_message=%s assistant_message=%s",
+            session_id,
+            user_message_id,
+            assistant_message_id,
+        )
+    finally:
+        task_db.close()
 
 
 def _get_user_session(db: Session, user: User, session_id: int) -> ChatSession:

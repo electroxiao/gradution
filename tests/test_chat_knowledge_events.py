@@ -10,6 +10,8 @@ from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
+from backend.schemas.chat import MessageCreateRequest
+from backend.services import chat_service, rag_engine
 from backend.services.chat_knowledge_event_service import (
     _parse_candidate_json,
     extract_candidates_from_turn,
@@ -41,6 +43,33 @@ class FakeCompletions:
 class FakeClient:
     def __init__(self, content):
         self.chat = type("Chat", (), {"completions": FakeCompletions(content)})()
+
+
+class FakeStreamDelta:
+    def __init__(self, content):
+        self.content = content
+
+
+class FakeStreamChoice:
+    def __init__(self, content):
+        self.delta = FakeStreamDelta(content)
+
+
+class FakeStreamChunk:
+    def __init__(self, content):
+        self.choices = [FakeStreamChoice(content)]
+
+
+class FakeStreamCompletions:
+    def create(self, **kwargs):
+        if kwargs.get("stream"):
+            return iter([FakeStreamChunk("直接"), FakeStreamChunk("回答")])
+        return FakeResponse("标题")
+
+
+class FakeStreamClient:
+    def __init__(self):
+        self.chat = type("Chat", (), {"completions": FakeStreamCompletions()})()
 
 
 class EmptyChoicesClient:
@@ -340,6 +369,46 @@ def test_record_turn_knowledge_events_is_idempotent_for_same_turn_and_node(isola
     assert first_inserted == ["循环"]
     assert second_inserted == []
     assert isolated_db.query(ChatKnowledgeEvent).count() == 1
+
+
+def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db, monkeypatch):
+    user = _student(isolated_db)
+    session = ChatSession(user_id=user.id, title="已有对话")
+    isolated_db.add(session)
+    isolated_db.flush()
+    graph_calls = {"keywords": 0, "graph": 0}
+
+    def fake_extract_keywords(*args, **kwargs):
+        graph_calls["keywords"] += 1
+        return ["空指针异常"]
+
+    def fake_query_graph(*args, **kwargs):
+        graph_calls["graph"] += 1
+        return []
+
+    monkeypatch.setattr(chat_service, "get_openai_client", lambda: FakeStreamClient())
+    monkeypatch.setattr(rag_engine, "extract_keywords_with_llm", fake_extract_keywords)
+    monkeypatch.setattr(rag_engine, "query_graph_with_reasoning", fake_query_graph)
+    monkeypatch.setattr(rag_engine, "ask_deepseek_stream", lambda *args, **kwargs: iter(["旧路径"]))
+    monkeypatch.setattr(
+        chat_service,
+        "_schedule_turn_knowledge_extraction",
+        lambda *args, **kwargs: None,
+        raising=False,
+    )
+
+    events = list(
+        chat_service.stream_message(
+            isolated_db,
+            user,
+            session.id,
+            MessageCreateRequest(content="为什么会空指针？"),
+        )
+    )
+
+    assert graph_calls == {"keywords": 0, "graph": 0}
+    assert any(event.startswith("event: assistant_delta") for event in events)
+    assert any(event.startswith("event: assistant_done") for event in events)
 
 
 def test_consultation_summaries_group_recent_student_and_teacher_views(isolated_db):
