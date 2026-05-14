@@ -5,12 +5,13 @@ from sqlalchemy.orm import sessionmaker
 from backend.db import base as model_base  # noqa: F401
 from backend.db.bootstrap import ensure_schema_and_seed
 from backend.db.bootstrap import _ensure_chat_knowledge_events_table
-from backend.db.session import Base, engine
+from backend.db.session import Base
 from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
 from backend.services.chat_knowledge_event_service import (
+    _parse_candidate_json,
     extract_candidates_from_turn,
     list_recent_consultations,
     list_student_consultations,
@@ -52,23 +53,24 @@ def clean_auto_test_data():
     return None
 
 
-@pytest.fixture(scope="module", autouse=True)
-def bootstrap_schema():
-    Base.metadata.create_all(bind=engine)
-    ensure_schema_and_seed(engine)
+@pytest.fixture()
+def isolated_engine():
+    test_engine = create_engine("sqlite:///:memory:", future=True)
+    Base.metadata.create_all(bind=test_engine)
+    try:
+        yield test_engine
+    finally:
+        Base.metadata.drop_all(bind=test_engine)
 
 
 @pytest.fixture()
-def isolated_db():
-    test_engine = create_engine("sqlite:///:memory:", future=True)
-    Base.metadata.create_all(bind=test_engine)
-    TestingSessionLocal = sessionmaker(bind=test_engine, autoflush=False, autocommit=False, future=True)
+def isolated_db(isolated_engine):
+    TestingSessionLocal = sessionmaker(bind=isolated_engine, autoflush=False, autocommit=False, future=True)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=test_engine)
 
 
 def _student(db, username="student", class_name="Class A"):
@@ -103,8 +105,9 @@ def _turn(db, user, title="Java 咨询"):
     return session, user_message, assistant_message
 
 
-def test_chat_knowledge_events_table_exists_after_bootstrap():
-    inspector = inspect(engine)
+def test_chat_knowledge_events_table_exists_after_bootstrap(isolated_engine):
+    ensure_schema_and_seed(isolated_engine)
+    inspector = inspect(isolated_engine)
 
     assert "chat_knowledge_events" in inspector.get_table_names()
 
@@ -205,6 +208,22 @@ def test_extract_candidates_from_turn_parses_json_from_fake_openai_client():
         {"name": "空指针异常", "confidence": 1.0, "evidence": "学生询问 NullPointerException"},
         {"name": "数组", "confidence": 0.0, "evidence": "x" * 500},
     ]
+
+
+@pytest.mark.parametrize("content", [None, 123])
+def test_extract_candidates_from_turn_handles_empty_or_non_text_content(content):
+    assert (
+        extract_candidates_from_turn(
+            FakeClient(content),
+            user_content="为什么报错？",
+            assistant_content="需要查看异常信息。",
+        )
+        == []
+    )
+
+
+def test_parse_candidate_json_returns_empty_for_non_string_content():
+    assert _parse_candidate_json({"name": "数组"}) == []
 
 
 def test_record_turn_knowledge_events_only_writes_existing_nodes_and_leaves_progress_tables_untouched(isolated_db):

@@ -70,11 +70,14 @@ def extract_candidates_from_turn(
         messages=[{"role": "user", "content": prompt}],
         temperature=0.1,
     )
-    content = response.choices[0].message.content
+    content = response.choices[0].message.content or "[]"
     return _parse_candidate_json(content)
 
 
 def _parse_candidate_json(content: str) -> list[dict]:
+    if not isinstance(content, str):
+        return []
+
     start = content.find("[")
     end = content.rfind("]")
     if start < 0 or end < start:
