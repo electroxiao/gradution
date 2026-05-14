@@ -179,11 +179,17 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
 
     answer_started_at = perf_counter()
     chunks: list[str] = []
-    for chunk in _stream_direct_tutor_answer(client, payload.content, history):
-        chunks.append(chunk)
-        yield _sse_event("assistant_delta", {"content": chunk})
-    answer = "".join(chunks)
-    answer_elapsed = perf_counter() - answer_started_at
+    try:
+        for chunk in _stream_direct_tutor_answer(client, payload.content, history):
+            chunks.append(chunk)
+            yield _sse_event("assistant_delta", {"content": chunk})
+        answer = "".join(chunks)
+        answer_elapsed = perf_counter() - answer_started_at
+    except Exception:
+        db.rollback()
+        logger.exception("聊天回答生成失败: session=%s user=%s", session_id, user.id)
+        yield _sse_event("error", {"message": "回答生成失败，请稍后重试。"})
+        return
 
     assistant_message = ChatMessage(
         session_id=session.id,

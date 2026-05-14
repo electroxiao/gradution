@@ -72,6 +72,23 @@ class FakeStreamClient:
         self.chat = type("Chat", (), {"completions": FakeStreamCompletions()})()
 
 
+class RaisingStreamCompletions:
+    def create(self, **kwargs):
+        if not kwargs.get("stream"):
+            return FakeResponse("标题")
+
+        def stream():
+            yield FakeStreamChunk("半句")
+            raise RuntimeError("stream failed")
+
+        return stream()
+
+
+class RaisingStreamClient:
+    def __init__(self):
+        self.chat = type("Chat", (), {"completions": RaisingStreamCompletions()})()
+
+
 class EmptyChoicesClient:
     def __init__(self):
         completions = type(
@@ -409,6 +426,36 @@ def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db
     assert graph_calls == {"keywords": 0, "graph": 0}
     assert any(event.startswith("event: assistant_delta") for event in events)
     assert any(event.startswith("event: assistant_done") for event in events)
+
+
+def test_stream_message_rolls_back_and_yields_error_when_direct_stream_fails(isolated_db, monkeypatch):
+    user = _student(isolated_db)
+    session = ChatSession(user_id=user.id, title="已有对话")
+    isolated_db.add(session)
+    isolated_db.commit()
+    session_id = session.id
+    scheduled = []
+
+    monkeypatch.setattr(chat_service, "get_openai_client", lambda: RaisingStreamClient())
+    monkeypatch.setattr(
+        chat_service,
+        "_schedule_turn_knowledge_extraction",
+        lambda *args, **kwargs: scheduled.append(kwargs),
+    )
+
+    events = list(
+        chat_service.stream_message(
+            isolated_db,
+            user,
+            session_id,
+            MessageCreateRequest(content="为什么会空指针？"),
+        )
+    )
+
+    assert any(event.startswith("event: error") for event in events)
+    assert not any(event.startswith("event: assistant_done") for event in events)
+    assert scheduled == []
+    assert isolated_db.query(ChatMessage).filter(ChatMessage.session_id == session_id).count() == 0
 
 
 def test_consultation_summaries_group_recent_student_and_teacher_views(isolated_db):
