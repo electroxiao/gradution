@@ -6,7 +6,7 @@ from backend.models.assignment import (
     AssignmentSubmission,
     AssignmentTestCase,
 )
-from backend.models.chat import ChatMessage, ChatSession
+from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
@@ -15,6 +15,7 @@ __all__ = [
     "User",
     "ChatSession",
     "ChatMessage",
+    "ChatKnowledgeEvent",
     "KnowledgeNode",
     "UserWeakPoint",
     "UserKnowledgeState",

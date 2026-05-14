@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.config import settings
 from backend.core.security import get_password_hash
+from backend.models.chat import ChatKnowledgeEvent
 from backend.models.user import User
 
 
@@ -215,36 +216,7 @@ def _ensure_chat_knowledge_events_table(engine: Engine) -> None:
     if "chat_knowledge_events" in table_names:
         return
 
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                """
-                CREATE TABLE chat_knowledge_events (
-                    id INTEGER PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    session_id INTEGER NOT NULL,
-                    user_message_id INTEGER NOT NULL,
-                    assistant_message_id INTEGER NOT NULL,
-                    knowledge_node_id INTEGER NOT NULL,
-                    confidence FLOAT NULL,
-                    evidence_text TEXT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    CONSTRAINT uq_chat_knowledge_event_turn_node UNIQUE (
-                        user_id,
-                        session_id,
-                        user_message_id,
-                        assistant_message_id,
-                        knowledge_node_id
-                    )
-                )
-                """
-            )
-        )
-        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_user_id ON chat_knowledge_events (user_id)"))
-        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_session_id ON chat_knowledge_events (session_id)"))
-        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_user_message_id ON chat_knowledge_events (user_message_id)"))
-        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_assistant_message_id ON chat_knowledge_events (assistant_message_id)"))
-        connection.execute(text("CREATE INDEX ix_chat_knowledge_events_knowledge_node_id ON chat_knowledge_events (knowledge_node_id)"))
+    ChatKnowledgeEvent.__table__.create(bind=engine, checkfirst=True)
 
 
 def _ensure_teacher_seed(engine: Engine) -> None:
