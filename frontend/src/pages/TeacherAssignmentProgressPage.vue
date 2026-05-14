@@ -89,7 +89,7 @@
       </section>
     </main>
 
-    <div v-if="selectedCell" class="modal-backdrop" @click.self="closeDetail">
+    <div v-if="selectedCell && isDetailDialogReady" class="modal-backdrop" @click.self="closeDetail">
       <section class="detail-dialog shell-card">
         <div class="detail-dialog-bar">
           <div class="detail-header">
@@ -287,7 +287,6 @@
             </div>
           </div>
 
-          <p v-else-if="selectedCell.latest_submission_id" class="muted">提交详情加载中...</p>
           <p v-else class="muted">该学生还没有提交这道题。</p>
       </section>
     </div>
@@ -319,12 +318,14 @@ const selectedSubmissions = ref([]);
 const errorMessage = ref("");
 const hasLoaded = ref(false);
 const isInitialLoading = ref(true);
+const isDetailDialogReady = ref(false);
 const reviewNote = ref("");
 const reviewing = ref(false);
 const matrixFilter = ref("all");
 const currentPage = ref(1);
 const selectedResultIndex = ref(0);
 const pageSize = 10;
+let detailRequestId = 0;
 
 const cellMap = computed(() => {
   const map = new Map();
@@ -431,20 +432,29 @@ function cellFor(studentId, questionId) {
 }
 
 async function selectCell(student, question, cell) {
+  const requestId = ++detailRequestId;
+  isDetailDialogReady.value = false;
   selectedCell.value = cell;
   selectedStudent.value = student;
   selectedQuestion.value = question;
   selectedSubmission.value = null;
   selectedSubmissions.value = [];
   reviewNote.value = "";
-  if (!cell.latest_submission_id) return;
+  if (!cell.latest_submission_id) {
+    isDetailDialogReady.value = true;
+    return;
+  }
 
   try {
     const { data } = await listTeacherAssignmentQuestionSubmissionsApi(assignmentId, student.id, question.id);
+    if (requestId !== detailRequestId) return;
     selectedSubmissions.value = data.submissions || [];
     selectedSubmission.value = selectedSubmissions.value[0] || null;
     reviewNote.value = selectedSubmission.value?.teacher_review_note || "";
+    isDetailDialogReady.value = true;
   } catch (error) {
+    if (requestId !== detailRequestId) return;
+    closeDetail();
     handleApiError(error, "加载提交详情失败。");
   }
 }
@@ -455,6 +465,8 @@ function openStudentDetail(row) {
 }
 
 function closeDetail() {
+  detailRequestId += 1;
+  isDetailDialogReady.value = false;
   selectedCell.value = null;
   selectedStudent.value = null;
   selectedQuestion.value = null;
