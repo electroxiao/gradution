@@ -47,8 +47,9 @@ from backend.schemas.assignment import (
     QuestionBankItemResponse,
 )
 from backend.services import rag_engine
-from backend.services.chat_service import get_neo4j_driver, get_openai_client
+from backend.services.chat_service import get_openai_client
 from backend.services.knowledge_progress_service import mark_node_weak
+from backend.services.neo4j_service import get_neo4j_driver
 from backend.services.sandbox_service import run_java_submission
 
 

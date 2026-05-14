@@ -1,3 +1,5 @@
+import importlib
+
 import pytest
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
@@ -249,6 +251,10 @@ def test_bootstrap_helper_creates_chat_knowledge_events_with_model_constraints()
         "ix_chat_knowledge_events_assistant_message_id",
         "ix_chat_knowledge_events_knowledge_node_id",
     }.issubset(indexes)
+
+
+def test_backend_main_imports_after_chat_decoupling():
+    assert importlib.import_module("backend.main")
 
 
 def test_extract_candidates_from_turn_parses_json_from_fake_openai_client():

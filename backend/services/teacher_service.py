@@ -19,8 +19,8 @@ from backend.schemas.teacher import (
     TeacherStudentResponse,
     TeacherStudentWeakPointResponse,
 )
-from backend.services.chat_service import get_neo4j_driver
 from backend.services.chat_service import get_openai_client
+from backend.services.neo4j_service import get_neo4j_driver
 
 
 RELATION_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
