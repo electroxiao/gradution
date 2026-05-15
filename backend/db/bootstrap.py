@@ -218,9 +218,14 @@ def _ensure_chat_knowledge_events_table(engine: Engine) -> None:
             columns = inspector.get_columns("chat_knowledge_events")
         except Exception:
             return
-        if _chat_knowledge_events_id_needs_autoincrement(columns) and engine.dialect.name == "mysql":
+        if engine.dialect.name == "mysql" and _chat_knowledge_events_id_needs_autoincrement(columns):
             with engine.begin() as connection:
                 connection.execute(text("ALTER TABLE chat_knowledge_events MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT"))
+        removable_columns = _legacy_chat_knowledge_event_columns(columns)
+        if removable_columns and engine.dialect.name == "mysql":
+            with engine.begin() as connection:
+                for column_name in removable_columns:
+                    connection.execute(text(f"ALTER TABLE chat_knowledge_events DROP COLUMN {column_name}"))
         return
 
     ChatKnowledgeEvent.__table__.create(bind=engine, checkfirst=True)
@@ -229,6 +234,11 @@ def _ensure_chat_knowledge_events_table(engine: Engine) -> None:
 def _chat_knowledge_events_id_needs_autoincrement(columns: list[dict]) -> bool:
     id_column = next((column for column in columns if column.get("name") == "id"), None)
     return bool(id_column and id_column.get("autoincrement") is False)
+
+
+def _legacy_chat_knowledge_event_columns(columns: list[dict]) -> list[str]:
+    column_names = {column.get("name") for column in columns}
+    return [name for name in ["confidence", "evidence_text"] if name in column_names]
 
 
 def _ensure_teacher_seed(engine: Engine) -> None:

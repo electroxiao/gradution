@@ -10,7 +10,11 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.db import base as model_base  # noqa: F401
 from backend.db.bootstrap import ensure_schema_and_seed
-from backend.db.bootstrap import _chat_knowledge_events_id_needs_autoincrement, _ensure_chat_knowledge_events_table
+from backend.db.bootstrap import (
+    _chat_knowledge_events_id_needs_autoincrement,
+    _ensure_chat_knowledge_events_table,
+    _legacy_chat_knowledge_event_columns,
+)
 from backend.db.session import Base
 from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
@@ -215,10 +219,10 @@ def test_chat_knowledge_event_model_has_expected_columns():
         "user_message_id",
         "assistant_message_id",
         "knowledge_node_id",
-        "confidence",
-        "evidence_text",
         "created_at",
     }.issubset(columns)
+    assert "confidence" not in columns
+    assert "evidence_text" not in columns
 
 
 def test_chat_knowledge_event_id_is_autoincrementing():
@@ -232,6 +236,13 @@ def test_chat_knowledge_events_existing_table_detects_missing_id_autoincrement()
     assert not _chat_knowledge_events_id_needs_autoincrement(
         [{"name": "id", "autoincrement": True}, {"name": "user_id"}]
     )
+
+
+def test_chat_knowledge_events_detects_legacy_detail_columns():
+    assert _legacy_chat_knowledge_event_columns(
+        [{"name": "id"}, {"name": "confidence"}, {"name": "evidence_text"}]
+    ) == ["confidence", "evidence_text"]
+    assert _legacy_chat_knowledge_event_columns([{"name": "id"}, {"name": "user_id"}]) == []
 
 
 def test_bootstrap_helper_creates_chat_knowledge_events_with_model_constraints():
@@ -252,10 +263,10 @@ def test_bootstrap_helper_creates_chat_knowledge_events_with_model_constraints()
         "user_message_id",
         "assistant_message_id",
         "knowledge_node_id",
-        "confidence",
-        "evidence_text",
         "created_at",
     }.issubset(columns)
+    assert "confidence" not in columns
+    assert "evidence_text" not in columns
 
     unique_constraints = {
         constraint["name"]: set(constraint["column_names"])
@@ -344,8 +355,6 @@ def test_consultation_response_schemas_serialize_service_summaries():
         assistant_message_id=4,
         node_id=5,
         node_name="空指针异常",
-        confidence=0.9,
-        evidence_text="学生询问 NPE",
         created_at=now,
     )
     hotspot = ConsultationSummary(
@@ -360,8 +369,6 @@ def test_consultation_response_schemas_serialize_service_summaries():
         id=recent.event_id,
         knowledge_node_id=recent.node_id,
         node_name=recent.node_name,
-        confidence=recent.confidence,
-        evidence_text=recent.evidence_text,
         session_id=recent.session_id,
         session_title=recent.session_title,
         created_at=recent.created_at,
@@ -378,8 +385,6 @@ def test_consultation_response_schemas_serialize_service_summaries():
         "id": 1,
         "knowledge_node_id": 5,
         "node_name": "空指针异常",
-        "confidence": 0.9,
-        "evidence_text": "学生询问 NPE",
         "session_id": 2,
         "session_title": "Java 咨询",
         "created_at": now,
@@ -398,11 +403,10 @@ def test_extract_candidates_from_turn_parses_json_from_fake_openai_client():
         """
         下面是抽取结果：
         [
-          {"name": "空指针异常", "confidence": 1.2, "evidence": "学生询问 NullPointerException"},
-          {"name": "数组", "confidence": -0.2, "evidence": "%s"}
+          {"name": "空指针异常"},
+          {"name": "数组"}
         ]
         """
-        % ("x" * 600)
     )
 
     candidates = extract_candidates_from_turn(
@@ -413,13 +417,13 @@ def test_extract_candidates_from_turn_parses_json_from_fake_openai_client():
     )
 
     assert candidates == [
-        {"name": "空指针异常", "confidence": 1.0, "evidence": "学生询问 NullPointerException"},
-        {"name": "数组", "confidence": 0.0, "evidence": "x" * 500},
+        {"name": "空指针异常"},
+        {"name": "数组"},
     ]
 
 
 def test_extract_candidates_from_turn_uses_formal_nodes_as_allowed_options():
-    client = CapturingClient('[{"node_id": 7, "node_name": "封装(Encapsulation)", "confidence": 0.9, "evidence": "private"}]')
+    client = CapturingClient('[{"node_id": 7, "node_name": "封装(Encapsulation)"}]')
 
     candidates = extract_candidates_from_turn(
         client,
@@ -431,8 +435,10 @@ def test_extract_candidates_from_turn_uses_formal_nodes_as_allowed_options():
     prompt = client.completions.calls[0]["messages"][0]["content"]
     assert "只能从下面的正式知识图谱节点中选择" in prompt
     assert '{"id":7,"name":"封装(Encapsulation)"}' in prompt
+    assert "confidence" not in prompt
+    assert "evidence" not in prompt
     assert candidates == [
-        {"node_id": 7, "node_name": "封装(Encapsulation)", "name": "封装(Encapsulation)", "confidence": 0.9, "evidence": "private"}
+        {"node_id": 7, "node_name": "封装(Encapsulation)", "name": "封装(Encapsulation)"}
     ]
 
 
@@ -484,8 +490,8 @@ def test_record_turn_knowledge_events_only_writes_existing_nodes_and_leaves_prog
         FakeClient(
             """
             [
-              {"name": "空指针异常", "confidence": 0.9, "evidence": "学生询问 NPE"},
-              {"name": "不存在的概念", "confidence": 0.8, "evidence": "不应创建新节点"}
+              {"name": "空指针异常"},
+              {"name": "不存在的概念"}
             ]
             """
         ),
@@ -508,7 +514,7 @@ def test_record_turn_knowledge_events_prefers_formal_node_ids_from_extractor(iso
     _node(isolated_db, "继承(Inheritance)")
     session, user_message, assistant_message = _turn(isolated_db, user)
     client = CapturingClient(
-        f'[{{"node_id": {node.id}, "node_name": "封装(Encapsulation)", "confidence": 0.93, "evidence": "private"}}]'
+        f'[{{"node_id": {node.id}, "node_name": "封装(Encapsulation)"}}]'
     )
 
     inserted = record_turn_knowledge_events(
@@ -534,7 +540,7 @@ def test_record_turn_knowledge_events_requires_python_exact_node_name_match(isol
 
     inserted = record_turn_knowledge_events(
         isolated_db,
-        FakeClient('[{"name": "ArrayList", "confidence": 0.9, "evidence": "大小写不同"}]'),
+        FakeClient('[{"name": "ArrayList"}]'),
         user,
         session,
         user_message,
@@ -556,10 +562,10 @@ def test_record_turn_knowledge_events_resolves_common_aliases_to_formal_nodes(is
         FakeClient(
             """
             [
-              {"name": "封装", "confidence": 0.91, "evidence": "private 限制外部访问"},
-              {"name": "main函数", "confidence": 0.88, "evidence": "入口函数"},
-              {"name": "继承", "confidence": 0.86, "evidence": "extends"},
-              {"name": "多态", "confidence": 0.84, "evidence": "父类引用"}
+              {"name": "封装"},
+              {"name": "main函数"},
+              {"name": "继承"},
+              {"name": "多态"}
             ]
             """
         ),
@@ -577,7 +583,7 @@ def test_record_turn_knowledge_events_is_idempotent_for_same_turn_and_node(isola
     user = _student(isolated_db)
     _node(isolated_db, "循环")
     session, user_message, assistant_message = _turn(isolated_db, user)
-    client = FakeClient('[{"name": "循环", "confidence": 0.7, "evidence": "for 循环条件"}]')
+    client = FakeClient('[{"name": "循环"}]')
 
     first_inserted = record_turn_knowledge_events(
         isolated_db,
@@ -716,8 +722,6 @@ def test_consultation_summaries_group_recent_student_and_teacher_views(isolated_
                 user_message_id=alice_user_message.id,
                 assistant_message_id=alice_assistant_message.id,
                 knowledge_node_id=loops.id,
-                confidence=0.9,
-                evidence_text="alice loops",
             ),
             ChatKnowledgeEvent(
                 user_id=alice.id,
@@ -725,8 +729,6 @@ def test_consultation_summaries_group_recent_student_and_teacher_views(isolated_
                 user_message_id=alice_user_message.id,
                 assistant_message_id=alice_assistant_message.id,
                 knowledge_node_id=arrays.id,
-                confidence=0.8,
-                evidence_text="alice arrays",
             ),
             ChatKnowledgeEvent(
                 user_id=bob.id,
@@ -734,8 +736,6 @@ def test_consultation_summaries_group_recent_student_and_teacher_views(isolated_
                 user_message_id=bob_user_message.id,
                 assistant_message_id=bob_assistant_message.id,
                 knowledge_node_id=loops.id,
-                confidence=0.7,
-                evidence_text="bob loops",
             ),
             ChatKnowledgeEvent(
                 user_id=charlie.id,
@@ -743,8 +743,6 @@ def test_consultation_summaries_group_recent_student_and_teacher_views(isolated_
                 user_message_id=charlie_user_message.id,
                 assistant_message_id=charlie_assistant_message.id,
                 knowledge_node_id=arrays.id,
-                confidence=0.6,
-                evidence_text="charlie arrays",
             ),
         ]
     )

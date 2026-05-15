@@ -28,8 +28,6 @@ def _consultation_event_response(row) -> ChatConsultationEventResponse:
         id=row.event_id,
         knowledge_node_id=row.node_id,
         node_name=row.node_name,
-        confidence=row.confidence,
-        evidence_text=row.evidence_text,
         session_id=row.session_id,
         session_title=row.session_title,
         created_at=row.created_at,

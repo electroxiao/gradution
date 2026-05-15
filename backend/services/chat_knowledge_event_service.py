@@ -25,8 +25,6 @@ class ConsultationEventSummary:
     assistant_message_id: int
     node_id: int
     node_name: str
-    confidence: float | None
-    evidence_text: str | None
     created_at: datetime
 
 
@@ -62,18 +60,16 @@ def extract_candidates_from_turn(
 1. 只输出 JSON 数组，不要输出 Markdown。
 2. 最多 5 个元素。
 3. 只能从下面的正式知识图谱节点中选择，不允许创造新知识点。
-4. 每个元素包含 node_id、node_name、confidence、evidence。
+4. 每个元素只包含 node_id、node_name。
 5. node_id 和 node_name 必须来自正式知识图谱节点列表。
 6. 如果没有合适节点，返回空数组。
 7. 为兼容旧格式，也可以额外包含 name，但 node_id 优先。
-8. confidence 为 0 到 1 的数字。
-9. evidence 摘录能说明为何抽取该知识点的简短证据。
 
 正式知识图谱节点：
 {formal_node_options}
 
 旧格式兼容要求：
-如果无法输出 node_id，才输出 name、confidence、evidence。
+如果无法输出 node_id，才输出 name。
 name 应是简短、可匹配正式知识图谱节点的中文知识点名称。
 
 上一轮上下文：
@@ -122,13 +118,7 @@ def _parse_candidate_json(content: str) -> list[dict]:
         name = node_name or str(item.get("name") or "").strip()
         if not name:
             continue
-        try:
-            confidence = float(item.get("confidence", 0.0))
-        except (TypeError, ValueError):
-            confidence = 0.0
-        confidence = max(0.0, min(1.0, confidence))
-        evidence = str(item.get("evidence") or "").strip()[:500]
-        candidates.append({"name": name, "confidence": confidence, "evidence": evidence})
+        candidates.append({"name": name})
         node_id = item.get("node_id")
         try:
             if node_id is not None:
@@ -281,8 +271,6 @@ def record_turn_knowledge_events(
                 user_message_id=user_message.id,
                 assistant_message_id=assistant_message.id,
                 knowledge_node_id=node.id,
-                confidence=candidate["confidence"],
-                evidence_text=candidate["evidence"],
             )
         )
         inserted_names.append(node.node_name)
@@ -321,8 +309,6 @@ def list_recent_consultations(
             assistant_message_id=event.assistant_message_id,
             node_id=node.id,
             node_name=node.node_name,
-            confidence=event.confidence,
-            evidence_text=event.evidence_text,
             created_at=event.created_at,
         )
         for event, node, session in rows
