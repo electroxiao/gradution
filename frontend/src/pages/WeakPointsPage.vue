@@ -21,6 +21,24 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
+    <section v-if="recentConsultations.length" class="panel consultation-section">
+      <div class="history-header">
+        <h2>最近咨询知识点</h2>
+        <p>这些来自聊天问答记录，只表示你最近关注过，不会自动计入薄弱点。</p>
+      </div>
+      <div class="history-grid">
+        <article v-for="item in recentConsultations" :key="item.id" class="history-card consultation-card">
+          <div class="history-card-top">
+            <span class="history-badge">咨询</span>
+            <span class="history-time">{{ formatDate(item.created_at) }}</span>
+          </div>
+          <h3>{{ item.node_name }}</h3>
+          <span class="weak-first-seen">{{ item.session_title || "聊天记录" }}</span>
+          <router-link class="consultation-link" to="/chat">回到聊天</router-link>
+        </article>
+      </div>
+    </section>
+
     <div class="weak-grid-layout">
       <section class="graph-section">
         <div class="graph-header">
@@ -33,7 +51,7 @@
         </div>
         <div class="graph-container">
           <div v-if="isInitialLoading || isGraphLoading" class="skeleton-graph" aria-label="薄弱点图谱加载中"></div>
-          <div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱节点，请先完成作业或在聊天页面提问以记录薄弱点。</div>
+          <div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的薄弱点图谱，请先完成作业或训练来记录待掌握知识点。</div>
           <KnowledgeGraphCanvas
             v-else
             ref="graphCanvas"
@@ -191,7 +209,7 @@
     <section v-else-if="!isInitialLoading && !errorMessage && !graphNodes.length && !showQuizPanel" class="panel empty-state">
       <div class="empty-orbit" />
       <h2>当前没有待补齐的薄弱点</h2>
-      <p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识节点。</p>
+      <p>聊天会记录最近咨询过的知识点；作业和训练结果会记录真正需要攻克的薄弱点。</p>
       <router-link class="empty-link" to="/chat">去聊天页继续提问</router-link>
     </section>
   </section>
@@ -207,6 +225,7 @@ import {
   listWeakPointsApi,
   markMasteredApi,
 } from "../api/weakPoints";
+import { listRecentConsultationsApi } from "../api/chat";
 import PageHeader from "../components/PageHeader.vue";
 import { streamGenerateQuizApi, streamSubmitAnswerApi } from "../api/quiz";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
@@ -217,6 +236,7 @@ import { clearAuthSession } from "../utils/authStorage";
 const router = useRouter();
 const weakPoints = ref([]);
 const historyWeakPoints = ref([]);
+const recentConsultations = ref([]);
 const errorMessage = ref("");
 const graphNodes = ref([]);
 const graphEdges = ref([]);
@@ -249,10 +269,11 @@ const isSubmitting = ref(false);
 onMounted(async () => {
   try {
     const historyPromise = loadWeakPointHistory();
+    const consultationPromise = loadRecentConsultations();
     await loadWeakPoints();
     const graphPromise = loadGraph();
     scheduleGraphPrefetch();
-    await Promise.allSettled([historyPromise, graphPromise]);
+    await Promise.allSettled([historyPromise, graphPromise, consultationPromise]);
   } finally {
     isInitialLoading.value = false;
   }
@@ -291,6 +312,15 @@ async function loadWeakPointHistory() {
     historyWeakPoints.value = data || [];
   } catch (error) {
     handleApiError(error, "加载历史薄弱点失败。");
+  }
+}
+
+async function loadRecentConsultations() {
+  try {
+    const { data } = await listRecentConsultationsApi(12);
+    recentConsultations.value = data || [];
+  } catch (error) {
+    handleApiError(error, "加载最近咨询记录失败。");
   }
 }
 
@@ -605,6 +635,21 @@ function handleApiError(error, fallbackMessage) {
   background: #fff5f5;
   color: #b42318;
   border: 1px solid #f0d3d3;
+}
+
+.consultation-section {
+  display: grid;
+  gap: 12px;
+}
+
+.consultation-card {
+  border-color: #dbeafe;
+}
+
+.consultation-link {
+  color: var(--app-primary);
+  text-decoration: none;
+  font-size: var(--compact-caption);
 }
 
 .weak-grid-layout {
