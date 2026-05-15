@@ -8,6 +8,7 @@ class TeacherStudentResponse(BaseModel):
     username: str
     class_name: str | None = None
     weak_point_count: int
+    unfinished_assignment_count: int = 0
 
 
 class TeacherKnowledgeNodeRefResponse(BaseModel):

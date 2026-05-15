@@ -39,7 +39,8 @@ function fitGraph(nodeIds = []) {
     nvl.resetZoom();
     return;
   }
-  nvl.fit(ids);
+  const allIds = props.nodes.map((node) => String(node.id));
+  nvl.fit(allIds.length ? allIds : ids);
 }
 
 function syncGraph() {
@@ -77,7 +78,7 @@ function initializeGraph() {
       disableWebWorkers: false,
       renderer: "canvas",
       layout: "d3Force",
-      initialZoom: 0.9,
+      initialZoom: 0.72,
       layoutOptions: { nodeSpacing: 80 },
     }
   );

@@ -87,7 +87,7 @@ export function toNvlNodes(nodes, selectedNodeId = "") {
 
     return {
       id: String(node.id),
-      size: isSelected ? 45 : 28,
+      size: isSelected ? 34 : 28,
       color: resolveNodeColor(node.color || node.node_type, isSelected, node.status),
       selected: isSelected,
       html: createNodeHtml(label, isSelected),

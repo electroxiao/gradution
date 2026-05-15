@@ -23,26 +23,57 @@
       </article>
     </section>
 
-    <section class="rank-panel">
-      <div class="panel-head">
-        <div>
-          <h3>薄弱点热点排行</h3>
+    <section class="rank-panels">
+      <div class="rank-panel">
+        <div class="panel-head">
+          <div>
+            <h3>薄弱点热点排行</h3>
+          </div>
         </div>
+
+        <div v-if="!isInitialLoading && dashboard?.top_nodes?.length" class="rank-list">
+          <article v-for="(item, index) in dashboard.top_nodes" :key="item.id" class="rank-item">
+            <div class="rank-index">{{ index + 1 }}</div>
+            <div class="rank-copy">
+              <strong>{{ item.node_name }}</strong>
+              <span>被标记 {{ item.mark_count }} 次</span>
+            </div>
+            <div class="rank-bar">
+              <div class="rank-fill weak-fill" :style="{ width: `${weakBarWidth(item.mark_count)}%` }" />
+            </div>
+          </article>
+        </div>
+        <div v-else-if="hasLoaded" class="empty-panel">暂无可展示的薄弱点统计。</div>
       </div>
 
-      <div v-if="!isInitialLoading && dashboard?.top_nodes?.length" class="rank-list">
-        <article v-for="(item, index) in dashboard.top_nodes" :key="item.id" class="rank-item">
-          <div class="rank-index">{{ index + 1 }}</div>
-          <div class="rank-copy">
-            <strong>{{ item.node_name }}</strong>
-            <span>被标记 {{ item.mark_count }} 次</span>
+      <div class="rank-panel">
+        <div class="panel-head">
+          <div>
+            <h3>班级咨询热点排行</h3>
           </div>
-          <div class="rank-bar">
-            <div class="rank-fill" :style="{ width: `${barWidth(item.mark_count)}%` }" />
-          </div>
-        </article>
+        </div>
+
+        <div v-if="!isInitialLoading && consultationHotspots.length" class="rank-list">
+          <article
+            v-for="(item, index) in consultationHotspots"
+            :key="item.knowledge_node_id"
+            class="rank-item"
+          >
+            <div class="rank-index consultation-index">{{ index + 1 }}</div>
+            <div class="rank-copy">
+              <strong>{{ item.node_name }}</strong>
+              <span>{{ item.student_count }} 人 · {{ item.mention_count }} 次咨询</span>
+            </div>
+            <div class="rank-bar">
+              <div
+                class="rank-fill consultation-fill"
+                :style="{ width: `${consultationBarWidth(item.mention_count)}%` }"
+              />
+            </div>
+          </article>
+        </div>
+        <div v-else-if="hasLoaded" class="empty-panel">暂无学生咨询热点数据。</div>
       </div>
-      <div v-else-if="hasLoaded" class="empty-panel">暂无可展示的统计数据。</div>
     </section>
   </section>
 </template>
@@ -51,12 +82,13 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { getTeacherDashboardApi } from "../api/teacher";
+import { getTeacherDashboardApi, listTeacherConsultationHotspotsApi } from "../api/teacher";
 import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
 const dashboard = ref(null);
+const consultationHotspots = ref([]);
 const errorMessage = ref("");
 const hasLoaded = ref(false);
 const isInitialLoading = ref(true);
@@ -68,8 +100,12 @@ onMounted(async () => {
 async function loadDashboard() {
   if (!hasLoaded.value) isInitialLoading.value = true;
   try {
-    const { data } = await getTeacherDashboardApi();
-    dashboard.value = data;
+    const [dashboardResponse, hotspotsResponse] = await Promise.all([
+      getTeacherDashboardApi(),
+      listTeacherConsultationHotspotsApi({ limit: 8 }),
+    ]);
+    dashboard.value = dashboardResponse.data;
+    consultationHotspots.value = hotspotsResponse.data || [];
   } catch (error) {
     handleApiError(error, "加载数据看板失败。");
   } finally {
@@ -78,10 +114,16 @@ async function loadDashboard() {
   }
 }
 
-function barWidth(markCount) {
+function weakBarWidth(markCount) {
   if (!dashboard.value?.top_nodes?.length) return 0;
   const max = Math.max(...dashboard.value.top_nodes.map((item) => item.mark_count || 0), 1);
   return Math.max(18, (markCount / max) * 100);
+}
+
+function consultationBarWidth(mentionCount) {
+  if (!consultationHotspots.value.length) return 0;
+  const max = Math.max(...consultationHotspots.value.map((item) => item.mention_count || 0), 1);
+  return Math.max(18, (mentionCount / max) * 100);
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -105,6 +147,13 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.rank-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
 }
 
 .metric-card,
@@ -169,6 +218,11 @@ function handleApiError(error, fallbackMessage) {
   font-weight: 500;
 }
 
+.consultation-index {
+  background: #e9f8ef;
+  color: #267344;
+}
+
 .rank-copy strong {
   display: block;
   color: var(--app-text);
@@ -190,7 +244,14 @@ function handleApiError(error, fallbackMessage) {
 .rank-fill {
   height: 100%;
   border-radius: 999px;
+}
+
+.weak-fill {
   background: linear-gradient(90deg, #84aefc 0%, #2f67f6 100%);
+}
+
+.consultation-fill {
+  background: linear-gradient(90deg, #74d99f 0%, #229954 100%);
 }
 
 .empty-panel {
@@ -201,6 +262,10 @@ function handleApiError(error, fallbackMessage) {
 @media (max-width: 960px) {
   .metrics-grid {
     grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+
+  .rank-panels {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -24,7 +24,6 @@
     <section v-if="recentConsultations.length" class="panel consultation-section">
       <div class="history-header">
         <h2>最近咨询知识点</h2>
-        <p>这些来自聊天问答记录，只表示你最近关注过，不会自动计入薄弱点。</p>
       </div>
       <div class="history-grid">
         <article v-for="item in recentConsultations" :key="item.id" class="history-card consultation-card">
@@ -33,23 +32,21 @@
             <span class="history-time">{{ formatDate(item.created_at) }}</span>
           </div>
           <h3>{{ item.node_name }}</h3>
-          <span class="weak-first-seen">{{ item.session_title || "聊天记录" }}</span>
-          <router-link class="consultation-link" to="/chat">回到聊天</router-link>
         </article>
       </div>
     </section>
 
     <div class="weak-grid-layout">
       <section class="graph-section">
-        <div class="graph-header">
-          <h2>知识点掌握情况图谱</h2>
-          <div class="legend">
-            <span class="legend-item"><span class="legend-dot weak"></span> 薄弱</span>
-            <span class="legend-item"><span class="legend-dot recommended"></span> 推荐学习</span>
-            <span class="legend-item"><span class="legend-dot mastered"></span> 已掌握</span>
-          </div>
-        </div>
         <div class="graph-container">
+          <div class="graph-header">
+            <h2>知识点掌握情况图谱</h2>
+            <div class="legend">
+              <span class="legend-item"><span class="legend-dot weak"></span> 薄弱</span>
+              <span class="legend-item"><span class="legend-dot recommended"></span> 推荐学习</span>
+              <span class="legend-item"><span class="legend-dot mastered"></span> 已掌握</span>
+            </div>
+          </div>
           <div v-if="isInitialLoading || isGraphLoading" class="skeleton-graph" aria-label="薄弱点图谱加载中"></div>
           <div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的薄弱点图谱，请先完成作业或训练来记录待掌握知识点。</div>
           <KnowledgeGraphCanvas
@@ -640,6 +637,7 @@ function handleApiError(error, fallbackMessage) {
 .consultation-section {
   display: grid;
   gap: 12px;
+  padding: 16px;
 }
 
 .consultation-card {
@@ -664,12 +662,21 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .graph-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  padding: 10px 14px;
   flex-wrap: wrap;
   gap: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(6px);
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .graph-header h2,
@@ -727,7 +734,7 @@ function handleApiError(error, fallbackMessage) {
 
 .graph-container {
   position: relative;
-  min-height: 500px;
+  height: 500px;
   border: 1px solid var(--app-line);
   border-radius: 12px;
   background: #ffffff;
@@ -736,9 +743,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .graph-container :deep(.graph-canvas) {
-  height: 500px;
-  min-height: 500px;
-  border-radius: 12px;
+  height: 100%;
+  min-height: 0;
 }
 
 .graph-state {
@@ -758,13 +764,13 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  height: 500px;
+  overflow-y: auto;
 }
 
 .recommendation-panel {
   padding: 16px;
   gap: 12px;
-  max-height: 552px;
-  overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: #c7d7e8 transparent;
 }
@@ -1166,6 +1172,9 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .history-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   padding: 14px;
   border: 1px solid var(--app-line);
   border-radius: var(--app-radius-xl);

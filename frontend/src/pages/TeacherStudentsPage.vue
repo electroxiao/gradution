@@ -4,90 +4,162 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="consultationHotspots.length" class="detail-section hotspot-section">
-      <div class="section-head">
-        <h4>班级咨询热点</h4>
-        <span>聊天关注点，不等同薄弱点</span>
-      </div>
-      <div class="weak-cards">
-        <article
-          v-for="item in consultationHotspots"
-          :key="item.knowledge_node_id"
-          class="weak-card consultation-card"
-        >
-          <strong>{{ item.node_name }}</strong>
-          <span>{{ item.student_count }} 人 · {{ item.mention_count }} 次</span>
-        </article>
-      </div>
-    </section>
+    <div class="students-workbench">
+      <aside class="student-list-panel">
+        <div class="list-head">
+          <h3>学生列表</h3>
+          <span>共 {{ filteredStudents.length }} 名学生</span>
+        </div>
 
-    <div class="students-layout">
-      <aside class="student-list">
-        <template v-if="!isStudentsLoading">
+        <div class="list-controls">
+          <label class="search-field">
+            <span>搜索</span>
+            <input v-model.trim="searchQuery" type="search" placeholder="搜索学生姓名" />
+          </label>
+
+          <div class="select-row">
+            <label>
+              <span>分类</span>
+              <select v-model="classFilter">
+                <option value="">全部班级</option>
+                <option v-for="className in classOptions" :key="className" :value="className">
+                  {{ className }}
+                </option>
+              </select>
+            </label>
+
+            <label>
+              <span>排序</span>
+              <select v-model="sortMode">
+                <option value="weak-desc">按薄弱点数</option>
+                <option value="unfinished-desc">按未完成作业数</option>
+                <option value="name-asc">按姓名</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div v-if="!isStudentsLoading && pagedStudents.length" class="student-items">
           <button
-            v-for="student in students"
+            v-for="student in pagedStudents"
             :key="student.id"
+            type="button"
             class="student-item"
             :class="{ active: student.id === activeStudentId }"
             @click="selectStudent(student.id)"
           >
-            <strong>{{ student.username }}</strong>
-            <span>{{ student.class_name || "未分班" }} · {{ student.weak_point_count }} 个薄弱点</span>
+            <span class="student-main">
+              <strong>{{ student.username }}</strong>
+              <small>{{ student.class_name || "未分班" }}</small>
+            </span>
+            <span class="weak-badge">{{ student.weak_point_count || 0 }}</span>
           </button>
-        </template>
+        </div>
+        <div v-else-if="hasStudentsLoaded" class="list-empty">暂无匹配学生。</div>
+
+        <div class="pagination-bar">
+          <button type="button" :disabled="currentPage <= 1" @click="goPage(currentPage - 1)">‹</button>
+          <span>{{ currentPage }}</span>
+          <button type="button" :disabled="currentPage >= totalPages" @click="goPage(currentPage + 1)">›</button>
+        </div>
       </aside>
 
-      <section class="student-detail">
-        <div v-if="!isStudentsLoading && activeStudent" class="detail-header">
+      <section v-if="activeStudent" class="student-profile">
+        <section class="profile-hero">
           <div>
             <h3>{{ activeStudent.username }}</h3>
-            <p>{{ activeStudent.class_name || "未分班" }} · 当前未掌握 {{ studentWeakPoints.length }} 个节点</p>
+            <p>{{ activeStudent.class_name || "未分班" }}</p>
           </div>
+          <div class="profile-updated">
+            <span>数据更新于</span>
+            <strong>{{ formatDateTime(profileUpdatedAt) }}</strong>
+          </div>
+        </section>
+
+        <section class="summary-grid">
+          <article class="summary-card weak-summary">
+            <span class="summary-icon">◎</span>
+            <div>
+              <p>当前薄弱点</p>
+              <strong>{{ studentWeakPoints.length }} <small>个</small></strong>
+            </div>
+          </article>
+          <article class="summary-card consultation-summary">
+            <span class="summary-icon">□</span>
+            <div>
+              <p>最近咨询知识点</p>
+              <strong>{{ studentConsultations.length }} <small>个</small></strong>
+            </div>
+          </article>
+          <article class="summary-card assignment-summary">
+            <span class="summary-icon">▤</span>
+            <div>
+              <p>未完成作业次数</p>
+              <strong>{{ activeStudent.unfinished_assignment_count || 0 }} <small>次</small></strong>
+            </div>
+          </article>
+        </section>
+
+        <section class="detail-grid">
+          <article class="detail-panel">
+            <div class="section-head">
+              <h4>薄弱知识点</h4>
+            </div>
+            <div class="table-head">
+              <span>知识点</span>
+            </div>
+            <div v-if="!isWeakPointsLoading && studentWeakPoints.length" class="knowledge-list">
+              <div v-for="item in studentWeakPoints" :key="item.id" class="knowledge-row">
+                <strong>{{ item.node_name }}</strong>
+                <span>最近出现 {{ formatDate(item.last_seen_at) }}</span>
+              </div>
+            </div>
+            <div v-else-if="hasStudentsLoaded" class="empty-state">
+              <span class="empty-mark">⌕</span>
+              <strong>暂无薄弱知识点</strong>
+              <p>继续保持，棒极了！</p>
+            </div>
+          </article>
+
+          <article class="detail-panel">
+            <div class="section-head">
+              <h4>最近咨询知识点</h4>
+            </div>
+            <div v-if="!isWeakPointsLoading && studentConsultations.length" class="knowledge-list consultation-list">
+              <div
+                v-for="item in studentConsultations"
+                :key="item.knowledge_node_id"
+                class="knowledge-row consultation-row"
+              >
+                <strong>{{ item.node_name }}</strong>
+                <span>{{ item.mention_count }} 次咨询</span>
+              </div>
+            </div>
+            <div v-else-if="hasStudentsLoaded" class="empty-state">
+              <span class="empty-mark">▱</span>
+              <strong>暂无咨询记录</strong>
+              <p>该生暂无任何咨询知识点记录。</p>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section v-else class="student-profile empty-profile">
+        <div class="empty-state">
+          <span class="empty-mark">⌕</span>
+          <strong>请选择学生</strong>
+          <p>左侧筛选结果为空时，可以调整搜索或班级分类。</p>
         </div>
-
-        <section class="detail-section">
-          <div class="section-head">
-            <h4>当前未掌握节点</h4>
-            <span>{{ studentWeakPoints.length }} 个</span>
-          </div>
-          <div v-if="!isStudentsLoading && !isWeakPointsLoading && studentWeakPoints.length" class="weak-cards">
-            <article v-for="item in studentWeakPoints" :key="item.id" class="weak-card">
-              <strong>{{ item.node_name }}</strong>
-              <span>最近出现 {{ formatDate(item.last_seen_at) }}</span>
-            </article>
-          </div>
-          <div v-else-if="hasStudentsLoaded" class="empty">该学生当前没有未掌握薄弱点。</div>
-        </section>
-
-        <section class="detail-section">
-          <div class="section-head">
-            <h4>最近咨询知识点</h4>
-            <span>{{ studentConsultations.length }} 个</span>
-          </div>
-          <div v-if="!isStudentsLoading && !isWeakPointsLoading && studentConsultations.length" class="weak-cards">
-            <article
-              v-for="item in studentConsultations"
-              :key="item.knowledge_node_id"
-              class="weak-card consultation-card"
-            >
-              <strong>{{ item.node_name }}</strong>
-              <span>{{ item.mention_count }} 次咨询</span>
-            </article>
-          </div>
-          <div v-else-if="hasStudentsLoaded" class="empty">该学生暂时没有聊天咨询知识点记录。</div>
-        </section>
-
       </section>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import {
-  listTeacherConsultationHotspotsApi,
   listTeacherStudentConsultationsApi,
   listTeacherStudentWeakPointsApi,
   listTeacherStudentsApi,
@@ -96,11 +168,15 @@ import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
+const pageSize = 10;
 const students = ref([]);
 const activeStudentId = ref(null);
 const studentWeakPoints = ref([]);
-const consultationHotspots = ref([]);
 const studentConsultations = ref([]);
+const searchQuery = ref("");
+const classFilter = ref("");
+const sortMode = ref("weak-desc");
+const currentPage = ref(1);
 const errorMessage = ref("");
 const isInitialLoading = ref(true);
 const isStudentsLoading = ref(true);
@@ -112,6 +188,55 @@ const activeStudent = computed(() =>
   students.value.find((student) => student.id === activeStudentId.value) || null,
 );
 
+const classOptions = computed(() => {
+  const names = students.value
+    .map((student) => student.class_name)
+    .filter((className) => className && className.trim());
+  return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, "zh-CN"));
+});
+
+const filteredStudents = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase();
+  return students.value
+    .filter((student) => {
+      const matchesName = !keyword || (student.username || "").toLowerCase().includes(keyword);
+      const matchesClass = !classFilter.value || student.class_name === classFilter.value;
+      return matchesName && matchesClass;
+    })
+    .slice()
+    .sort(compareStudents);
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredStudents.value.length / pageSize)));
+
+const pagedStudents = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return filteredStudents.value.slice(start, start + pageSize);
+});
+
+const profileUpdatedAt = computed(() => {
+  const dates = [
+    ...studentWeakPoints.value.map((item) => item.last_seen_at),
+    ...studentConsultations.value.map((item) => item.last_seen_at),
+  ].filter(Boolean);
+  if (!dates.length) return null;
+  return dates
+    .map((value) => new Date(value))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+});
+
+watch([searchQuery, classFilter, sortMode], () => {
+  currentPage.value = 1;
+  syncActiveStudentWithFilters();
+});
+
+watch(filteredStudents, () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value;
+  }
+});
+
 onMounted(async () => {
   await loadStudents();
 });
@@ -119,14 +244,10 @@ onMounted(async () => {
 async function loadStudents() {
   isStudentsLoading.value = true;
   try {
-    const [studentsResponse, hotspotsResponse] = await Promise.all([
-      listTeacherStudentsApi(),
-      listTeacherConsultationHotspotsApi({ limit: 8 }),
-    ]);
+    const studentsResponse = await listTeacherStudentsApi();
     students.value = studentsResponse.data;
-    consultationHotspots.value = hotspotsResponse.data || [];
-    if (students.value.length) {
-      await selectStudent(students.value[0].id);
+    if (filteredStudents.value.length) {
+      await selectStudent(filteredStudents.value[0].id);
     }
   } catch (error) {
     handleApiError(error, "加载学生列表失败。");
@@ -138,6 +259,7 @@ async function loadStudents() {
 }
 
 async function selectStudent(studentId) {
+  if (!studentId) return;
   const requestId = ++activeRequestId;
   activeStudentId.value = studentId;
   studentWeakPoints.value = [];
@@ -165,6 +287,43 @@ async function selectStudent(studentId) {
   }
 }
 
+function compareStudents(left, right) {
+  if (sortMode.value === "unfinished-desc") {
+    return (
+      (right.unfinished_assignment_count || 0) - (left.unfinished_assignment_count || 0)
+      || (right.weak_point_count || 0) - (left.weak_point_count || 0)
+      || left.username.localeCompare(right.username, "zh-CN")
+    );
+  }
+  if (sortMode.value === "name-asc") {
+    return left.username.localeCompare(right.username, "zh-CN");
+  }
+  return (
+    (right.weak_point_count || 0) - (left.weak_point_count || 0)
+    || (right.unfinished_assignment_count || 0) - (left.unfinished_assignment_count || 0)
+    || left.username.localeCompare(right.username, "zh-CN")
+  );
+}
+
+function syncActiveStudentWithFilters() {
+  const hasActive = filteredStudents.value.some((student) => student.id === activeStudentId.value);
+  if (hasActive) return;
+  const nextStudent = filteredStudents.value[0];
+  if (nextStudent) {
+    selectStudent(nextStudent.id);
+    return;
+  }
+  activeRequestId += 1;
+  activeStudentId.value = null;
+  studentWeakPoints.value = [];
+  studentConsultations.value = [];
+  isWeakPointsLoading.value = false;
+}
+
+function goPage(page) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
+}
+
 function formatDate(value) {
   if (!value) return "--";
   const date = new Date(value);
@@ -172,6 +331,18 @@ function formatDate(value) {
   return date.toLocaleDateString("zh-CN", {
     month: "2-digit",
     day: "2-digit",
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -189,176 +360,443 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .students-page {
   display: grid;
-  gap: 16px;
+  gap: 18px;
   font-size: var(--compact-body);
 }
 
-.students-layout {
+.students-workbench {
   display: grid;
-  grid-template-columns: minmax(210px, 240px) minmax(0, 1fr);
+  grid-template-columns: minmax(232px, 272px) minmax(0, 1fr);
   gap: 14px;
+  align-items: start;
 }
 
-.student-list,
-.student-detail {
+.student-list-panel,
+.profile-hero,
+.summary-card,
+.detail-panel,
+.empty-profile {
   border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
-  box-shadow: var(--app-shadow);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--app-shadow-strong);
 }
 
-.student-list {
-  padding: 12px;
+.student-list-panel {
+  padding: 18px;
   display: grid;
-  gap: 8px;
+  gap: 14px;
   align-self: start;
 }
 
-.student-item {
+.list-head {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: #ffffff;
-  text-align: left;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
 }
 
-.student-item strong {
+.list-head h3,
+.profile-hero h3,
+.section-head h4 {
+  margin: 0;
   color: var(--app-text);
-  font-weight: 400;
+  font-weight: 600;
 }
 
-.student-item span {
+.list-head h3 {
+  font-size: 18px;
+}
+
+.list-head span {
   color: var(--app-text-muted);
   font-size: var(--compact-caption);
 }
 
-.student-item.active {
-  background: var(--app-primary-soft);
-  border-color: #cfdcf3;
+.list-controls {
+  display: grid;
+  gap: 10px;
 }
 
-.student-detail {
-  padding: 16px;
+.search-field,
+.select-row label {
   display: grid;
-  gap: 14px;
-  align-self: start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.search-field span,
+.select-row span {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.search-field input,
+.select-row select {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+}
+
+.select-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.student-items {
+  display: grid;
+  gap: 6px;
+  min-height: 526px;
   align-content: start;
 }
 
-.detail-header h3 {
-  margin: 0;
-  font-size: var(--compact-section-title);
-  font-weight: 500;
-  color: var(--app-text);
+.student-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 }
 
-.detail-header p,
-.section-head span {
-  margin: 6px 0 0;
+.student-item:hover {
+  background: #f7faff;
+}
+
+.student-item.active {
+  background: #f8fbff;
+  border-color: #8db3ff;
+  box-shadow: 0 0 0 3px rgba(47, 103, 246, 0.08);
+}
+
+.student-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.student-main strong {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-main small {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.weak-badge {
+  min-width: 34px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #edf3ff;
+  color: var(--app-primary);
+  font-weight: 600;
+}
+
+.student-item.active .weak-badge {
+  background: #e8f0ff;
+}
+
+.pagination-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
   color: var(--app-text-muted);
 }
 
-.detail-section {
+.pagination-bar button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--app-text-muted);
+  cursor: pointer;
+}
+
+.pagination-bar span {
+  min-width: 34px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #edf3ff;
+  color: var(--app-primary);
+  font-weight: 600;
+}
+
+.student-profile {
   display: grid;
-  gap: 10px;
+  gap: 14px;
+  min-width: 0;
+}
+
+.profile-hero {
+  min-height: 112px;
+  padding: 24px 28px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+
+.profile-hero h3 {
+  font-size: 26px;
+}
+
+.profile-hero p {
+  margin: 10px 0 0;
+  color: #53637a;
+  font-size: 15px;
+}
+
+.profile-updated {
+  display: grid;
+  gap: 6px;
+  padding-left: 20px;
+  border-left: 1px solid var(--app-line);
+  color: var(--app-text-muted);
+}
+
+.profile-updated span {
+  font-size: 13px;
+}
+
+.profile-updated strong {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.summary-card {
+  min-height: 122px;
+  padding: 22px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+.summary-icon {
+  width: 52px;
+  height: 52px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 14px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.weak-summary .summary-icon {
+  background: #edf3ff;
+  color: var(--app-primary);
+}
+
+.consultation-summary .summary-icon {
+  background: #f3eaff;
+  color: #8b5cf6;
+}
+
+.assignment-summary .summary-icon {
+  background: #eaf8ef;
+  color: #229954;
+}
+
+.summary-card p {
+  margin: 0 0 10px;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.summary-card strong {
+  color: var(--app-text);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.summary-card small {
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.detail-panel {
+  min-height: 390px;
+  padding: 22px;
+  display: grid;
+  gap: 16px;
   align-content: start;
 }
 
 .section-head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
   align-items: center;
+  gap: 12px;
 }
 
 .section-head h4 {
-  margin: 0;
-  color: var(--app-text);
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 18px;
 }
 
-.weak-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
-  min-width: 0;
-  align-items: start;
-  align-content: start;
-}
-
-.weak-card,
-.feedback.error,
-.empty {
-  padding: 12px;
-  border-radius: 8px;
-  background: #ffffff;
+.table-head {
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--app-line);
   color: var(--app-text-muted);
+  font-size: 13px;
 }
 
-.weak-card {
+.knowledge-list {
+  display: grid;
+  gap: 8px;
+}
+
+.knowledge-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
+  gap: 12px;
   align-items: center;
-  border: 1px solid #edf1f6;
+  min-height: 42px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f3f7;
 }
 
-.weak-card strong {
-  min-width: 0;
+.knowledge-row:last-child {
+  border-bottom: 0;
+}
+
+.knowledge-row strong {
   color: var(--app-text);
-  font-weight: 400;
+  font-size: 14px;
+  font-weight: 500;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
-.weak-card span {
-  justify-self: end;
+.knowledge-row span {
   color: var(--app-text-muted);
-  font-size: var(--compact-caption);
+  font-size: 12px;
   white-space: nowrap;
 }
 
+.consultation-row span {
+  color: var(--app-primary);
+}
+
+.empty-state,
+.list-empty {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 220px;
+  color: var(--app-text-muted);
+  text-align: center;
+}
+
+.list-empty {
+  min-height: 526px;
+}
+
+.empty-state strong {
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--app-text-muted);
+}
+
+.empty-mark {
+  width: 64px;
+  height: 64px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 20px;
+  background: #edf3ff;
+  color: #6e97e8;
+  font-size: 30px;
+}
+
+.empty-profile {
+  min-height: 640px;
+  padding: 24px;
+}
+
 .feedback.error {
+  padding: 12px;
+  border: 1px solid #f0d3d3;
+  border-radius: 8px;
   background: #fff5f5;
   color: #b42318;
-  border: 1px solid #f0d3d3;
 }
 
-.hotspot-section {
-  padding: 16px;
-  border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
-  box-shadow: var(--app-shadow);
-}
+@media (max-width: 1180px) {
+  .students-workbench {
+    grid-template-columns: minmax(208px, 240px) minmax(0, 1fr);
+  }
 
-.consultation-card {
-  border-color: #dbeafe;
-  background: #f8fbff;
-}
-
-@media (max-width: 960px) {
-  .students-layout {
-    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  .summary-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 680px) {
-  .students-layout {
+@media (max-width: 760px) {
+  .students-workbench {
     grid-template-columns: 1fr;
   }
 
-  .weak-card {
+  .student-items,
+  .list-empty {
+    min-height: 0;
+  }
+
+  .profile-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-updated {
+    width: 100%;
+    padding-left: 0;
+    padding-top: 14px;
+    border-left: 0;
+    border-top: 1px solid var(--app-line);
+  }
+
+  .knowledge-row {
     grid-template-columns: 1fr;
   }
 
-  .weak-card span {
-    justify-self: start;
+  .knowledge-row span {
     white-space: normal;
   }
 }

@@ -5,6 +5,7 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
+from backend.models.assignment import Assignment, AssignmentAssignee, AssignmentQuestion, AssignmentSubmission
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.user import User
 from backend.schemas.teacher import (
@@ -28,6 +29,7 @@ SEARCH_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_+#.-]+|[\u4e00-\u9fff]+")
 
 
 def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
+    unfinished_by_student = _count_unfinished_assignments_by_student(db)
     rows = (
         db.query(
             User.id,
@@ -53,9 +55,39 @@ def list_students_with_weak_points(db: Session) -> list[TeacherStudentResponse]:
             username=row.username,
             class_name=row.class_name,
             weak_point_count=int(row.weak_point_count or 0),
+            unfinished_assignment_count=unfinished_by_student.get(row.id, 0),
         )
         for row in rows
     ]
+
+
+def _count_unfinished_assignments_by_student(db: Session) -> dict[int, int]:
+    rows = (
+        db.query(
+            AssignmentAssignee.student_id,
+            AssignmentAssignee.assignment_id,
+            func.count(func.distinct(AssignmentQuestion.id)).label("question_count"),
+            func.count(func.distinct(AssignmentSubmission.question_id)).label("submitted_question_count"),
+        )
+        .join(Assignment, Assignment.id == AssignmentAssignee.assignment_id)
+        .join(AssignmentQuestion, AssignmentQuestion.assignment_id == Assignment.id)
+        .outerjoin(
+            AssignmentSubmission,
+            and_(
+                AssignmentSubmission.assignment_id == Assignment.id,
+                AssignmentSubmission.student_id == AssignmentAssignee.student_id,
+                AssignmentSubmission.question_id == AssignmentQuestion.id,
+            ),
+        )
+        .filter(Assignment.status != "draft")
+        .group_by(AssignmentAssignee.student_id, AssignmentAssignee.assignment_id)
+        .all()
+    )
+    counts: dict[int, int] = {}
+    for row in rows:
+        if int(row.submitted_question_count or 0) < int(row.question_count or 0):
+            counts[row.student_id] = counts.get(row.student_id, 0) + 1
+    return counts
 
 
 def _split_search_terms(keyword: str) -> list[str]:
