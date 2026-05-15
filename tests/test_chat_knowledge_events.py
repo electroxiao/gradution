@@ -1,4 +1,5 @@
 import importlib
+from datetime import datetime
 
 import pytest
 from sqlalchemy import create_engine, inspect
@@ -12,9 +13,12 @@ from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
-from backend.schemas.chat import MessageCreateRequest
+from backend.schemas.chat import ChatConsultationEventResponse, MessageCreateRequest
+from backend.schemas.teacher import TeacherConsultationSummaryResponse
 from backend.services import chat_service, rag_engine
 from backend.services.chat_knowledge_event_service import (
+    ConsultationEventSummary,
+    ConsultationSummary,
     _parse_candidate_json,
     extract_candidates_from_turn,
     list_recent_consultations,
@@ -255,6 +259,74 @@ def test_bootstrap_helper_creates_chat_knowledge_events_with_model_constraints()
 
 def test_backend_main_imports_after_chat_decoupling():
     assert importlib.import_module("backend.main")
+
+
+def test_consultation_api_routes_are_registered():
+    app = importlib.import_module("backend.main").app
+    route_paths = {route.path for route in app.routes}
+
+    assert "/api/chat/consultations/recent" in route_paths
+    assert "/api/teacher/consultations/hotspots" in route_paths
+    assert "/api/teacher/students/{student_id}/consultations" in route_paths
+
+
+def test_consultation_response_schemas_serialize_service_summaries():
+    now = datetime(2026, 5, 15, 12, 0, 0)
+    recent = ConsultationEventSummary(
+        event_id=1,
+        session_id=2,
+        session_title="Java 咨询",
+        user_message_id=3,
+        assistant_message_id=4,
+        node_id=5,
+        node_name="空指针异常",
+        confidence=0.9,
+        evidence_text="学生询问 NPE",
+        created_at=now,
+    )
+    hotspot = ConsultationSummary(
+        node_id=5,
+        node_name="空指针异常",
+        mention_count=2,
+        student_count=1,
+        last_seen_at=now,
+    )
+
+    recent_response = ChatConsultationEventResponse(
+        id=recent.event_id,
+        knowledge_node_id=recent.node_id,
+        node_name=recent.node_name,
+        confidence=recent.confidence,
+        evidence_text=recent.evidence_text,
+        session_id=recent.session_id,
+        session_title=recent.session_title,
+        created_at=recent.created_at,
+    )
+    hotspot_response = TeacherConsultationSummaryResponse(
+        knowledge_node_id=hotspot.node_id,
+        node_name=hotspot.node_name,
+        mention_count=hotspot.mention_count,
+        student_count=hotspot.student_count,
+        last_seen_at=hotspot.last_seen_at,
+    )
+
+    assert recent_response.model_dump() == {
+        "id": 1,
+        "knowledge_node_id": 5,
+        "node_name": "空指针异常",
+        "confidence": 0.9,
+        "evidence_text": "学生询问 NPE",
+        "session_id": 2,
+        "session_title": "Java 咨询",
+        "created_at": now,
+    }
+    assert hotspot_response.model_dump() == {
+        "knowledge_node_id": 5,
+        "node_name": "空指针异常",
+        "mention_count": 2,
+        "student_count": 1,
+        "last_seen_at": now,
+    }
 
 
 def test_extract_candidates_from_turn_parses_json_from_fake_openai_client():

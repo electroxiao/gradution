@@ -98,3 +98,11 @@ class DashboardMetricResponse(BaseModel):
     total_unmastered_weak_points: int
     affected_students: int
     top_nodes: list[dict]
+
+
+class TeacherConsultationSummaryResponse(BaseModel):
+    knowledge_node_id: int
+    node_name: str
+    mention_count: int
+    student_count: int
+    last_seen_at: datetime

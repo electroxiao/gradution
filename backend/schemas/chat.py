@@ -37,3 +37,14 @@ class MessageResponse(BaseModel):
     created_at: datetime
 
 
+class ChatConsultationEventResponse(BaseModel):
+    id: int
+    knowledge_node_id: int
+    node_name: str
+    confidence: float | None = None
+    evidence_text: str | None = None
+    session_id: int
+    session_title: str
+    created_at: datetime
+
+

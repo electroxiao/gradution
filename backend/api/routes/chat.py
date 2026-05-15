@@ -4,7 +4,13 @@ from sqlalchemy.orm import Session
 
 from backend.api.deps import get_current_user, get_db
 from backend.models.user import User
-from backend.schemas.chat import MessageCreateRequest, SessionCreateRequest, SessionUpdateRequest
+from backend.schemas.chat import (
+    ChatConsultationEventResponse,
+    MessageCreateRequest,
+    SessionCreateRequest,
+    SessionUpdateRequest,
+)
+from backend.services.chat_knowledge_event_service import list_recent_consultations
 from backend.services.chat_service import (
     create_session,
     delete_session,
@@ -15,6 +21,19 @@ from backend.services.chat_service import (
 )
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+def _consultation_event_response(row) -> ChatConsultationEventResponse:
+    return ChatConsultationEventResponse(
+        id=row.event_id,
+        knowledge_node_id=row.node_id,
+        node_name=row.node_name,
+        confidence=row.confidence,
+        evidence_text=row.evidence_text,
+        session_id=row.session_id,
+        session_title=row.session_title,
+        created_at=row.created_at,
+    )
 
 
 @router.get("/sessions")
@@ -57,6 +76,16 @@ def get_messages(
     current_user: User = Depends(get_current_user),
 ):
     return list_messages(db, current_user, session_id)
+
+
+@router.get("/consultations/recent", response_model=list[ChatConsultationEventResponse])
+def get_recent_consultations(
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    rows = list_recent_consultations(db, current_user, limit=max(1, min(limit, 50)))
+    return [_consultation_event_response(row) for row in rows]
 
 
 @router.post("/sessions/{session_id}/messages/stream")

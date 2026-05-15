@@ -10,6 +10,11 @@ from backend.schemas.teacher import (
     GraphNodeDescriptionGenerateRequest,
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
+    TeacherConsultationSummaryResponse,
+)
+from backend.services.chat_knowledge_event_service import (
+    list_student_consultations,
+    list_teacher_consultation_hotspots,
 )
 from backend.services.teacher_service import (
     create_graph_edge_with_db_sync,
@@ -28,6 +33,16 @@ from backend.services.teacher_service import (
 )
 
 router = APIRouter(prefix="/api/teacher", tags=["teacher"])
+
+
+def _consultation_summary_response(row) -> TeacherConsultationSummaryResponse:
+    return TeacherConsultationSummaryResponse(
+        knowledge_node_id=row.node_id,
+        node_name=row.node_name,
+        mention_count=row.mention_count,
+        student_count=row.student_count,
+        last_seen_at=row.last_seen_at,
+    )
 
 
 @router.get("/graph")
@@ -141,6 +156,28 @@ def get_student_weak_points(
     current_user: User = Depends(get_current_teacher),
 ):
     return list_student_weak_points(db, student_id)
+
+
+@router.get("/consultations/hotspots", response_model=list[TeacherConsultationSummaryResponse])
+def get_consultation_hotspots(
+    class_name: str | None = None,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    rows = list_teacher_consultation_hotspots(db, class_name=class_name, limit=max(1, min(limit, 50)))
+    return [_consultation_summary_response(row) for row in rows]
+
+
+@router.get("/students/{student_id}/consultations", response_model=list[TeacherConsultationSummaryResponse])
+def get_student_consultations(
+    student_id: int,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    rows = list_student_consultations(db, student_id, limit=max(1, min(limit, 50)))
+    return [_consultation_summary_response(row) for row in rows]
 
 
 @router.get("/dashboard/weak-points")
