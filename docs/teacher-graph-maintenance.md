@@ -7,6 +7,8 @@
 - Neo4j 是正式知识图谱的来源，用于聊天检索、弱点推荐和图谱展示。
 - MySQL 中的 `knowledge_nodes` 只镜像正式知识点的引用信息，例如题目绑定和章节筛选需要的 `id`、`node_name`、`chapter`。
 - 教师端图谱页面直接编辑 Neo4j 正式节点和关系，并在需要时同步 MySQL 引用表。
+- ChatPage 不再在回答前检索 Neo4j 图谱；聊天回答完成后会异步抽取本轮涉及的正式知识点，写入咨询记录用于学生回看和教师热点统计。
+- 聊天咨询记录只是弱学习足迹，不会写入 `user_weak_points`，也不会改变 `user_knowledge_states`。
 
 ## 关键代码
 
@@ -22,7 +24,7 @@
 ## 维护规则
 
 - 不要恢复 pending batch、legacy pending proposal、`pending:` 或 `pending-batch-node:` 这类伪节点入口。
-- 聊天和弱点推荐只能消费正式图谱；如果图谱缺知识点，由教师在 TeacherGraphPage 直接新增或编辑。
+- 聊天咨询记录和弱点推荐只能消费正式图谱；如果图谱缺知识点，由教师在 TeacherGraphPage 直接新增或编辑。
 - 作业错题薄弱点更新只依赖题目绑定的正式知识点：提交状态不是 `accepted` 时，把该题绑定的所有知识点标记为未掌握。
 - 修改图谱接口时，同时检查后端 schema、`frontend/src/api/teacher.js` 和 `TeacherGraphPage.vue`。
 
