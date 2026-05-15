@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.db import base as model_base  # noqa: F401
 from backend.db.bootstrap import ensure_schema_and_seed
-from backend.db.bootstrap import _ensure_chat_knowledge_events_table
+from backend.db.bootstrap import _chat_knowledge_events_id_needs_autoincrement, _ensure_chat_knowledge_events_table
 from backend.db.session import Base
 from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
@@ -203,6 +203,19 @@ def test_chat_knowledge_event_model_has_expected_columns():
         "evidence_text",
         "created_at",
     }.issubset(columns)
+
+
+def test_chat_knowledge_event_id_is_autoincrementing():
+    assert ChatKnowledgeEvent.__table__.c.id.autoincrement is True
+
+
+def test_chat_knowledge_events_existing_table_detects_missing_id_autoincrement():
+    assert _chat_knowledge_events_id_needs_autoincrement(
+        [{"name": "id", "autoincrement": False}, {"name": "user_id"}]
+    )
+    assert not _chat_knowledge_events_id_needs_autoincrement(
+        [{"name": "id", "autoincrement": True}, {"name": "user_id"}]
+    )
 
 
 def test_bootstrap_helper_creates_chat_knowledge_events_with_model_constraints():

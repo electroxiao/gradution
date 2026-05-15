@@ -214,9 +214,21 @@ def _ensure_chat_knowledge_events_table(engine: Engine) -> None:
         return
 
     if "chat_knowledge_events" in table_names:
+        try:
+            columns = inspector.get_columns("chat_knowledge_events")
+        except Exception:
+            return
+        if _chat_knowledge_events_id_needs_autoincrement(columns) and engine.dialect.name == "mysql":
+            with engine.begin() as connection:
+                connection.execute(text("ALTER TABLE chat_knowledge_events MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT"))
         return
 
     ChatKnowledgeEvent.__table__.create(bind=engine, checkfirst=True)
+
+
+def _chat_knowledge_events_id_needs_autoincrement(columns: list[dict]) -> bool:
+    id_column = next((column for column in columns if column.get("name") == "id"), None)
+    return bool(id_column and id_column.get("autoincrement") is False)
 
 
 def _ensure_teacher_seed(engine: Engine) -> None:
