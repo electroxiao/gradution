@@ -473,6 +473,34 @@ def test_record_turn_knowledge_events_requires_python_exact_node_name_match(isol
     assert isolated_db.query(ChatKnowledgeEvent).count() == 0
 
 
+def test_record_turn_knowledge_events_resolves_common_aliases_to_formal_nodes(isolated_db):
+    user = _student(isolated_db)
+    for name in ["封装(Encapsulation)", "main方法", "继承(Inheritance)", "多态(Polymorphism)"]:
+        _node(isolated_db, name)
+    session, user_message, assistant_message = _turn(isolated_db, user)
+
+    inserted = record_turn_knowledge_events(
+        isolated_db,
+        FakeClient(
+            """
+            [
+              {"name": "封装", "confidence": 0.91, "evidence": "private 限制外部访问"},
+              {"name": "main函数", "confidence": 0.88, "evidence": "入口函数"},
+              {"name": "继承", "confidence": 0.86, "evidence": "extends"},
+              {"name": "多态", "confidence": 0.84, "evidence": "父类引用"}
+            ]
+            """
+        ),
+        user,
+        session,
+        user_message,
+        assistant_message,
+    )
+
+    assert inserted == ["封装(Encapsulation)", "main方法", "继承(Inheritance)", "多态(Polymorphism)"]
+    assert isolated_db.query(ChatKnowledgeEvent).count() == 4
+
+
 def test_record_turn_knowledge_events_is_idempotent_for_same_turn_and_node(isolated_db):
     user = _student(isolated_db)
     _node(isolated_db, "循环")

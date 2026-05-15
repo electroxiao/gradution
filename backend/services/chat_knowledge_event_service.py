@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -113,6 +114,55 @@ def _parse_candidate_json(content: str) -> list[dict]:
     return candidates
 
 
+_PARENTHETICAL_RE = re.compile(r"\s*(?:\([^()]*\)|（[^（）]*）)\s*")
+
+
+def _strip_parenthetical(name: str) -> str:
+    return _PARENTHETICAL_RE.sub("", name).strip()
+
+
+def _formal_node_aliases(node_name: str) -> set[str]:
+    aliases = {node_name}
+
+    stripped = _strip_parenthetical(node_name)
+    if stripped:
+        aliases.add(stripped)
+
+    expanded_aliases = set(aliases)
+    for alias in aliases:
+        if "方法" in alias:
+            expanded_aliases.add(alias.replace("方法", "函数"))
+        if "函数" in alias:
+            expanded_aliases.add(alias.replace("函数", "方法"))
+    return {alias for alias in expanded_aliases if alias}
+
+
+def _resolve_candidate_nodes(db: Session, candidate_by_name: dict[str, dict]) -> list[tuple[KnowledgeNode, dict]]:
+    candidate_names = list(candidate_by_name)
+    exact_nodes = (
+        db.query(KnowledgeNode)
+        .filter(KnowledgeNode.node_name.in_(candidate_names))
+        .all()
+    )
+    exact_by_name = {node.node_name: node for node in exact_nodes if node.node_name in candidate_by_name}
+
+    all_nodes = db.query(KnowledgeNode).all()
+    alias_to_node: dict[str, KnowledgeNode] = {}
+    for node in all_nodes:
+        for alias in _formal_node_aliases(node.node_name):
+            alias_to_node.setdefault(alias, node)
+
+    resolved: list[tuple[KnowledgeNode, dict]] = []
+    seen_node_ids: set[int] = set()
+    for candidate_name in candidate_names:
+        node = exact_by_name.get(candidate_name) or alias_to_node.get(candidate_name)
+        if node is None or node.id in seen_node_ids:
+            continue
+        seen_node_ids.add(node.id)
+        resolved.append((node, candidate_by_name[candidate_name]))
+    return resolved
+
+
 def record_turn_knowledge_events(
     db: Session,
     client: Any,
@@ -134,14 +184,8 @@ def record_turn_knowledge_events(
     if not candidate_by_name:
         return []
 
-    candidate_names = list(candidate_by_name)
-    nodes = (
-        db.query(KnowledgeNode)
-        .filter(KnowledgeNode.node_name.in_(candidate_names))
-        .all()
-    )
-    nodes = [node for node in nodes if node.node_name in candidate_by_name]
-    if not nodes:
+    resolved_nodes = _resolve_candidate_nodes(db, candidate_by_name)
+    if not resolved_nodes:
         return []
 
     existing_node_ids = {
@@ -153,7 +197,7 @@ def record_turn_knowledge_events(
                 ChatKnowledgeEvent.session_id == session.id,
                 ChatKnowledgeEvent.user_message_id == user_message.id,
                 ChatKnowledgeEvent.assistant_message_id == assistant_message.id,
-                ChatKnowledgeEvent.knowledge_node_id.in_([node.id for node in nodes]),
+                ChatKnowledgeEvent.knowledge_node_id.in_([node.id for node, _candidate in resolved_nodes]),
             )
             .all()
         )
@@ -161,10 +205,9 @@ def record_turn_knowledge_events(
 
     events: list[ChatKnowledgeEvent] = []
     inserted_names: list[str] = []
-    for node in sorted(nodes, key=lambda row: candidate_names.index(row.node_name)):
+    for node, candidate in resolved_nodes:
         if node.id in existing_node_ids:
             continue
-        candidate = candidate_by_name[node.node_name]
         events.append(
             ChatKnowledgeEvent(
                 user_id=user.id,
