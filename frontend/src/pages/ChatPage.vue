@@ -28,6 +28,7 @@
         <article
           v-for="message in messages"
           :key="message.id ?? message.tempId"
+          :data-message-key="message.id ?? message.tempId"
           class="message-row"
           :class="message.role === 'user' ? 'user-row' : message.role === 'system' ? 'system-row' : 'assistant-row'"
         >
@@ -55,6 +56,7 @@
               rows="1"
               placeholder="发消息..."
               @input="syncComposerHeight"
+              @keydown="handleComposerKeydown"
             />
             <div class="composer-actions">
               <span />
@@ -189,6 +191,12 @@ function syncComposerHeight() {
   composerInput.value.style.height = `${Math.min(composerInput.value.scrollHeight, window.innerHeight * 0.5)}px`;
 }
 
+function handleComposerKeydown(event) {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  sendMessage();
+}
+
 async function sendMessage() {
   if (!content.value.trim() || !activeSessionId.value || sending.value) return;
 
@@ -222,7 +230,7 @@ async function sendMessage() {
   messages.value.push(tempAssistant);
   await nextTick();
   syncComposerHeight();
-  await scrollToBottom();
+  await scrollMessageToTop(tempUserId);
 
   try {
     await streamMessageApi(
@@ -241,7 +249,7 @@ async function sendMessage() {
           } else {
             messages.value.push({ ...data, streaming: false });
           }
-          await scrollToBottom();
+          await scrollMessageToTop(data.id);
         },
         async onAssistantDelta(data) {
           const index = messages.value.findIndex((item) => item.tempId === tempAssistantId);
@@ -250,7 +258,6 @@ async function sendMessage() {
               ...messages.value[index],
               content: `${messages.value[index].content || ""}${data.content || ""}`,
             };
-            await scrollToBottom();
           }
         },
         async onAssistantDone(data) {
@@ -262,7 +269,6 @@ async function sendMessage() {
             messages.value.push(assistantMessage);
           }
           await loadSessions();
-          await scrollToBottom();
         },
       },
     );
@@ -305,6 +311,21 @@ async function scrollToBottom() {
   if (!messageScroller.value) return;
   messageScroller.value.scrollTop = messageScroller.value.scrollHeight;
 }
+
+async function scrollMessageToTop(messageKey) {
+  await nextTick();
+  const scroller = messageScroller.value;
+  if (!scroller) return;
+
+  const target = Array.from(scroller.querySelectorAll("[data-message-key]")).find((element) => {
+    return element.dataset.messageKey === String(messageKey);
+  });
+  if (!target) return;
+
+  const scrollerRect = scroller.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  scroller.scrollTop += targetRect.top - scrollerRect.top;
+}
 </script>
 
 <style scoped>
@@ -330,8 +351,8 @@ async function scrollToBottom() {
   min-width: 0;
   height: 100%;
   min-height: 0;
-  background: transparent;
-  font-size: 13px;
+  background: #fcfcfc;
+  font-size: 14px;
 }
 
 .embedded .chat-stage {
@@ -437,7 +458,7 @@ async function scrollToBottom() {
 
 .message-row {
   display: grid;
-  grid-template-columns: minmax(58px, 1fr) minmax(0, 608px) minmax(58px, 1fr);
+  grid-template-columns: minmax(58px, 1fr) minmax(0, 638px) minmax(58px, 1fr);
   margin-bottom: 26px;
 }
 
@@ -493,7 +514,7 @@ async function scrollToBottom() {
 }
 
 .streaming-flag {
-  color: #2563eb;
+  color: #111111;
 }
 
 .message-body {
@@ -505,7 +526,7 @@ async function scrollToBottom() {
   border: none;
   background: transparent;
   box-shadow: none;
-  color: #1e293b;
+  color: #111111;
   line-height: 1.7;
 }
 
@@ -540,7 +561,7 @@ async function scrollToBottom() {
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: minmax(58px, 1fr) minmax(0, 608px) minmax(58px, 1fr);
+  grid-template-columns: minmax(58px, 1fr) minmax(0, 638px) minmax(58px, 1fr);
   padding: 18px 0 24px;
   pointer-events: none;
   z-index: 4;
@@ -563,7 +584,7 @@ async function scrollToBottom() {
   bottom: 0;
   left: 0;
   height: 120px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.94) 34%, rgba(255, 255, 255, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(252, 252, 252, 0) 0%, rgba(252, 252, 252, 0.94) 34%, rgba(252, 252, 252, 0.98) 100%);
   pointer-events: none;
   z-index: 0;
 }

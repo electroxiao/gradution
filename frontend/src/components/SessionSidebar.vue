@@ -139,7 +139,7 @@ function confirmDelete() {
   gap: 16px;
   height: 100vh;
   padding: 16px 12px;
-  background: #ffffff;
+  background: #f9f9f9;
   border-right: 1px solid var(--app-line);
   overflow-x: hidden;
   font-size: 13px;
@@ -197,7 +197,7 @@ function confirmDelete() {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   overflow: auto;
   overflow-x: hidden;
   padding-right: 4px;
@@ -224,7 +224,7 @@ function confirmDelete() {
 
 .session-main {
   flex: 1;
-  padding: 10px 34px 10px 12px;
+  padding: 9px 34px 9px 12px;
   border: none;
   border-radius: 10px;
   background: transparent;
