@@ -140,7 +140,10 @@
                   :aria-selected="index === selectedResultIndex"
                   @click="selectedResultIndex = index"
                 >
-                  <span class="case-check" aria-hidden="true">{{ resultStateIcon(item) }}</span>
+                  <span class="case-check" aria-hidden="true">
+                    <CircleCheck v-if="isAcceptedResult(item)" :size="11" />
+                    <CircleX v-else :size="11" />
+                  </span>
                   {{ resultCaseText(item) }}
                 </button>
               </div>
@@ -218,7 +221,9 @@
           <div>
             <h2>作业助教</h2>
           </div>
-          <button type="button" class="icon-btn" @click="showAiPanel = false">关闭</button>
+          <button type="button" class="icon-btn" aria-label="关闭 AI 助教" @click="showAiPanel = false">
+            <X :size="16" aria-hidden="true" />
+          </button>
         </header>
 
         <div class="ai-composer">
@@ -266,6 +271,7 @@
 </template>
 
 <script setup>
+import { CircleCheck, CircleX, X } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -842,10 +848,6 @@ function resultStateClass(item) {
 
 function resultStateText(item) {
   return isAcceptedResult(item) ? "通过" : "解答错误";
-}
-
-function resultStateIcon(item) {
-  return isAcceptedResult(item) ? "✓" : "×";
 }
 
 function resultCaseText(item) {

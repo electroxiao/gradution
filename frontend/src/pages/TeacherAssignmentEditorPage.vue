@@ -18,12 +18,14 @@
     <Teleport to="body">
       <div v-if="errorMessage" class="dialog-backdrop" role="presentation" @click.self="errorMessage = ''">
         <section class="error-dialog" role="alertdialog" aria-modal="true" aria-labelledby="assignment-error-title">
-          <div class="error-dialog-icon">!</div>
+          <div class="error-dialog-icon"><CircleAlert :size="24" aria-hidden="true" /></div>
           <div class="error-dialog-content">
             <h2 id="assignment-error-title">操作未完成</h2>
             <p>{{ errorMessage }}</p>
           </div>
-          <button type="button" class="dialog-close" aria-label="关闭错误提示" @click="errorMessage = ''">×</button>
+          <button type="button" class="dialog-close" aria-label="关闭错误提示" @click="errorMessage = ''">
+            <X :size="18" aria-hidden="true" />
+          </button>
         </section>
       </div>
     </Teleport>
@@ -36,7 +38,9 @@
               <h2 id="question-bank-title">从题库导入</h2>
               <p>选择题库中的题目追加到当前作业，导入后仍需保存作业。</p>
             </div>
-            <button type="button" class="dialog-close" aria-label="关闭题库导入" @click="closeQuestionBankDialog">×</button>
+            <button type="button" class="dialog-close" aria-label="关闭题库导入" @click="closeQuestionBankDialog">
+              <X :size="18" aria-hidden="true" />
+            </button>
           </div>
 
           <form class="bank-filters" @submit.prevent="loadQuestionBank">
@@ -217,7 +221,7 @@
                   @click="removeKnowledgeTag(node)"
                 >
                   {{ node.name }}
-                  <span aria-hidden="true">×</span>
+                  <span aria-hidden="true"><X :size="12" /></span>
                 </button>
               </div>
             </div>
@@ -225,11 +229,11 @@
               <span>选择题</span>
               <div class="count-stepper">
                 <button type="button" :disabled="generateCounts.multiple_choice <= 0" aria-label="减少选择题数量" @click="adjustGenerateCount('multiple_choice', -1, 0, 20)">
-                  −
+                  <Minus :size="16" aria-hidden="true" />
                 </button>
                 <input v-model.number="generateCounts.multiple_choice" aria-label="选择题数量" min="0" max="20" type="number" />
                 <button type="button" :disabled="generateCounts.multiple_choice >= 20" aria-label="增加选择题数量" @click="adjustGenerateCount('multiple_choice', 1, 0, 20)">
-                  +
+                  <Plus :size="16" aria-hidden="true" />
                 </button>
               </div>
             </label>
@@ -237,11 +241,11 @@
               <span>填空题</span>
               <div class="count-stepper">
                 <button type="button" :disabled="generateCounts.fill_blank <= 0" aria-label="减少填空题数量" @click="adjustGenerateCount('fill_blank', -1, 0, 20)">
-                  −
+                  <Minus :size="16" aria-hidden="true" />
                 </button>
                 <input v-model.number="generateCounts.fill_blank" aria-label="填空题数量" min="0" max="20" type="number" />
                 <button type="button" :disabled="generateCounts.fill_blank >= 20" aria-label="增加填空题数量" @click="adjustGenerateCount('fill_blank', 1, 0, 20)">
-                  +
+                  <Plus :size="16" aria-hidden="true" />
                 </button>
               </div>
             </label>
@@ -249,26 +253,17 @@
               <span>编程题</span>
               <div class="count-stepper">
                 <button type="button" :disabled="generateCounts.programming <= 0" aria-label="减少编程题数量" @click="adjustGenerateCount('programming', -1, 0, 10)">
-                  −
+                  <Minus :size="16" aria-hidden="true" />
                 </button>
                 <input v-model.number="generateCounts.programming" aria-label="编程题数量" min="0" max="10" type="number" />
                 <button type="button" :disabled="generateCounts.programming >= 10" aria-label="增加编程题数量" @click="adjustGenerateCount('programming', 1, 0, 10)">
-                  +
+                  <Plus :size="16" aria-hidden="true" />
                 </button>
               </div>
             </label>
             <button type="button" class="btn primary generate-btn" :disabled="generating || !generateRequirement.trim()" @click="generateQuestions">
               <span class="generate-btn-content">
-                <svg class="generate-btn-icon" viewBox="0 0 28 24" aria-hidden="true" focusable="false">
-                  <path
-                    d="M12.2 2.4l1.55 4.78 4.78 1.55-4.78 1.55-1.55 4.78-1.55-4.78-4.78-1.55 4.78-1.55 1.55-4.78z"
-                    fill="currentColor"
-                  />
-                  <path
-                    d="M21.2 1.7l.68 2.08 2.08.68-2.08.68-.68 2.08-.68-2.08-2.08-.68 2.08-.68.68-2.08z"
-                    fill="currentColor"
-                  />
-                </svg>
+                <Sparkles class="generate-btn-icon" :size="22" aria-hidden="true" />
                 <span>{{ generating ? "生成中..." : "生成题目" }}</span>
               </span>
             </button>
@@ -330,7 +325,9 @@
               </span>
             </button>
             <div class="mini-actions">
-              <button type="button" title="删除" class="danger" @click.stop="removeQuestion(questionIndex(question))">×</button>
+              <button type="button" title="删除" class="danger" @click.stop="removeQuestion(questionIndex(question))">
+                <Trash2 :size="15" aria-hidden="true" />
+              </button>
             </div>
           </article>
         </VueDraggable>
@@ -427,9 +424,14 @@
                     <textarea v-model="testCase.input_data" rows="2" placeholder="输入" />
                     <textarea v-model="testCase.expected_output" rows="2" placeholder="期望输出" />
                     <label><input v-model="testCase.is_sample" type="checkbox" /> 示例</label>
-                    <button type="button" class="icon-danger" @click="removeTestCase(activeQuestion, index)">×</button>
+                    <button type="button" class="icon-danger" aria-label="删除测试用例" @click="removeTestCase(activeQuestion, index)">
+                      <Trash2 :size="14" aria-hidden="true" />
+                    </button>
                   </article>
-                  <button type="button" class="btn dashed small" @click="addTestCase(activeQuestion)">+ 新增用例</button>
+                  <button type="button" class="btn dashed small" @click="addTestCase(activeQuestion)">
+                    <Plus :size="14" aria-hidden="true" />
+                    新增用例
+                  </button>
                 </div>
               </template>
 
@@ -444,7 +446,7 @@
           </div>
         </section>
         <section v-else class="editor-empty panel">
-          <div class="editor-empty-mark">+</div>
+          <div class="editor-empty-mark"><Plus :size="28" aria-hidden="true" /></div>
           <h2>暂无题目</h2>
           <p>添加一道题目后即可继续编辑题干、选项、答案解析和判题设置。</p>
           <div class="editor-empty-actions">
@@ -474,13 +476,14 @@
           <pre v-if="activeQuestion.question_type === 'programming' && activeQuestion.starter_code?.trim()" class="code-preview">{{ activeQuestion.starter_code }}</pre>
           <div v-else-if="activeQuestion.question_type === 'programming'" class="blank-preview">未设置初始代码</div>
         </div>
-        <p class="preview-note">ⓘ 预览仅供展示，实际样式以学生端为准</p>
+        <p class="preview-note"><Info :size="13" aria-hidden="true" /> 预览仅供展示，实际样式以学生端为准</p>
       </aside>
     </main>
   </section>
 </template>
 
 <script setup>
+import { CircleAlert, Info, Minus, Plus, Sparkles, Trash2, X } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { VueDraggable } from "vue-draggable-plus";
@@ -1756,29 +1759,13 @@ function formatApiErrorDetail(detail, fallbackMessage) {
 
 .mini-actions .danger {
   position: relative;
-  color: transparent;
-  font-size: 0;
+  color: #dc2626;
+  font-size: inherit;
 }
 
 .mini-actions .danger::before,
 .mini-actions .danger::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 2px;
-  border-radius: 999px;
-  background: #dc2626;
-  transform-origin: center;
-}
-
-.mini-actions .danger::before {
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.mini-actions .danger::after {
-  transform: translate(-50%, -50%) rotate(-45deg);
+  display: none;
 }
 
 .studio-main {
@@ -2471,6 +2458,9 @@ textarea {
   margin: 0;
   color: #94a3b8;
   font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 @media (max-width: 1440px) {

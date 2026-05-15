@@ -10,28 +10,28 @@
 
     <section v-if="!isInitialLoading" class="summary-row">
       <article class="summary-item shell-card blue">
-        <div class="summary-icon">作</div>
+        <div class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>全部作业</span>
           <strong>{{ assignments.length }}</strong>
         </div>
       </article>
       <article class="summary-item shell-card green">
-        <div class="summary-icon">发</div>
+        <div class="summary-icon"><Send :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>已发布</span>
           <strong>{{ publishedCount }}</strong>
         </div>
       </article>
       <article class="summary-item shell-card purple">
-        <div class="summary-icon">生</div>
+        <div class="summary-icon"><Upload :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>提交次数</span>
           <strong>{{ totalSubmissions }}</strong>
         </div>
       </article>
       <article class="summary-item shell-card amber">
-        <div class="summary-icon">通</div>
+        <div class="summary-icon"><CircleCheck :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>通过提交</span>
           <strong>{{ totalAccepted }}</strong>
@@ -130,6 +130,7 @@
 </template>
 
 <script setup>
+import { CircleCheck, ClipboardList, Send, Upload } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 

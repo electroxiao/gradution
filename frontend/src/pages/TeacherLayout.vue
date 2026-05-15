@@ -8,19 +8,19 @@
 
         <nav class="console-nav">
           <router-link to="/teacher/dashboard">
-            <span class="nav-icon">数</span>
+            <span class="nav-icon"><ChartNoAxesCombined :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>数据看板</strong></span>
           </router-link>
           <router-link to="/teacher/graph" @mouseenter="preloadGraphPage" @focus="preloadGraphPage">
-            <span class="nav-icon">图</span>
+            <span class="nav-icon"><Network :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>知识图谱</strong></span>
           </router-link>
           <router-link to="/teacher/students">
-            <span class="nav-icon">学</span>
+            <span class="nav-icon"><Users :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>学生薄弱点</strong></span>
           </router-link>
           <router-link to="/teacher/assignments">
-            <span class="nav-icon">作</span>
+            <span class="nav-icon"><ClipboardList :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>作业管理</strong></span>
           </router-link>
         </nav>
@@ -44,6 +44,7 @@
 </template>
 
 <script setup>
+import { ChartNoAxesCombined, ClipboardList, Network, Users } from "lucide-vue-next";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 

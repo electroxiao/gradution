@@ -1,14 +1,14 @@
 <template>
   <aside class="sidebar">
     <div class="brand-card">
-      <div class="brand-avatar">知</div>
+      <div class="brand-avatar"><BrainCircuit :size="19" aria-hidden="true" /></div>
       <div>
         <h3>知识辅导</h3>
       </div>
     </div>
 
     <button class="new-chat-btn" @click="$emit('create-session')">
-      <span class="plus">＋</span>
+      <span class="plus"><Plus :size="14" aria-hidden="true" /></span>
       <span>新对话</span>
     </button>
 
@@ -30,9 +30,10 @@
         <button
           v-if="hoveredSessionId === session.id || menuSessionId === session.id"
           class="menu-trigger"
+          aria-label="打开对话菜单"
           @click.stop="toggleMenu(session.id)"
         >
-          ⋯
+          <MoreHorizontal :size="16" aria-hidden="true" />
         </button>
 
         <div v-if="menuSessionId === session.id" class="menu-panel">
@@ -77,6 +78,7 @@
 </template>
 
 <script setup>
+import { BrainCircuit, MoreHorizontal, Plus } from "lucide-vue-next";
 import { ref } from "vue";
 
 import AnimatedTitle from "./AnimatedTitle.vue";

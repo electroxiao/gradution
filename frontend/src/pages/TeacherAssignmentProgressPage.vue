@@ -104,28 +104,28 @@
           <div v-if="selectedCell.latest_submission_id && selectedSubmission" class="detail-body">
             <dl class="overview-grid">
               <div class="overview-card time">
-                <span class="overview-icon" aria-hidden="true">时</span>
+                <span class="overview-icon" aria-hidden="true"><CalendarClock :size="18" /></span>
                 <div>
                   <dt>提交时间</dt>
                   <dd>{{ formatDateTime(selectedSubmission.submitted_at) }}</dd>
                 </div>
               </div>
               <div class="overview-card count">
-                <span class="overview-icon" aria-hidden="true">次</span>
+                <span class="overview-icon" aria-hidden="true"><Repeat2 :size="18" /></span>
                 <div>
                   <dt>提交次数</dt>
                   <dd>{{ selectedSubmissions.length || selectedCell.submission_count }} 次</dd>
                 </div>
               </div>
               <div class="overview-card runtime">
-                <span class="overview-icon" aria-hidden="true">运</span>
+                <span class="overview-icon" aria-hidden="true"><Gauge :size="18" /></span>
                 <div>
                   <dt>运行耗时</dt>
                   <dd>{{ formatRunTime(selectedSubmission.run_time_ms) }}</dd>
                 </div>
               </div>
               <div class="overview-card duration">
-                <span class="overview-icon" aria-hidden="true">答</span>
+                <span class="overview-icon" aria-hidden="true"><Timer :size="18" /></span>
                 <div>
                   <dt>作答耗时</dt>
                   <dd>{{ formatDuration(selectedSubmission.duration_seconds) }}</dd>
@@ -148,7 +148,10 @@
                     :class="[timelineStatusClass(submission), { active: submission.id === selectedSubmission.id }]"
                     @click="selectSubmission(submission)"
                   >
-                    <span class="timeline-marker" aria-hidden="true">{{ timelineStatusIcon(submission) }}</span>
+                    <span class="timeline-marker" aria-hidden="true">
+                      <CircleCheck v-if="submission.status === 'accepted'" :size="13" />
+                      <CircleX v-else :size="13" />
+                    </span>
                     <span class="timeline-copy">
                       <span class="timeline-title-row">
                         <strong>#{{ selectedSubmissions.length - index }} {{ statusText(submission.status) }}</strong>
@@ -188,7 +191,10 @@
                           :aria-selected="index === selectedResultIndex"
                           @click="selectedResultIndex = index"
                         >
-                          <span class="case-check" aria-hidden="true">{{ resultStateIcon(item) }}</span>
+                          <span class="case-check" aria-hidden="true">
+                            <CircleCheck v-if="isAcceptedResult(item)" :size="11" />
+                            <CircleX v-else :size="11" />
+                          </span>
                           {{ resultCaseText(item) }}
                         </button>
                       </div>
@@ -294,6 +300,7 @@
 </template>
 
 <script setup>
+import { CalendarClock, CircleCheck, CircleX, Gauge, Repeat2, Timer } from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -512,10 +519,6 @@ function timelineStatusClass(submission) {
   return submission?.status === "accepted" ? "passed" : "failed";
 }
 
-function timelineStatusIcon(submission) {
-  return submission?.status === "accepted" ? "✓" : "×";
-}
-
 function isAcceptedResult(item) {
   return item?.status === "accepted";
 }
@@ -526,10 +529,6 @@ function resultStateClass(item) {
 
 function resultStateText(item) {
   return isAcceptedResult(item) ? "通过" : "解答错误";
-}
-
-function resultStateIcon(item) {
-  return isAcceptedResult(item) ? "✓" : "×";
 }
 
 function resultCaseText(item) {
@@ -1091,12 +1090,7 @@ function handleApiError(error, fallbackMessage) {
 
 .timeline-marker::before,
 .timeline-marker::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  background: #ffffff;
-  transform-origin: center;
+  display: none;
 }
 
 .timeline-item.passed .timeline-marker {
@@ -1106,12 +1100,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .timeline-item.passed .timeline-marker::before {
-  width: 9px;
-  height: 5px;
-  border-left: 2px solid #ffffff;
-  border-bottom: 2px solid #ffffff;
-  background: transparent;
-  transform: translate(-50%, -58%) rotate(-45deg);
+  display: none;
 }
 
 .timeline-item.failed .timeline-marker {
@@ -1122,19 +1111,15 @@ function handleApiError(error, fallbackMessage) {
 
 .timeline-item.failed .timeline-marker::before,
 .timeline-item.failed .timeline-marker::after {
-  width: 10px;
-  height: 2px;
-  border-radius: 999px;
-  left: calc(50% - 0.5px);
-  top: calc(50% + 0.5px);
+  display: none;
 }
 
 .timeline-item.failed .timeline-marker::before {
-  transform: translate(-50%, -50%) rotate(45deg);
+  display: none;
 }
 
 .timeline-item.failed .timeline-marker::after {
-  transform: translate(-50%, -50%) rotate(-45deg);
+  display: none;
 }
 
 .timeline-copy {

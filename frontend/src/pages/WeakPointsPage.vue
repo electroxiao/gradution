@@ -3,7 +3,7 @@
     <PageHeader title="我的薄弱点" />
 
     <section v-if="isInitialLoading" class="summary-row">
-      <article v-for="index in 2" :key="`weak-summary-skeleton-${index}`" class="skeleton-card"></article>
+      <article v-for="index in 3" :key="`weak-summary-skeleton-${index}`" class="skeleton-card"></article>
     </section>
 
     <section v-else class="summary-row">
@@ -17,26 +17,62 @@
         <span>历史薄弱点</span>
         <strong>{{ historyWeakPoints.length }}</strong>
       </article>
+      <article class="summary-card">
+        <span class="summary-dot green" />
+        <span>最近咨询</span>
+        <strong>{{ recentConsultations.length }}</strong>
+      </article>
     </section>
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <section v-if="recentConsultations.length" class="panel consultation-section">
-      <div class="history-header">
-        <h2>最近咨询知识点</h2>
-      </div>
-      <div class="history-grid">
-        <article v-for="item in recentConsultations" :key="item.id" class="history-card consultation-card">
-          <div class="history-card-top">
-            <span class="history-badge">咨询</span>
-            <span class="history-time">{{ formatDate(item.created_at) }}</span>
+    <div class="weak-workbench">
+      <aside class="panel weak-list-panel">
+        <header class="weak-list-header">
+          <div>
+            <h2>待掌握薄弱点</h2>
+            <p>{{ filteredWeakPoints.length }} / {{ weakPoints.length }} 个知识点</p>
           </div>
-          <h3>{{ item.node_name }}</h3>
-        </article>
-      </div>
-    </section>
+        </header>
 
-    <div class="weak-grid-layout">
+        <div class="weak-list-tools">
+          <input
+            v-model="weakSearchQuery"
+            type="search"
+            placeholder="搜索薄弱点"
+            aria-label="搜索薄弱点"
+          />
+          <select v-model="weakSortMode" aria-label="薄弱点排序">
+            <option value="recent">最近出现优先</option>
+            <option value="first">首次记录优先</option>
+            <option value="name">按名称排序</option>
+          </select>
+        </div>
+
+        <div v-if="isInitialLoading" class="weak-list-loading">
+          <div v-for="index in 5" :key="`weak-list-skeleton-${index}`" class="skeleton-row"></div>
+        </div>
+
+        <div v-else-if="filteredWeakPoints.length" class="weak-list">
+          <button
+            v-for="item in filteredWeakPoints"
+            :key="item.id"
+            type="button"
+            :class="['weak-list-item', { active: item.id === currentWeakPointId }]"
+            @click="selectWeakPoint(item)"
+          >
+            <span class="weak-list-name">{{ item.node_name }}</span>
+            <span class="weak-list-meta">最近出现 {{ formatDate(item.last_seen_at) }}</span>
+            <span class="weak-list-meta muted">首次记录 {{ formatDate(item.first_seen_at) }}</span>
+          </button>
+        </div>
+
+        <div v-else class="side-empty">
+          <h3>暂无匹配薄弱点</h3>
+          <p>{{ weakPoints.length ? "换个关键词试试。" : "完成作业或训练后，这里会出现待掌握知识点。" }}</p>
+        </div>
+      </aside>
+
       <section class="graph-section">
         <div class="graph-container">
           <div class="graph-header">
@@ -64,13 +100,15 @@
       <aside v-if="showQuizPanel" class="panel quiz-panel">
         <header class="quiz-header">
           <h3>薄弱点训练</h3>
-          <button class="close-btn" @click="closeQuizPanel">&times;</button>
+          <button class="close-btn" aria-label="关闭训练面板" @click="closeQuizPanel">
+            <X :size="18" aria-hidden="true" />
+          </button>
         </header>
 
         <div class="quiz-body">
           <div v-if="quizStep === 'intro'" class="quiz-intro">
             <div class="intro-icon">
-              <span class="icon-circle">!</span>
+              <span class="icon-circle"><TriangleAlert :size="24" aria-hidden="true" /></span>
             </div>
             <p class="intro-text">
               是否针对 <strong>【{{ quizNodeName }}】</strong>开始训练？
@@ -114,10 +152,11 @@
 
           <div v-else-if="quizStep === 'result'" class="quiz-result">
             <div v-if="isSubmitting" class="result-icon">
-              ⏳
+              <LoaderCircle :size="28" aria-hidden="true" />
             </div>
             <div v-else class="result-icon" :class="isCorrect ? 'correct' : 'incorrect'">
-              {{ isCorrect ? '✓' : '✗' }}
+              <CircleCheck v-if="isCorrect" :size="28" aria-hidden="true" />
+              <CircleX v-else :size="28" aria-hidden="true" />
             </div>
             <h4 class="result-title">{{ isSubmitting ? '判断中...' : (isCorrect ? '回答正确！' : '回答不完全正确') }}</h4>
             <div class="result-feedback">
@@ -162,36 +201,62 @@
               </li>
             </ul>
           </div>
-
         </template>
 
+        <div v-else class="side-empty">
+          <h3>等待推荐</h3>
+          <p>选择左侧薄弱点后，系统会展示推荐学习顺序和训练入口。</p>
+        </div>
+      </aside>
+
+      <aside v-else class="panel recommendation-panel">
+        <div class="side-empty">
+          <h3>选择薄弱点</h3>
+          <p>从左侧列表选择一个知识点，查看图谱和推荐训练。</p>
+        </div>
       </aside>
     </div>
 
-    <section v-if="weakPoints.length && !showQuizPanel" class="weak-grid">
-      <article
-        v-for="item in weakPoints"
-        :key="item.id"
-        :class="['weak-card', { active: item.id === currentWeakPointId }]"
-        @click="selectWeakPoint(item)"
-      >
-        <div class="weak-card-top">
-          <span class="weak-badge">薄弱点</span>
-          <span class="weak-time">最近出现 {{ formatDate(item.last_seen_at) }}</span>
+    <section v-if="recentConsultations.length || historyWeakPoints.length" class="panel records-section">
+      <div class="records-header">
+        <div>
+          <h2>学习记录</h2>
+          <p>最近咨询和历史薄弱点集中在这里，避免记录越来越多时拉长主页面。</p>
         </div>
-        <h2>{{ item.node_name }}</h2>
-        <div class="weak-card-bottom">
-          <span class="weak-first-seen">首次记录 {{ formatDate(item.first_seen_at) }}</span>
+        <div class="record-tabs" role="tablist" aria-label="学习记录类型">
+          <button
+            type="button"
+            :class="{ active: activeRecordTab === 'consultations' }"
+            role="tab"
+            :aria-selected="activeRecordTab === 'consultations'"
+            @click="activeRecordTab = 'consultations'"
+          >
+            最近咨询
+          </button>
+          <button
+            type="button"
+            :class="{ active: activeRecordTab === 'history' }"
+            role="tab"
+            :aria-selected="activeRecordTab === 'history'"
+            @click="activeRecordTab = 'history'"
+          >
+            历史薄弱点
+          </button>
         </div>
-      </article>
-    </section>
-
-    <section v-if="historyWeakPoints.length && !showQuizPanel" class="panel history-section">
-      <div class="history-header">
-        <h2>历史薄弱点</h2>
-        <p>这里保留已经通过推荐学习完成巩固的知识点，方便回看你的成长轨迹。</p>
       </div>
-      <div class="history-grid">
+
+      <div v-if="activeRecordTab === 'consultations'" class="record-list">
+        <article v-for="item in recentConsultations" :key="item.id" class="history-card consultation-card">
+          <div class="history-card-top">
+            <span class="history-badge">咨询</span>
+            <span class="history-time">{{ formatDate(item.created_at) }}</span>
+          </div>
+          <h3>{{ item.node_name }}</h3>
+        </article>
+        <div v-if="!recentConsultations.length" class="record-empty">暂无最近咨询记录。</div>
+      </div>
+
+      <div v-else class="record-list">
         <article v-for="item in historyWeakPoints" :key="`history-${item.id}`" class="history-card">
           <div class="history-card-top">
             <span class="history-badge">已掌握</span>
@@ -200,10 +265,11 @@
           <h3>{{ item.node_name }}</h3>
           <span class="weak-first-seen">首次记录 {{ formatDate(item.first_seen_at) }}</span>
         </article>
+        <div v-if="!historyWeakPoints.length" class="record-empty">暂无历史薄弱点。</div>
       </div>
     </section>
 
-    <section v-else-if="!isInitialLoading && !errorMessage && !graphNodes.length && !showQuizPanel" class="panel empty-state">
+    <section v-else-if="!isInitialLoading && !errorMessage && !graphNodes.length" class="panel empty-state">
       <div class="empty-orbit" />
       <h2>当前没有待补齐的薄弱点</h2>
       <p>聊天会记录最近咨询过的知识点；作业和训练结果会记录真正需要攻克的薄弱点。</p>
@@ -213,7 +279,8 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { CircleCheck, CircleX, LoaderCircle, TriangleAlert, X } from "lucide-vue-next";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import {
@@ -234,6 +301,9 @@ const router = useRouter();
 const weakPoints = ref([]);
 const historyWeakPoints = ref([]);
 const recentConsultations = ref([]);
+const weakSearchQuery = ref("");
+const weakSortMode = ref("recent");
+const activeRecordTab = ref("consultations");
 const errorMessage = ref("");
 const graphNodes = ref([]);
 const graphEdges = ref([]);
@@ -262,6 +332,23 @@ const feedbackContent = ref("");
 const isCorrect = ref(false);
 const isGenerating = ref(false);
 const isSubmitting = ref(false);
+
+const filteredWeakPoints = computed(() => {
+  const keyword = weakSearchQuery.value.trim().toLowerCase();
+  const items = keyword
+    ? weakPoints.value.filter((item) => item.node_name?.toLowerCase().includes(keyword))
+    : [...weakPoints.value];
+
+  return items.sort((left, right) => {
+    if (weakSortMode.value === "name") {
+      return (left.node_name || "").localeCompare(right.node_name || "", "zh-CN");
+    }
+    if (weakSortMode.value === "first") {
+      return compareDateDesc(left.first_seen_at, right.first_seen_at);
+    }
+    return compareDateDesc(left.last_seen_at, right.last_seen_at);
+  });
+});
 
 onMounted(async () => {
   try {
@@ -543,6 +630,12 @@ function formatDate(value) {
   });
 }
 
+function compareDateDesc(leftValue, rightValue) {
+  const leftTime = new Date(leftValue || 0).getTime() || 0;
+  const rightTime = new Date(rightValue || 0).getTime() || 0;
+  return rightTime - leftTime;
+}
+
 function shouldAutoArchiveCurrentWeakPoint() {
   if (!currentWeakPointId.value || !recommendedNodes.value.length) return false;
   return recommendedNodes.value.every((item) => item.status === "mastered");
@@ -594,7 +687,7 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -608,12 +701,16 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-card {
   display: grid;
-  gap: 6px;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 4px;
   padding: 12px 14px;
 }
 
 .summary-card strong {
   display: block;
+  grid-column: 2;
   color: var(--app-text);
   font-size: var(--compact-stat-sm);
   font-weight: 400;
@@ -621,6 +718,25 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-card span {
   color: var(--app-text-muted);
+}
+
+.summary-dot {
+  grid-row: span 2;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.summary-dot.blue {
+  background: #2f67f6;
+}
+
+.summary-dot.cyan {
+  background: #0ea5b7;
+}
+
+.summary-dot.green {
+  background: #12a66a;
 }
 
 .feedback {
@@ -634,27 +750,148 @@ function handleApiError(error, fallbackMessage) {
   border: 1px solid #f0d3d3;
 }
 
-.consultation-section {
+.weak-workbench {
   display: grid;
-  gap: 12px;
-  padding: 16px;
-}
-
-.consultation-card {
-  border-color: #dbeafe;
-}
-
-.consultation-link {
-  color: var(--app-primary);
-  text-decoration: none;
-  font-size: var(--compact-caption);
-}
-
-.weak-grid-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(220px, 0.7fr) minmax(420px, 1.8fr) minmax(280px, 0.9fr);
   gap: 14px;
   align-items: start;
+}
+
+.weak-list-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 500px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.weak-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.weak-list-header h2,
+.records-header h2,
+.graph-header h2,
+.recommendation-header h3,
+.quiz-header h3,
+.empty-state h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-weight: 500;
+}
+
+.weak-list-header h2,
+.records-header h2,
+.graph-header h2,
+.recommendation-header h3,
+.empty-state h2 {
+  font-size: var(--compact-section-title);
+}
+
+.weak-list-header p,
+.records-header p {
+  margin: 4px 0 0;
+  color: var(--app-text-muted);
+  line-height: 1.5;
+}
+
+.weak-list-tools {
+  display: grid;
+  gap: 8px;
+}
+
+.weak-list-tools input,
+.weak-list-tools select {
+  min-height: 34px;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.weak-list-loading,
+.weak-list {
+  min-height: 0;
+}
+
+.weak-list-loading {
+  display: grid;
+  gap: 8px;
+}
+
+.weak-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #c7d7e8 transparent;
+}
+
+.weak-list-item {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #e8eef6;
+  border-radius: 12px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.weak-list-item:hover {
+  border-color: #ccdbef;
+  background: #f8fbff;
+}
+
+.weak-list-item.active {
+  border-color: #93b4e7;
+  background: #edf5ff;
+  box-shadow: inset 3px 0 0 #2f67f6;
+}
+
+.weak-list-name {
+  color: var(--app-text);
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.weak-list-meta {
+  color: #708295;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.weak-list-meta.muted {
+  color: #9aa8b7;
+}
+
+.side-empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 180px;
+  padding: 18px;
+  color: var(--app-text-muted);
+  text-align: center;
+}
+
+.side-empty h3 {
+  margin: 0 0 8px;
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.side-empty p {
+  margin: 0;
+  line-height: 1.6;
 }
 
 .graph-section {
@@ -677,23 +914,6 @@ function handleApiError(error, fallbackMessage) {
   backdrop-filter: blur(6px);
   border-radius: 12px 12px 0 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.graph-header h2,
-.history-header h2,
-.recommendation-header h3,
-.quiz-header h3,
-.empty-state h2 {
-  margin: 0;
-  color: var(--app-text);
-  font-weight: 500;
-}
-
-.graph-header h2,
-.history-header h2,
-.recommendation-header h3,
-.empty-state h2 {
-  font-size: var(--compact-section-title);
 }
 
 .quiz-header h3 {
@@ -1093,82 +1313,69 @@ function handleApiError(error, fallbackMessage) {
   justify-content: center;
 }
 
-.weak-grid {
+.records-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
-}
-
-.weak-card {
-  padding: 14px;
-  border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: #ffffff;
-  box-shadow: var(--app-shadow);
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.weak-card.active {
-  border-color: #c7daf3;
-  box-shadow: 0 20px 46px rgba(37, 99, 235, 0.12);
-  transform: translateY(-2px);
-}
-
-.weak-card-top,
-.weak-card-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.weak-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #edf5ff;
-  color: #34699a;
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.weak-time,
-.weak-first-seen {
-  color: #8394a7;
-  font-size: 12px;
-}
-
-.weak-card h2 {
-  margin: 12px 0 6px;
-  color: var(--app-text);
-  font-size: var(--compact-card-title);
-  font-weight: 400;
-}
-
-.history-section {
+  gap: 14px;
   padding: 16px;
 }
 
-.history-header {
-  margin-bottom: 16px;
+.records-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.history-header h2 {
-  font-size: var(--compact-section-title);
+.record-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--app-line);
+  border-radius: 12px;
+  background: #f7f9fc;
 }
 
-.history-header p {
-  margin: 0;
+.record-tabs button {
+  min-height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
   color: var(--app-text-muted);
-  line-height: 1.7;
+  cursor: pointer;
 }
 
-.history-grid {
+.record-tabs button.active {
+  background: #ffffff;
+  color: var(--app-text);
+  box-shadow: var(--app-shadow);
+}
+
+.record-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.record-empty {
+  grid-column: 1 / -1;
+  padding: 18px;
+  border: 1px dashed #dfe6ef;
+  border-radius: 12px;
+  color: var(--app-text-muted);
+  text-align: center;
+}
+
+.consultation-card {
+  border-color: #dbeafe;
+}
+
+.weak-first-seen {
+  color: #8394a7;
+  font-size: 12px;
 }
 
 .history-card {
@@ -1250,17 +1457,16 @@ function handleApiError(error, fallbackMessage) {
   line-height: 1.7;
 }
 
-@media (max-width: 1024px) {
-  .main-layout {
-    grid-template-columns: 1fr;
+@media (max-width: 1180px) {
+  .weak-workbench {
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.5fr);
   }
 
-  .quiz-panel {
-    max-height: none;
-  }
-
+  .quiz-panel,
   .recommendation-panel {
-    max-height: none;
+    grid-column: 1 / -1;
+    height: auto;
+    max-height: 360px;
   }
 }
 
@@ -1269,8 +1475,13 @@ function handleApiError(error, fallbackMessage) {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
 
-  .weak-grid-layout {
-    grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.9fr);
+  .weak-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .weak-list-panel,
+  .graph-container {
+    height: 420px;
   }
 
   .graph-header {
@@ -1280,15 +1491,26 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 680px) {
-  .summary-row,
-  .weak-grid-layout {
+  .summary-row {
     grid-template-columns: 1fr;
   }
 
-  .weak-card-top,
-  .weak-card-bottom {
+  .weak-list-panel,
+  .graph-container {
+    height: 380px;
+  }
+
+  .records-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .record-tabs {
+    width: 100%;
+  }
+
+  .record-tabs button {
+    flex: 1;
   }
 
   .graph-header {

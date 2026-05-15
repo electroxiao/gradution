@@ -17,19 +17,19 @@
 
         <nav class="console-nav student-nav">
           <router-link to="/" active-class="" exact-active-class="router-link-active">
-            <span class="nav-icon">台</span>
+            <span class="nav-icon"><LayoutDashboard :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>学习工作台</strong></span>
           </router-link>
           <router-link to="/assignments">
-            <span class="nav-icon">作</span>
+            <span class="nav-icon"><ClipboardList :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>我的作业</strong></span>
           </router-link>
           <router-link to="/chat">
-            <span class="nav-icon">AI</span>
+            <span class="nav-icon"><Bot :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>AI 学习</strong></span>
           </router-link>
           <router-link to="/weak-points">
-            <span class="nav-icon">弱</span>
+            <span class="nav-icon"><TriangleAlert :size="18" aria-hidden="true" /></span>
             <span class="nav-copy"><strong>薄弱点</strong></span>
           </router-link>
         </nav>
@@ -49,6 +49,7 @@
 </template>
 
 <script setup>
+import { Bot, ClipboardList, LayoutDashboard, TriangleAlert } from "lucide-vue-next";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 

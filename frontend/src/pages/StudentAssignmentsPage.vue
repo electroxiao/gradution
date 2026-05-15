@@ -4,21 +4,21 @@
 
     <section v-if="!isInitialLoading" class="summary-row">
       <article class="summary-card blue">
-        <div class="summary-icon">作</div>
+        <div class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>作业总数</span>
           <strong>{{ assignments.length }}</strong>
         </div>
       </article>
       <article class="summary-card cyan">
-        <div class="summary-icon">待</div>
+        <div class="summary-icon"><Clock3 :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>待完成</span>
           <strong>{{ pendingCount }}</strong>
         </div>
       </article>
       <article class="summary-card green">
-        <div class="summary-icon">通</div>
+        <div class="summary-icon"><CircleCheck :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>已通过题目</span>
           <strong>{{ acceptedTotal }}</strong>
@@ -92,6 +92,7 @@
 </template>
 
 <script setup>
+import { CircleCheck, ClipboardList, Clock3 } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 

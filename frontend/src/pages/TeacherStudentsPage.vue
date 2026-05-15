@@ -58,9 +58,13 @@
         <div v-else-if="hasStudentsLoaded" class="list-empty">暂无匹配学生。</div>
 
         <div class="pagination-bar">
-          <button type="button" :disabled="currentPage <= 1" @click="goPage(currentPage - 1)">‹</button>
+          <button type="button" :disabled="currentPage <= 1" aria-label="上一页" @click="goPage(currentPage - 1)">
+            <ChevronLeft :size="16" aria-hidden="true" />
+          </button>
           <span>{{ currentPage }}</span>
-          <button type="button" :disabled="currentPage >= totalPages" @click="goPage(currentPage + 1)">›</button>
+          <button type="button" :disabled="currentPage >= totalPages" aria-label="下一页" @click="goPage(currentPage + 1)">
+            <ChevronRight :size="16" aria-hidden="true" />
+          </button>
         </div>
       </aside>
 
@@ -78,21 +82,21 @@
 
         <section class="summary-grid">
           <article class="summary-card weak-summary">
-            <span class="summary-icon">◎</span>
+            <span class="summary-icon"><TriangleAlert :size="24" aria-hidden="true" /></span>
             <div>
               <p>当前薄弱点</p>
               <strong>{{ studentWeakPoints.length }} <small>个</small></strong>
             </div>
           </article>
           <article class="summary-card consultation-summary">
-            <span class="summary-icon">□</span>
+            <span class="summary-icon"><MessageCircleQuestion :size="24" aria-hidden="true" /></span>
             <div>
               <p>最近咨询知识点</p>
               <strong>{{ studentConsultations.length }} <small>个</small></strong>
             </div>
           </article>
           <article class="summary-card assignment-summary">
-            <span class="summary-icon">▤</span>
+            <span class="summary-icon"><ClipboardList :size="24" aria-hidden="true" /></span>
             <div>
               <p>未完成作业次数</p>
               <strong>{{ activeStudent.unfinished_assignment_count || 0 }} <small>次</small></strong>
@@ -115,7 +119,7 @@
               </div>
             </div>
             <div v-else-if="hasStudentsLoaded" class="empty-state">
-              <span class="empty-mark">⌕</span>
+              <span class="empty-mark"><SearchX :size="30" aria-hidden="true" /></span>
               <strong>暂无薄弱知识点</strong>
               <p>继续保持，棒极了！</p>
             </div>
@@ -136,7 +140,7 @@
               </div>
             </div>
             <div v-else-if="hasStudentsLoaded" class="empty-state">
-              <span class="empty-mark">▱</span>
+              <span class="empty-mark"><MessagesSquare :size="30" aria-hidden="true" /></span>
               <strong>暂无咨询记录</strong>
               <p>该生暂无任何咨询知识点记录。</p>
             </div>
@@ -146,7 +150,7 @@
 
       <section v-else class="student-profile empty-profile">
         <div class="empty-state">
-          <span class="empty-mark">⌕</span>
+          <span class="empty-mark"><SearchX :size="30" aria-hidden="true" /></span>
           <strong>请选择学生</strong>
           <p>左侧筛选结果为空时，可以调整搜索或班级分类。</p>
         </div>
@@ -156,6 +160,15 @@
 </template>
 
 <script setup>
+import {
+  ClipboardList,
+  ChevronLeft,
+  ChevronRight,
+  MessageCircleQuestion,
+  MessagesSquare,
+  SearchX,
+  TriangleAlert,
+} from "lucide-vue-next";
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 

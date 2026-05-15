@@ -67,15 +67,7 @@
                 :aria-label="sending ? '生成中' : '发送消息'"
               >
                 <span v-if="sending" class="submit-dot" />
-                <svg v-else viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path
-                    d="M10 15V5M10 5L6.5 8.5M10 5L13.5 8.5"
-                    stroke="currentColor"
-                    stroke-width="1.9"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
+                <ArrowUp v-else :size="18" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -85,6 +77,7 @@
 </template>
 
 <script setup>
+import { ArrowUp } from "lucide-vue-next";
 import { computed, nextTick, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
