@@ -5,24 +5,24 @@
 
     <section v-if="!isDashboardLoading" class="summary-row">
       <article class="summary-card">
-        <span class="summary-dot blue" />
+        <span class="summary-icon blue"><ClipboardList :size="22" aria-hidden="true" /></span>
         <span>作业总数</span>
-        <strong>{{ assignments.length }}</strong>
+        <strong>{{ assignments.length }} <small>份</small></strong>
       </article>
       <article class="summary-card">
-        <span class="summary-dot cyan" />
+        <span class="summary-icon cyan"><Clock3 :size="22" aria-hidden="true" /></span>
         <span>待完成</span>
-        <strong>{{ pendingAssignments.length }}</strong>
+        <strong>{{ pendingAssignments.length }} <small>份</small></strong>
       </article>
       <article class="summary-card">
-        <span class="summary-dot green" />
+        <span class="summary-icon green"><CircleCheck :size="22" aria-hidden="true" /></span>
         <span>已通过题目</span>
-        <strong>{{ acceptedTotal }}</strong>
+        <strong>{{ acceptedTotal }} <small>题</small></strong>
       </article>
       <article class="summary-card">
-        <span class="summary-dot amber" />
+        <span class="summary-icon amber"><TriangleAlert :size="22" aria-hidden="true" /></span>
         <span>待掌握薄弱点</span>
-        <strong>{{ weakPoints.length }}</strong>
+        <strong>{{ weakPoints.length }} <small>个</small></strong>
       </article>
     </section>
 
@@ -114,6 +114,7 @@
 </template>
 
 <script setup>
+import { CircleCheck, ClipboardList, Clock3, TriangleAlert } from "lucide-vue-next";
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -204,48 +205,78 @@ function handleApiError(error, fallbackMessage, target) {
 .summary-card,
 .panel {
   border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
-  box-shadow: var(--app-shadow);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .summary-card {
   display: grid;
-  gap: 6px;
-  padding: 12px 14px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 6px;
+  min-height: 98px;
+  padding: 18px;
 }
 
-.summary-card span {
-  color: var(--app-text-muted);
+.summary-card > span:not(.summary-icon) {
+  grid-column: 2;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .summary-card strong {
   display: block;
+  grid-column: 2;
   color: var(--app-text);
-  font-size: var(--compact-stat-sm);
-  font-weight: 400;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.summary-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+.summary-card small {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.summary-dot.blue {
-  background: #2f67f6;
+.summary-icon {
+  grid-row: 1 / 3;
+  width: 48px;
+  height: 48px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
-.summary-dot.cyan {
-  background: #1fb5a8;
+.summary-icon.blue {
+  background: #edf3ff;
+  color: var(--app-primary);
 }
 
-.summary-dot.green {
-  background: #22c55e;
+.summary-icon.cyan {
+  background: #e8fbfb;
+  color: #0e9384;
 }
 
-.summary-dot.amber {
-  background: #f59e0b;
+.summary-icon.green {
+  background: #eaf8ef;
+  color: #229954;
+}
+
+.summary-icon.amber {
+  background: #fff7e9;
+  color: #f79009;
+}
+
+.panel {
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .dashboard-grid {

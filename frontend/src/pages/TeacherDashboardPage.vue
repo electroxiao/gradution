@@ -10,16 +10,25 @@
 
     <section v-if="!isInitialLoading && dashboard" class="metrics-grid">
       <article class="metric-card">
-        <span>学生总数</span>
-        <strong>{{ dashboard.total_students }}</strong>
+        <span class="metric-icon blue"><Users :size="22" aria-hidden="true" /></span>
+        <div class="metric-copy">
+          <span>学生总数</span>
+          <strong>{{ dashboard.total_students }} <small>人</small></strong>
+        </div>
       </article>
       <article class="metric-card">
-        <span>未掌握薄弱点</span>
-        <strong>{{ dashboard.total_unmastered_weak_points }}</strong>
+        <span class="metric-icon amber"><TriangleAlert :size="22" aria-hidden="true" /></span>
+        <div class="metric-copy">
+          <span>未掌握薄弱点</span>
+          <strong>{{ dashboard.total_unmastered_weak_points }} <small>个</small></strong>
+        </div>
       </article>
       <article class="metric-card">
-        <span>受影响学生数</span>
-        <strong>{{ dashboard.affected_students }}</strong>
+        <span class="metric-icon green"><UserRoundCheck :size="22" aria-hidden="true" /></span>
+        <div class="metric-copy">
+          <span>受影响学生数</span>
+          <strong>{{ dashboard.affected_students }} <small>人</small></strong>
+        </div>
       </article>
     </section>
 
@@ -79,6 +88,7 @@
 </template>
 
 <script setup>
+import { TriangleAlert, UserRoundCheck, Users } from "lucide-vue-next";
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -160,25 +170,74 @@ function handleApiError(error, fallbackMessage) {
 .rank-panel,
 .empty-panel {
   border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
-  box-shadow: var(--app-shadow);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .metric-card {
-  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 98px;
+  padding: 18px;
 }
 
-.metric-card span {
-  color: var(--app-text-muted);
+.metric-icon {
+  width: 48px;
+  height: 48px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
-.metric-card strong {
+.metric-icon.blue {
+  background: #edf3ff;
+  color: var(--app-primary);
+}
+
+.metric-icon.amber {
+  background: #fff7e9;
+  color: #f79009;
+}
+
+.metric-icon.green {
+  background: #eaf8ef;
+  color: #229954;
+}
+
+.metric-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.metric-copy span {
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.metric-copy strong {
   display: block;
-  margin-top: 7px;
   color: var(--app-text);
-  font-size: var(--compact-stat);
-  font-weight: 400;
+  font-size: 25px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.metric-copy small {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.rank-panel,
+.empty-panel {
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .rank-panel {

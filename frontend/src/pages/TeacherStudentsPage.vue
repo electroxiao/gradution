@@ -69,34 +69,23 @@
       </aside>
 
       <section v-if="activeStudent" class="student-profile">
-        <section class="profile-hero">
-          <div>
-            <h3>{{ activeStudent.username }}</h3>
-            <p>{{ activeStudent.class_name || "未分班" }}</p>
-          </div>
-          <div class="profile-updated">
-            <span>数据更新于</span>
-            <strong>{{ formatDateTime(profileUpdatedAt) }}</strong>
-          </div>
-        </section>
-
         <section class="summary-grid">
           <article class="summary-card weak-summary">
-            <span class="summary-icon"><TriangleAlert :size="24" aria-hidden="true" /></span>
+            <span class="summary-icon"><TriangleAlert :size="18" aria-hidden="true" /></span>
             <div>
               <p>当前薄弱点</p>
               <strong>{{ studentWeakPoints.length }} <small>个</small></strong>
             </div>
           </article>
           <article class="summary-card consultation-summary">
-            <span class="summary-icon"><MessageCircleQuestion :size="24" aria-hidden="true" /></span>
+            <span class="summary-icon"><MessageCircleQuestion :size="18" aria-hidden="true" /></span>
             <div>
               <p>最近咨询知识点</p>
               <strong>{{ studentConsultations.length }} <small>个</small></strong>
             </div>
           </article>
           <article class="summary-card assignment-summary">
-            <span class="summary-icon"><ClipboardList :size="24" aria-hidden="true" /></span>
+            <span class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></span>
             <div>
               <p>未完成作业次数</p>
               <strong>{{ activeStudent.unfinished_assignment_count || 0 }} <small>次</small></strong>
@@ -227,18 +216,6 @@ const pagedStudents = computed(() => {
   return filteredStudents.value.slice(start, start + pageSize);
 });
 
-const profileUpdatedAt = computed(() => {
-  const dates = [
-    ...studentWeakPoints.value.map((item) => item.last_seen_at),
-    ...studentConsultations.value.map((item) => item.last_seen_at),
-  ].filter(Boolean);
-  if (!dates.length) return null;
-  return dates
-    .map((value) => new Date(value))
-    .filter((date) => !Number.isNaN(date.getTime()))
-    .sort((a, b) => b.getTime() - a.getTime())[0];
-});
-
 watch([searchQuery, classFilter, sortMode], () => {
   currentPage.value = 1;
   syncActiveStudentWithFilters();
@@ -347,18 +324,6 @@ function formatDate(value) {
   });
 }
 
-function formatDateTime(value) {
-  if (!value) return "--";
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleString("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
@@ -385,7 +350,6 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .student-list-panel,
-.profile-hero,
 .summary-card,
 .detail-panel,
 .empty-profile {
@@ -410,7 +374,6 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .list-head h3,
-.profile-hero h3,
 .section-head h4 {
   margin: 0;
   color: var(--app-text);
@@ -559,42 +522,6 @@ function handleApiError(error, fallbackMessage) {
   min-width: 0;
 }
 
-.profile-hero {
-  min-height: 112px;
-  padding: 24px 28px;
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: center;
-}
-
-.profile-hero h3 {
-  font-size: 26px;
-}
-
-.profile-hero p {
-  margin: 10px 0 0;
-  color: #53637a;
-  font-size: 15px;
-}
-
-.profile-updated {
-  display: grid;
-  gap: 6px;
-  padding-left: 20px;
-  border-left: 1px solid var(--app-line);
-  color: var(--app-text-muted);
-}
-
-.profile-updated span {
-  font-size: 13px;
-}
-
-.profile-updated strong {
-  color: #64748b;
-  font-weight: 500;
-}
-
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -602,21 +529,23 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .summary-card {
-  min-height: 122px;
-  padding: 22px;
+  min-height: 98px;
+  padding: 18px;
   display: flex;
-  gap: 18px;
+  gap: 14px;
   align-items: center;
 }
 
 .summary-icon {
-  width: 52px;
-  height: 52px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 14px;
-  font-size: 24px;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 20px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .weak-summary .summary-icon {
@@ -635,21 +564,23 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .summary-card p {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   color: #334155;
   font-size: 15px;
   font-weight: 500;
+  line-height: 1.2;
 }
 
 .summary-card strong {
   color: var(--app-text);
-  font-size: 28px;
+  font-size: 25px;
+  font-weight: 600;
   line-height: 1;
 }
 
 .summary-card small {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
 }
 
@@ -790,19 +721,6 @@ function handleApiError(error, fallbackMessage) {
   .student-items,
   .list-empty {
     min-height: 0;
-  }
-
-  .profile-hero {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .profile-updated {
-    width: 100%;
-    padding-left: 0;
-    padding-top: 14px;
-    border-left: 0;
-    border-top: 1px solid var(--app-line);
   }
 
   .knowledge-row {

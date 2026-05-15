@@ -8,19 +8,19 @@
 
     <section v-else class="summary-row">
       <article class="summary-card">
-        <span class="summary-dot blue" />
+        <span class="summary-icon blue"><TriangleAlert :size="22" aria-hidden="true" /></span>
         <span>当前待掌握</span>
-        <strong>{{ weakPoints.length }}</strong>
+        <strong>{{ weakPoints.length }} <small>个</small></strong>
       </article>
       <article class="summary-card">
-        <span class="summary-dot cyan" />
+        <span class="summary-icon cyan"><History :size="22" aria-hidden="true" /></span>
         <span>历史薄弱点</span>
-        <strong>{{ historyWeakPoints.length }}</strong>
+        <strong>{{ historyWeakPoints.length }} <small>个</small></strong>
       </article>
       <article class="summary-card">
-        <span class="summary-dot green" />
+        <span class="summary-icon green"><MessageCircleQuestion :size="22" aria-hidden="true" /></span>
         <span>最近咨询</span>
-        <strong>{{ recentConsultations.length }}</strong>
+        <strong>{{ recentConsultations.length }} <small>次</small></strong>
       </article>
     </section>
 
@@ -279,7 +279,7 @@
 </template>
 
 <script setup>
-import { CircleCheck, CircleX, LoaderCircle, TriangleAlert, X } from "lucide-vue-next";
+import { CircleCheck, CircleX, History, LoaderCircle, MessageCircleQuestion, TriangleAlert, X } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -694,49 +694,73 @@ function handleApiError(error, fallbackMessage) {
 .summary-card,
 .panel {
   border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
-  box-shadow: var(--app-shadow);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .summary-card {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  column-gap: 10px;
-  row-gap: 4px;
-  padding: 12px 14px;
+  column-gap: 14px;
+  row-gap: 6px;
+  min-height: 98px;
+  padding: 18px;
 }
 
 .summary-card strong {
   display: block;
   grid-column: 2;
   color: var(--app-text);
-  font-size: var(--compact-stat-sm);
-  font-weight: 400;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.summary-card span {
-  color: var(--app-text-muted);
+.summary-card small {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
 }
 
-.summary-dot {
-  grid-row: span 2;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
+.summary-card > span:not(.summary-icon) {
+  grid-column: 2;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
-.summary-dot.blue {
-  background: #2f67f6;
+.summary-icon {
+  grid-row: 1 / 3;
+  width: 48px;
+  height: 48px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 12px;
+  flex-shrink: 0;
 }
 
-.summary-dot.cyan {
-  background: #0ea5b7;
+.summary-icon.blue {
+  background: #edf3ff;
+  color: var(--app-primary);
 }
 
-.summary-dot.green {
-  background: #12a66a;
+.summary-icon.cyan {
+  background: #e8fbfb;
+  color: #0e9384;
+}
+
+.summary-icon.green {
+  background: #eaf8ef;
+  color: #229954;
+}
+
+.panel {
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .feedback {

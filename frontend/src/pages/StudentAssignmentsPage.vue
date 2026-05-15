@@ -7,21 +7,21 @@
         <div class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>作业总数</span>
-          <strong>{{ assignments.length }}</strong>
+          <strong>{{ assignments.length }} <small>份</small></strong>
         </div>
       </article>
       <article class="summary-card cyan">
         <div class="summary-icon"><Clock3 :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>待完成</span>
-          <strong>{{ pendingCount }}</strong>
+          <strong>{{ pendingCount }} <small>份</small></strong>
         </div>
       </article>
       <article class="summary-card green">
         <div class="summary-icon"><CircleCheck :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>已通过题目</span>
-          <strong>{{ acceptedTotal }}</strong>
+          <strong>{{ acceptedTotal }} <small>题</small></strong>
         </div>
       </article>
     </section>
@@ -193,17 +193,17 @@ function handleApiError(error, fallbackMessage) {
 .empty,
 .feedback {
   border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
-  box-shadow: var(--app-shadow);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .summary-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 66px;
-  padding: 12px 14px;
+  gap: 14px;
+  min-height: 98px;
+  padding: 18px;
 }
 
 .summary-copy span,
@@ -216,30 +216,52 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-copy strong {
   color: var(--app-text);
-  font-size: var(--compact-stat-sm);
-  font-weight: 400;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.summary-copy small {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .summary-copy {
   display: grid;
-  gap: 3px;
+  gap: 6px;
+}
+
+.summary-copy span {
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .summary-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  font-size: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 20px;
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .blue .summary-icon {
-  background: #ffffff;
-  color: #2f67f6;
+  background: #edf3ff;
+  color: var(--app-primary);
+}
+
+.assignment-panel,
+.empty,
+.feedback {
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .cyan .summary-icon {

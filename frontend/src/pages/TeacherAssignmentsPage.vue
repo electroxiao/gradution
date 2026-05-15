@@ -13,28 +13,28 @@
         <div class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>全部作业</span>
-          <strong>{{ assignments.length }}</strong>
+          <strong>{{ assignments.length }} <small>份</small></strong>
         </div>
       </article>
       <article class="summary-item shell-card green">
         <div class="summary-icon"><Send :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>已发布</span>
-          <strong>{{ publishedCount }}</strong>
+          <strong>{{ publishedCount }} <small>份</small></strong>
         </div>
       </article>
       <article class="summary-item shell-card purple">
         <div class="summary-icon"><Upload :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>提交次数</span>
-          <strong>{{ totalSubmissions }}</strong>
+          <strong>{{ totalSubmissions }} <small>次</small></strong>
         </div>
       </article>
       <article class="summary-item shell-card amber">
         <div class="summary-icon"><CircleCheck :size="18" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>通过提交</span>
-          <strong>{{ totalAccepted }}</strong>
+          <strong>{{ totalAccepted }} <small>次</small></strong>
         </div>
       </article>
     </section>
@@ -276,9 +276,9 @@ function handleApiError(error, fallbackMessage) {
 .shell-card,
 .feedback {
   border: 1px solid var(--app-line);
-  border-radius: var(--app-radius-xl);
-  background: var(--app-panel);
-  box-shadow: var(--app-shadow);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .create-link,
@@ -317,27 +317,26 @@ function handleApiError(error, fallbackMessage) {
 .summary-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 66px;
-  padding: 12px 14px;
+  gap: 14px;
+  min-height: 98px;
+  padding: 18px;
 }
 
 .summary-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 36px;
-  width: 36px;
-  border-radius: 50%;
-  font-size: 12px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 20px;
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .blue .summary-icon {
-  background: #ffffff;
-  color: #2f67f6;
+  background: #edf3ff;
+  color: var(--app-primary);
 }
 
 .green .summary-icon {
@@ -357,7 +356,7 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-copy {
   display: grid;
-  gap: 3px;
+  gap: 6px;
 }
 
 .summary-copy span,
@@ -370,8 +369,30 @@ function handleApiError(error, fallbackMessage) {
 
 .summary-copy strong {
   color: var(--app-text);
-  font-size: var(--compact-stat-sm);
-  font-weight: 400;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.summary-copy small {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.summary-copy span {
+  color: #334155;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.assignment-panel.shell-card,
+.empty.shell-card,
+.feedback {
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
 }
 
 .assignment-panel {
