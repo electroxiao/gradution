@@ -193,7 +193,7 @@ def unique_name(prefix: str, stem: str) -> str:
 
 @pytest.fixture(scope="session")
 def neo4j_available() -> None:
-    from backend.services.chat_service import get_neo4j_driver
+    from backend.services.neo4j_service import get_neo4j_driver
 
     try:
         driver = get_neo4j_driver()
