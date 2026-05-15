@@ -1,8 +1,11 @@
 import importlib
+import inspect as py_inspect
 from datetime import datetime
 
 import pytest
-from sqlalchemy import create_engine, inspect
+from fastapi import HTTPException
+from fastapi.params import Query
+from sqlalchemy import create_engine, inspect as sqlalchemy_inspect
 from sqlalchemy.orm import sessionmaker
 
 from backend.db import base as model_base  # noqa: F401
@@ -13,6 +16,8 @@ from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
 from backend.models.knowledge import KnowledgeNode, UserWeakPoint
 from backend.models.knowledge_state import UserKnowledgeState
 from backend.models.user import User
+from backend.api.routes import chat as chat_routes
+from backend.api.routes import teacher as teacher_routes
 from backend.schemas.chat import ChatConsultationEventResponse, MessageCreateRequest
 from backend.schemas.teacher import TeacherConsultationSummaryResponse
 from backend.services import chat_service, rag_engine
@@ -179,7 +184,7 @@ def _turn(db, user, title="Java 咨询"):
 
 def test_chat_knowledge_events_table_exists_after_bootstrap(isolated_engine):
     ensure_schema_and_seed(isolated_engine)
-    inspector = inspect(isolated_engine)
+    inspector = sqlalchemy_inspect(isolated_engine)
 
     assert "chat_knowledge_events" in inspector.get_table_names()
 
@@ -207,7 +212,7 @@ def test_bootstrap_helper_creates_chat_knowledge_events_with_model_constraints()
 
     _ensure_chat_knowledge_events_table(test_engine)
 
-    inspector = inspect(test_engine)
+    inspector = sqlalchemy_inspect(test_engine)
     assert "chat_knowledge_events" in inspector.get_table_names()
 
     columns = {column["name"] for column in inspector.get_columns("chat_knowledge_events")}
@@ -268,6 +273,36 @@ def test_consultation_api_routes_are_registered():
     assert "/api/chat/consultations/recent" in route_paths
     assert "/api/teacher/consultations/hotspots" in route_paths
     assert "/api/teacher/students/{student_id}/consultations" in route_paths
+
+
+def test_consultation_routes_use_query_bounds_for_limits():
+    endpoints = [
+        (chat_routes.get_recent_consultations, 20),
+        (teacher_routes.get_consultation_hotspots, 10),
+        (teacher_routes.get_student_consultations, 20),
+    ]
+
+    for endpoint, default_limit in endpoints:
+        limit = py_inspect.signature(endpoint).parameters["limit"].default
+        assert isinstance(limit, Query)
+        assert limit.default == default_limit
+        metadata = {type(item).__name__: item for item in limit.metadata}
+        assert metadata["Ge"].ge == 1
+        assert metadata["Le"].le == 50
+
+
+def test_teacher_student_consultations_rejects_missing_or_non_student_user(isolated_db):
+    teacher = _teacher(isolated_db)
+
+    with pytest.raises(HTTPException) as exc_info:
+        teacher_routes.get_student_consultations(
+            teacher.id,
+            db=isolated_db,
+            current_user=teacher,
+        )
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "学生不存在"
 
 
 def test_consultation_response_schemas_serialize_service_summaries():

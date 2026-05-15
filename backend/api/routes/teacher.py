@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.api.deps import get_current_teacher, get_db
@@ -161,22 +161,25 @@ def get_student_weak_points(
 @router.get("/consultations/hotspots", response_model=list[TeacherConsultationSummaryResponse])
 def get_consultation_hotspots(
     class_name: str | None = None,
-    limit: int = 10,
+    limit: int = Query(default=10, ge=1, le=50),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    rows = list_teacher_consultation_hotspots(db, class_name=class_name, limit=max(1, min(limit, 50)))
+    rows = list_teacher_consultation_hotspots(db, class_name=class_name, limit=limit)
     return [_consultation_summary_response(row) for row in rows]
 
 
 @router.get("/students/{student_id}/consultations", response_model=list[TeacherConsultationSummaryResponse])
 def get_student_consultations(
     student_id: int,
-    limit: int = 20,
+    limit: int = Query(default=20, ge=1, le=50),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    rows = list_student_consultations(db, student_id, limit=max(1, min(limit, 50)))
+    student = db.query(User).filter(User.id == student_id, User.role == "student").first()
+    if not student:
+        raise HTTPException(status_code=404, detail="学生不存在")
+    rows = list_student_consultations(db, student_id, limit=limit)
     return [_consultation_summary_response(row) for row in rows]
 
 

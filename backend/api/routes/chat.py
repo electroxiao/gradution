@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -80,11 +80,11 @@ def get_messages(
 
 @router.get("/consultations/recent", response_model=list[ChatConsultationEventResponse])
 def get_recent_consultations(
-    limit: int = 20,
+    limit: int = Query(default=20, ge=1, le=50),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    rows = list_recent_consultations(db, current_user, limit=max(1, min(limit, 50)))
+    rows = list_recent_consultations(db, current_user, limit=limit)
     return [_consultation_event_response(row) for row in rows]
 
 
