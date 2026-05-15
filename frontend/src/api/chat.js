@@ -6,6 +6,8 @@ export const createSessionApi = (payload) => http.post("/api/chat/sessions", pay
 export const renameSessionApi = (sessionId, payload) => http.patch(`/api/chat/sessions/${sessionId}`, payload);
 export const deleteSessionApi = (sessionId) => http.delete(`/api/chat/sessions/${sessionId}`);
 export const listMessagesApi = (sessionId) => http.get(`/api/chat/sessions/${sessionId}/messages`);
+export const listRecentConsultationsApi = (limit = 20) =>
+  http.get("/api/chat/consultations/recent", { params: { limit } });
 
 export async function streamMessageApi(sessionId, payload, handlers = {}) {
   const token = getAccessToken();

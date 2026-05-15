@@ -14,7 +14,7 @@
       <header class="topbar">
         <div class="topbar-copy">
           <h1><AnimatedTitle :text="activeSessionTitle" /></h1>
-          <p>知识图谱与 AI 联合生成</p>
+          <p>AI 编程作业辅导</p>
         </div>
         <div class="topbar-user">
           <span class="auth-pill" :class="authStore.role === 'teacher' ? 'teacher' : 'student'">
@@ -41,31 +41,6 @@
               <MarkdownContent v-if="message.role === 'assistant'" :content="message.content" />
               <p v-else class="plain-text">{{ message.content }}</p>
             </div>
-
-            <SelectedPathGraph v-if="message.role === 'assistant'" :facts="message.facts || []" />
-
-            <details
-              v-if="message.role === 'assistant' && (message.reasoning_trace?.length || message.retrieval_trace?.length)"
-              class="trace-box"
-            >
-              <summary>查看检索过程</summary>
-              <div v-if="message.reasoning_trace?.length" class="trace-group">
-                <strong>推理轨迹</strong>
-                <ul>
-                  <li v-for="(item, index) in message.reasoning_trace" :key="`reason-${index}`">
-                    {{ item.title }}：{{ item.summary }}
-                  </li>
-                </ul>
-              </div>
-              <div v-if="message.retrieval_trace?.length" class="trace-group">
-                <strong>检索轨迹</strong>
-                <ul>
-                  <li v-for="(item, index) in message.retrieval_trace" :key="`retrieval-${index}`">
-                    {{ item.title }}：{{ item.summary }}
-                  </li>
-                </ul>
-              </div>
-            </details>
           </div>
         </article>
 
@@ -121,7 +96,6 @@ import {
 } from "../api/chat";
 import AnimatedTitle from "../components/AnimatedTitle.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
-import SelectedPathGraph from "../components/SelectedPathGraph.vue";
 import SessionSidebar from "../components/SessionSidebar.vue";
 import { useAuthStore } from "../stores/auth";
 
@@ -558,25 +532,6 @@ async function scrollToBottom() {
   margin: 0;
   line-height: 1.55;
   white-space: pre-wrap;
-}
-
-.trace-box {
-  width: 100%;
-  padding: 4px 2px 0;
-  color: var(--app-text-muted);
-}
-
-.trace-box summary {
-  cursor: pointer;
-}
-
-.trace-group {
-  margin-top: 10px;
-}
-
-.trace-group ul {
-  margin: 8px 0 0 18px;
-  padding: 0;
 }
 
 .composer-shell {
