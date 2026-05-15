@@ -56,6 +56,22 @@ class FakeClient:
         self.chat = type("Chat", (), {"completions": FakeCompletions(content)})()
 
 
+class CapturingCompletions:
+    def __init__(self, content):
+        self.content = content
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return FakeResponse(self.content)
+
+
+class CapturingClient:
+    def __init__(self, content):
+        self.completions = CapturingCompletions(content)
+        self.chat = type("Chat", (), {"completions": self.completions})()
+
+
 class FakeStreamDelta:
     def __init__(self, content):
         self.content = content
@@ -402,6 +418,24 @@ def test_extract_candidates_from_turn_parses_json_from_fake_openai_client():
     ]
 
 
+def test_extract_candidates_from_turn_uses_formal_nodes_as_allowed_options():
+    client = CapturingClient('[{"node_id": 7, "node_name": "封装(Encapsulation)", "confidence": 0.9, "evidence": "private"}]')
+
+    candidates = extract_candidates_from_turn(
+        client,
+        user_content="private 为什么外部不能访问？",
+        assistant_content="这是封装和访问控制。",
+        formal_nodes=[{"id": 7, "name": "封装(Encapsulation)"}, {"id": 8, "name": "继承(Inheritance)"}],
+    )
+
+    prompt = client.completions.calls[0]["messages"][0]["content"]
+    assert "只能从下面的正式知识图谱节点中选择" in prompt
+    assert '{"id":7,"name":"封装(Encapsulation)"}' in prompt
+    assert candidates == [
+        {"node_id": 7, "node_name": "封装(Encapsulation)", "name": "封装(Encapsulation)", "confidence": 0.9, "evidence": "private"}
+    ]
+
+
 @pytest.mark.parametrize("content", [None, 123])
 def test_extract_candidates_from_turn_handles_empty_or_non_text_content(content):
     assert (
@@ -466,6 +500,31 @@ def test_record_turn_knowledge_events_only_writes_existing_nodes_and_leaves_prog
     assert isolated_db.query(KnowledgeNode).count() == 1
     assert isolated_db.query(UserWeakPoint).count() == 0
     assert isolated_db.query(UserKnowledgeState).count() == 0
+
+
+def test_record_turn_knowledge_events_prefers_formal_node_ids_from_extractor(isolated_db):
+    user = _student(isolated_db)
+    node = _node(isolated_db, "封装(Encapsulation)")
+    _node(isolated_db, "继承(Inheritance)")
+    session, user_message, assistant_message = _turn(isolated_db, user)
+    client = CapturingClient(
+        f'[{{"node_id": {node.id}, "node_name": "封装(Encapsulation)", "confidence": 0.93, "evidence": "private"}}]'
+    )
+
+    inserted = record_turn_knowledge_events(
+        isolated_db,
+        client,
+        user,
+        session,
+        user_message,
+        assistant_message,
+    )
+
+    prompt = client.completions.calls[0]["messages"][0]["content"]
+    assert f'{{"id":{node.id},"name":"封装(Encapsulation)"}}' in prompt
+    assert inserted == ["封装(Encapsulation)"]
+    event = isolated_db.query(ChatKnowledgeEvent).one()
+    assert event.knowledge_node_id == node.id
 
 
 def test_record_turn_knowledge_events_requires_python_exact_node_name_match(isolated_db):

@@ -45,17 +45,36 @@ def extract_candidates_from_turn(
     user_content: str,
     assistant_content: str,
     previous_context: str | None = None,
+    formal_nodes: list[dict] | None = None,
 ) -> list[dict]:
+    formal_node_options = "[]"
+    if formal_nodes:
+        formal_node_options = json.dumps(
+            [{"id": int(node["id"]), "name": str(node["name"])} for node in formal_nodes],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
     prompt = f"""你是一个 Java 编程作业辅导系统的知识点抽取器。
 请只根据本轮学生提问和助教回答，抽取学生实际咨询到的 Java 知识点候选。
 
 要求：
 1. 只输出 JSON 数组，不要输出 Markdown。
 2. 最多 5 个元素。
-3. 每个元素包含 name、confidence、evidence。
-4. name 应是简短、可匹配正式知识图谱节点的中文知识点名称。
-5. confidence 为 0 到 1 的数字。
-6. evidence 摘录能说明为何抽取该知识点的简短证据。
+3. 只能从下面的正式知识图谱节点中选择，不允许创造新知识点。
+4. 每个元素包含 node_id、node_name、confidence、evidence。
+5. node_id 和 node_name 必须来自正式知识图谱节点列表。
+6. 如果没有合适节点，返回空数组。
+7. 为兼容旧格式，也可以额外包含 name，但 node_id 优先。
+8. confidence 为 0 到 1 的数字。
+9. evidence 摘录能说明为何抽取该知识点的简短证据。
+
+正式知识图谱节点：
+{formal_node_options}
+
+旧格式兼容要求：
+如果无法输出 node_id，才输出 name、confidence、evidence。
+name 应是简短、可匹配正式知识图谱节点的中文知识点名称。
 
 上一轮上下文：
 {previous_context or "无"}
@@ -99,7 +118,8 @@ def _parse_candidate_json(content: str) -> list[dict]:
     for item in payload:
         if not isinstance(item, dict):
             continue
-        name = str(item.get("name") or "").strip()
+        node_name = str(item.get("node_name") or "").strip()
+        name = node_name or str(item.get("name") or "").strip()
         if not name:
             continue
         try:
@@ -109,6 +129,14 @@ def _parse_candidate_json(content: str) -> list[dict]:
         confidence = max(0.0, min(1.0, confidence))
         evidence = str(item.get("evidence") or "").strip()[:500]
         candidates.append({"name": name, "confidence": confidence, "evidence": evidence})
+        node_id = item.get("node_id")
+        try:
+            if node_id is not None:
+                candidates[-1]["node_id"] = int(node_id)
+        except (TypeError, ValueError):
+            pass
+        if node_name:
+            candidates[-1]["node_name"] = node_name
         if len(candidates) >= 5:
             break
     return candidates
@@ -163,6 +191,44 @@ def _resolve_candidate_nodes(db: Session, candidate_by_name: dict[str, dict]) ->
     return resolved
 
 
+def _formal_nodes_for_prompt(db: Session) -> list[dict]:
+    return [
+        {"id": node.id, "name": node.node_name}
+        for node in db.query(KnowledgeNode).order_by(KnowledgeNode.id).all()
+    ]
+
+
+def _resolve_candidate_node_ids(db: Session, candidates: list[dict]) -> list[tuple[KnowledgeNode, dict]]:
+    node_ids = []
+    candidate_by_id: dict[int, dict] = {}
+    for candidate in candidates:
+        node_id = candidate.get("node_id")
+        if not isinstance(node_id, int):
+            continue
+        if node_id in candidate_by_id:
+            continue
+        node_ids.append(node_id)
+        candidate_by_id[node_id] = candidate
+
+    if not node_ids:
+        return []
+
+    nodes = db.query(KnowledgeNode).filter(KnowledgeNode.id.in_(node_ids)).all()
+    node_by_id = {node.id: node for node in nodes}
+
+    resolved: list[tuple[KnowledgeNode, dict]] = []
+    for node_id in node_ids:
+        node = node_by_id.get(node_id)
+        if node is None:
+            continue
+        candidate = candidate_by_id[node_id]
+        candidate_node_name = str(candidate.get("node_name") or candidate.get("name") or "").strip()
+        if candidate_node_name and candidate_node_name != node.node_name:
+            continue
+        resolved.append((node, candidate))
+    return resolved
+
+
 def record_turn_knowledge_events(
     db: Session,
     client: Any,
@@ -177,14 +243,14 @@ def record_turn_knowledge_events(
         user_content=user_message.content,
         assistant_content=assistant_message.content,
         previous_context=previous_context,
+        formal_nodes=_formal_nodes_for_prompt(db),
     )
-    candidate_by_name: dict[str, dict] = {}
-    for candidate in candidates:
-        candidate_by_name.setdefault(candidate["name"], candidate)
-    if not candidate_by_name:
-        return []
-
-    resolved_nodes = _resolve_candidate_nodes(db, candidate_by_name)
+    resolved_nodes = _resolve_candidate_node_ids(db, candidates)
+    if not resolved_nodes:
+        resolved_nodes = _resolve_candidate_nodes(
+            db,
+            {candidate["name"]: candidate for candidate in candidates if candidate.get("name")},
+        )
     if not resolved_nodes:
         return []
 
