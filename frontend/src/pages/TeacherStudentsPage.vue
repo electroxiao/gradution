@@ -4,6 +4,23 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
+    <section v-if="consultationHotspots.length" class="detail-section hotspot-section">
+      <div class="section-head">
+        <h4>班级咨询热点</h4>
+        <span>聊天关注点，不等同薄弱点</span>
+      </div>
+      <div class="weak-cards">
+        <article
+          v-for="item in consultationHotspots"
+          :key="item.knowledge_node_id"
+          class="weak-card consultation-card"
+        >
+          <strong>{{ item.node_name }}</strong>
+          <span>{{ item.student_count }} 人 · {{ item.mention_count }} 次</span>
+        </article>
+      </div>
+    </section>
+
     <div class="students-layout">
       <aside class="student-list">
         <template v-if="!isStudentsLoading">
@@ -42,6 +59,24 @@
           <div v-else-if="hasStudentsLoaded" class="empty">该学生当前没有未掌握薄弱点。</div>
         </section>
 
+        <section class="detail-section">
+          <div class="section-head">
+            <h4>最近咨询知识点</h4>
+            <span>{{ studentConsultations.length }} 个</span>
+          </div>
+          <div v-if="!isStudentsLoading && !isWeakPointsLoading && studentConsultations.length" class="weak-cards">
+            <article
+              v-for="item in studentConsultations"
+              :key="item.knowledge_node_id"
+              class="weak-card consultation-card"
+            >
+              <strong>{{ item.node_name }}</strong>
+              <span>{{ item.mention_count }} 次咨询</span>
+            </article>
+          </div>
+          <div v-else-if="hasStudentsLoaded" class="empty">该学生暂时没有聊天咨询知识点记录。</div>
+        </section>
+
       </section>
     </div>
   </section>
@@ -51,7 +86,12 @@
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
-import { listTeacherStudentWeakPointsApi, listTeacherStudentsApi } from "../api/teacher";
+import {
+  listTeacherConsultationHotspotsApi,
+  listTeacherStudentConsultationsApi,
+  listTeacherStudentWeakPointsApi,
+  listTeacherStudentsApi,
+} from "../api/teacher";
 import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
@@ -59,6 +99,8 @@ const router = useRouter();
 const students = ref([]);
 const activeStudentId = ref(null);
 const studentWeakPoints = ref([]);
+const consultationHotspots = ref([]);
+const studentConsultations = ref([]);
 const errorMessage = ref("");
 const isInitialLoading = ref(true);
 const isStudentsLoading = ref(true);
@@ -77,8 +119,12 @@ onMounted(async () => {
 async function loadStudents() {
   isStudentsLoading.value = true;
   try {
-    const { data } = await listTeacherStudentsApi();
-    students.value = data;
+    const [studentsResponse, hotspotsResponse] = await Promise.all([
+      listTeacherStudentsApi(),
+      listTeacherConsultationHotspotsApi({ limit: 8 }),
+    ]);
+    students.value = studentsResponse.data;
+    consultationHotspots.value = hotspotsResponse.data || [];
     if (students.value.length) {
       await selectStudent(students.value[0].id);
     }
@@ -95,13 +141,18 @@ async function selectStudent(studentId) {
   const requestId = ++activeRequestId;
   activeStudentId.value = studentId;
   studentWeakPoints.value = [];
+  studentConsultations.value = [];
   isWeakPointsLoading.value = true;
   errorMessage.value = "";
 
   try {
-    const weakPointsResponse = await listTeacherStudentWeakPointsApi(studentId);
+    const [weakPointsResponse, consultationsResponse] = await Promise.all([
+      listTeacherStudentWeakPointsApi(studentId),
+      listTeacherStudentConsultationsApi(studentId, 12),
+    ]);
     if (requestId !== activeRequestId) return;
     studentWeakPoints.value = weakPointsResponse.data;
+    studentConsultations.value = consultationsResponse.data || [];
   } catch (error) {
     if (requestId === activeRequestId) {
       handleApiError(error, "加载学生知识画像失败。");
@@ -276,6 +327,19 @@ function handleApiError(error, fallbackMessage) {
   background: #fff5f5;
   color: #b42318;
   border: 1px solid #f0d3d3;
+}
+
+.hotspot-section {
+  padding: 16px;
+  border: 1px solid var(--app-line);
+  border-radius: var(--app-radius-xl);
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
+}
+
+.consultation-card {
+  border-color: #dbeafe;
+  background: #f8fbff;
 }
 
 @media (max-width: 960px) {
