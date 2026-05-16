@@ -102,7 +102,7 @@
         </div>
       </section>
 
-      <div :class="['weak-side-panel-shell', { wide: isSidePanelWide }]">
+      <div :class="['weak-side-panel-shell', { wide: isSidePanelWide }, sidePanelMotionClass]">
         <Transition name="weak-side-panel" mode="out-in">
           <aside v-if="showQuizPanel" key="quiz-panel" class="panel quiz-panel">
             <header class="quiz-header">
@@ -330,11 +330,12 @@ const graphRequests = new Map();
 let graphPrefetchTimer = null;
 let graphCacheVersion = 0;
 const GRAPH_PREFETCH_CONCURRENCY = 3;
-const SIDE_PANEL_WIDTH_TRANSITION_MS = 180;
+const SIDE_PANEL_VISUAL_TRANSITION_MS = 180;
 
 const showQuizPanel = ref(false);
 const isTrainingLayoutOpen = ref(false);
 const isSidePanelWide = ref(false);
+const sidePanelMotionClass = ref("");
 const quizNodeId = ref("");
 const quizNodeName = ref("");
 const quizStep = ref("intro");
@@ -345,6 +346,7 @@ const isCorrect = ref(false);
 const isGenerating = ref(false);
 const isSubmitting = ref(false);
 let quizPanelCloseTimer = null;
+let sidePanelMotionTimer = null;
 
 const filteredWeakPoints = computed(() => {
   const keyword = weakSearchQuery.value.trim().toLowerCase();
@@ -373,6 +375,7 @@ onBeforeUnmount(() => {
     clearTimeout(graphPrefetchTimer);
   }
   clearQuizPanelCloseTimer();
+  clearSidePanelMotionTimer();
 });
 
 async function loadWeakPoints(options = {}) {
@@ -529,6 +532,7 @@ function handleNodeSelect(nodeId) {
   const node = findGraphNodeById(graphNodes.value, nodeId);
   if (!node || !["recommended", "mastered"].includes(node.status)) return;
   clearQuizPanelCloseTimer();
+  startSidePanelMotion("motion-opening");
   quizNodeId.value = nodeId;
   quizNodeName.value = node.name || nodeId;
   isTrainingLayoutOpen.value = true;
@@ -542,19 +546,35 @@ function handleNodeSelect(nodeId) {
 
 function closeQuizPanel() {
   clearQuizPanelCloseTimer();
+  startSidePanelMotion("motion-closing");
   isSidePanelWide.value = false;
+  showQuizPanel.value = false;
+  isTrainingLayoutOpen.value = false;
   quizPanelCloseTimer = setTimeout(() => {
-    showQuizPanel.value = false;
-    isTrainingLayoutOpen.value = false;
     resetQuizPanelState();
     quizPanelCloseTimer = null;
-  }, SIDE_PANEL_WIDTH_TRANSITION_MS);
+  }, SIDE_PANEL_VISUAL_TRANSITION_MS);
 }
 
 function clearQuizPanelCloseTimer() {
   if (!quizPanelCloseTimer) return;
   clearTimeout(quizPanelCloseTimer);
   quizPanelCloseTimer = null;
+}
+
+function startSidePanelMotion(className) {
+  clearSidePanelMotionTimer();
+  sidePanelMotionClass.value = className;
+  sidePanelMotionTimer = setTimeout(() => {
+    sidePanelMotionClass.value = "";
+    sidePanelMotionTimer = null;
+  }, SIDE_PANEL_VISUAL_TRANSITION_MS);
+}
+
+function clearSidePanelMotionTimer() {
+  if (!sidePanelMotionTimer) return;
+  clearTimeout(sidePanelMotionTimer);
+  sidePanelMotionTimer = null;
 }
 
 function resetQuizPanelState() {
@@ -1177,7 +1197,6 @@ function handleApiError(error, fallbackMessage) {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  transition: width 0.18s ease;
 }
 
 .weak-side-panel-shell.wide {
@@ -1188,6 +1207,38 @@ function handleApiError(error, fallbackMessage) {
   width: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+.weak-side-panel-shell.motion-opening > .panel {
+  transform-origin: right center;
+  animation: weak-panel-open 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.weak-side-panel-shell.motion-closing > .panel {
+  transform-origin: right center;
+  animation: weak-panel-close 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes weak-panel-open {
+  from {
+    clip-path: inset(0 0 0 100px);
+    transform: translateX(10px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+  }
+}
+
+@keyframes weak-panel-close {
+  from {
+    clip-path: inset(0 0 0 0);
+    transform: translateX(0);
+  }
+  to {
+    clip-path: inset(0 0 0 24px);
+    transform: translateX(10px);
+  }
 }
 
 .recommendation-panel {
