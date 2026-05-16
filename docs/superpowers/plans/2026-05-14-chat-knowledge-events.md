@@ -1252,7 +1252,7 @@ async function loadRecentConsultations() {
     const { data } = await listRecentConsultationsApi(12);
     recentConsultations.value = data || [];
   } catch (error) {
-    handleApiError(error, "加载最近咨询记录失败。");
+    handleApiError(error, "加载最近提问记录失败。");
   }
 }
 ```
@@ -1264,13 +1264,13 @@ Add this section after the summary row and before the graph layout:
 ```vue
 <section v-if="recentConsultations.length" class="panel consultation-section">
   <div class="history-header">
-    <h2>最近咨询知识点</h2>
+    <h2>最近提问知识点</h2>
     <p>这些来自聊天问答记录，只表示你最近关注过，不会自动计入薄弱点。</p>
   </div>
   <div class="history-grid">
     <article v-for="item in recentConsultations" :key="item.id" class="history-card consultation-card">
       <div class="history-card-top">
-        <span class="history-badge">咨询</span>
+        <span class="history-badge">提问</span>
         <span class="history-time">{{ formatDate(item.created_at) }}</span>
       </div>
       <h3>{{ item.node_name }}</h3>
@@ -1304,7 +1304,7 @@ Replace:
 with:
 
 ```vue
-<p>聊天会记录最近咨询过的知识点；作业和训练结果会记录真正需要攻克的薄弱点。</p>
+<p>聊天会记录最近提问过的知识点；作业和训练结果会记录真正需要攻克的薄弱点。</p>
 ```
 
 - [ ] **Step 5: Add scoped CSS**
@@ -1419,7 +1419,7 @@ Add above `.students-layout`:
 ```vue
 <section v-if="consultationHotspots.length" class="detail-section hotspot-section">
   <div class="section-head">
-    <h4>班级咨询热点</h4>
+    <h4>班级提问热点</h4>
     <span>聊天关注点，不等同薄弱点</span>
   </div>
   <div class="weak-cards">
@@ -1438,16 +1438,16 @@ Add below the current weak-point detail section:
 ```vue
 <section class="detail-section">
   <div class="section-head">
-    <h4>最近咨询知识点</h4>
+    <h4>最近提问知识点</h4>
     <span>{{ studentConsultations.length }} 个</span>
   </div>
   <div v-if="!isStudentsLoading && !isWeakPointsLoading && studentConsultations.length" class="weak-cards">
     <article v-for="item in studentConsultations" :key="item.knowledge_node_id" class="weak-card consultation-card">
       <strong>{{ item.node_name }}</strong>
-      <span>{{ item.mention_count }} 次咨询</span>
+      <span>{{ item.mention_count }} 次提问</span>
     </article>
   </div>
-  <div v-else-if="hasStudentsLoaded" class="empty">该学生暂时没有聊天咨询知识点记录。</div>
+  <div v-else-if="hasStudentsLoaded" class="empty">该学生暂时没有聊天提问知识点记录。</div>
 </section>
 ```
 
@@ -1499,8 +1499,8 @@ git commit -m "feat(teacher): show chat consultation hotspots"
 In `docs/teacher-graph-maintenance.md`, update the data boundary section to state:
 
 ```markdown
-- ChatPage 不再在回答前检索 Neo4j 图谱；聊天回答完成后会异步抽取本轮涉及的正式知识点，写入咨询记录用于学生回看和教师热点统计。
-- 聊天咨询记录只是弱学习足迹，不会写入 `user_weak_points`，也不会改变 `user_knowledge_states`。
+- ChatPage 不再在回答前检索 Neo4j 图谱；聊天回答完成后会异步抽取本轮涉及的正式知识点，写入提问记录用于学生回看和教师热点统计。
+- 聊天提问记录只是弱学习足迹，不会写入 `user_weak_points`，也不会改变 `user_knowledge_states`。
 ```
 
 Keep the existing rule that assignment wrong submissions mark bound knowledge nodes weak.

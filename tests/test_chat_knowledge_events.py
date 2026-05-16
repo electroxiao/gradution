@@ -191,7 +191,7 @@ def _node(db, name):
     return node
 
 
-def _turn(db, user, title="Java 咨询"):
+def _turn(db, user, title="Java 提问"):
     session = ChatSession(user_id=user.id, title=title)
     db.add(session)
     db.flush()
@@ -350,7 +350,7 @@ def test_consultation_response_schemas_serialize_service_summaries():
     recent = ConsultationEventSummary(
         event_id=1,
         session_id=2,
-        session_title="Java 咨询",
+        session_title="Java 提问",
         user_message_id=3,
         assistant_message_id=4,
         node_id=5,
@@ -386,7 +386,7 @@ def test_consultation_response_schemas_serialize_service_summaries():
         "knowledge_node_id": 5,
         "node_name": "空指针异常",
         "session_id": 2,
-        "session_title": "Java 咨询",
+        "session_title": "Java 提问",
         "created_at": now,
     }
     assert hotspot_response.model_dump() == {

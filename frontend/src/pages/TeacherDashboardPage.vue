@@ -59,7 +59,7 @@
       <div class="rank-panel">
         <div class="panel-head">
           <div>
-            <h3>班级咨询热点排行</h3>
+            <h3>班级提问热点排行</h3>
           </div>
         </div>
 
@@ -72,7 +72,7 @@
             <div class="rank-index consultation-index">{{ index + 1 }}</div>
             <div class="rank-copy">
               <strong>{{ item.node_name }}</strong>
-              <span>{{ item.student_count }} 人 · {{ item.mention_count }} 次咨询</span>
+              <span>{{ item.student_count }} 人 · {{ item.mention_count }} 次提问</span>
             </div>
             <div class="rank-bar">
               <div
@@ -82,7 +82,7 @@
             </div>
           </article>
         </div>
-        <div v-else-if="hasLoaded" class="empty-panel">暂无学生咨询热点数据。</div>
+        <div v-else-if="hasLoaded" class="empty-panel">暂无学生提问热点数据。</div>
       </div>
     </section>
   </section>

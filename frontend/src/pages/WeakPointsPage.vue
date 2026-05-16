@@ -19,7 +19,7 @@
       </article>
       <article class="summary-card">
         <span class="summary-icon green"><MessageCircleQuestion :size="22" aria-hidden="true" /></span>
-        <span>最近咨询</span>
+        <span>最近提问</span>
         <strong>{{ recentConsultations.length }} <small>次</small></strong>
       </article>
     </section>
@@ -239,7 +239,7 @@
             :aria-selected="activeRecordTab === 'consultations'"
             @click="activeRecordTab = 'consultations'"
           >
-            最近咨询
+            最近提问
           </button>
           <button
             type="button"
@@ -256,12 +256,12 @@
       <div v-if="activeRecordTab === 'consultations'" class="record-list">
         <article v-for="item in recentConsultations" :key="item.id" class="history-card consultation-card">
           <div class="history-card-top">
-            <span class="history-badge">咨询</span>
+            <span class="history-badge">提问</span>
             <span class="history-time">{{ formatDate(item.created_at) }}</span>
           </div>
           <h3>{{ item.node_name }}</h3>
         </article>
-        <div v-if="!recentConsultations.length" class="record-empty">暂无最近咨询记录。</div>
+        <div v-if="!recentConsultations.length" class="record-empty">暂无最近提问记录。</div>
       </div>
 
       <div v-else class="record-list">
@@ -280,7 +280,7 @@
     <section v-else-if="!isInitialLoading && !errorMessage && !graphNodes.length" class="panel empty-state">
       <div class="empty-orbit" />
       <h2>当前没有待补齐的薄弱点</h2>
-      <p>聊天会记录最近咨询过的知识点；作业和训练结果会记录真正需要攻克的薄弱点。</p>
+      <p>聊天会记录最近提问过的知识点；作业和训练结果会记录真正需要攻克的薄弱点。</p>
       <router-link class="empty-link" to="/chat">去聊天页继续提问</router-link>
     </section>
   </section>
@@ -413,7 +413,7 @@ async function loadRecentConsultations() {
     const { data } = await listRecentConsultationsApi(12);
     recentConsultations.value = data || [];
   } catch (error) {
-    handleApiError(error, "加载最近咨询记录失败。");
+    handleApiError(error, "加载最近提问记录失败。");
   }
 }
 

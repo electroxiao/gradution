@@ -80,7 +80,7 @@
           <article class="summary-card consultation-summary">
             <span class="summary-icon"><MessageCircleQuestion :size="22" aria-hidden="true" /></span>
             <div>
-              <p>最近咨询知识点</p>
+              <p>最近提问知识点</p>
               <strong>{{ studentConsultations.length }} <small>个</small></strong>
             </div>
           </article>
@@ -116,7 +116,7 @@
 
           <article class="detail-panel">
             <div class="section-head">
-              <h4>最近咨询知识点</h4>
+              <h4>最近提问知识点</h4>
             </div>
             <div v-if="!isWeakPointsLoading && studentConsultations.length" class="knowledge-list consultation-list">
               <div
@@ -125,13 +125,13 @@
                 class="knowledge-row consultation-row"
               >
                 <strong>{{ item.node_name }}</strong>
-                <span>{{ item.mention_count }} 次咨询</span>
+                <span>{{ item.mention_count }} 次提问</span>
               </div>
             </div>
             <div v-else-if="hasStudentsLoaded" class="empty-state">
               <span class="empty-mark"><MessagesSquare :size="30" aria-hidden="true" /></span>
-              <strong>暂无咨询记录</strong>
-              <p>该生暂无任何咨询知识点记录。</p>
+              <strong>暂无提问记录</strong>
+              <p>该生暂无任何提问知识点记录。</p>
             </div>
           </article>
         </section>

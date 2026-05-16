@@ -54,7 +54,7 @@ def extract_candidates_from_turn(
         )
 
     prompt = f"""你是一个 Java 编程作业辅导系统的知识点抽取器。
-请只根据本轮学生提问和助教回答，抽取学生实际咨询到的 Java 知识点候选。
+请只根据本轮学生提问和助教回答，抽取学生实际提问到的 Java 知识点候选。
 
 要求：
 1. 只输出 JSON 数组，不要输出 Markdown。
