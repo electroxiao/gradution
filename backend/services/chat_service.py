@@ -6,6 +6,7 @@ from time import perf_counter
 
 from fastapi import HTTPException, status
 from openai import OpenAI
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.core.config import settings
@@ -41,13 +42,28 @@ def close_cached_clients() -> None:
 
 
 def list_sessions(db: Session, user: User) -> list[SessionResponse]:
-    sessions = (
-        db.query(ChatSession)
+    message_counts = (
+        db.query(ChatMessage.session_id, func.count(ChatMessage.id).label("message_count"))
+        .group_by(ChatMessage.session_id)
+        .subquery()
+    )
+    rows = (
+        db.query(ChatSession, func.coalesce(message_counts.c.message_count, 0).label("message_count"))
+        .outerjoin(message_counts, message_counts.c.session_id == ChatSession.id)
         .filter(ChatSession.user_id == user.id)
         .order_by(ChatSession.updated_at.desc())
         .all()
     )
-    return [SessionResponse.model_validate(item) for item in sessions]
+    return [
+        SessionResponse(
+            id=session.id,
+            title=session.title,
+            message_count=message_count,
+            created_at=session.created_at,
+            updated_at=session.updated_at,
+        )
+        for session, message_count in rows
+    ]
 
 
 def create_session(db: Session, user: User, title: str | None = None) -> SessionResponse:

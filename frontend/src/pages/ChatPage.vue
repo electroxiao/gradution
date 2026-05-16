@@ -14,7 +14,7 @@
       <header class="topbar">
         <div class="topbar-copy">
           <h1><AnimatedTitle :text="activeSessionTitle" /></h1>
-          <p>AI 编程作业辅导</p>
+          <p>AI 辅导</p>
         </div>
         <div class="topbar-user">
           <span class="auth-pill" :class="authStore.role === 'teacher' ? 'teacher' : 'student'">
@@ -25,6 +25,11 @@
       </header>
 
       <section ref="messageScroller" class="message-stream">
+        <div v-if="messages.length === 0" class="empty-state">
+          <p class="empty-title">有什么我能帮你的吗</p>
+          <p class="empty-subtitle">我可以帮你解答问题、讲解知识点、分析代码等</p>
+        </div>
+
         <article
           v-for="message in messages"
           :key="message.id ?? message.tempId"
@@ -48,7 +53,7 @@
         <p v-if="errorMessage" class="error-banner">{{ errorMessage }}</p>
       </section>
 
-        <form class="composer-shell" @submit.prevent="sendMessage">
+        <form class="composer-shell" :class="{ 'empty-composer': messages.length === 0 }" @submit.prevent="sendMessage">
           <div class="composer-card">
             <textarea
               ref="composerInput"
@@ -61,12 +66,16 @@
             <div class="composer-actions">
               <span />
               <button
-                type="submit"
+                :type="sending ? 'button' : 'submit'"
                 class="composer-submit"
-                :disabled="sending || !content.trim()"
-                :aria-label="sending ? '生成中' : '发送消息'"
+                :class="{ 'is-stopping': sending }"
+                :disabled="!sending && !content.trim()"
+                :aria-label="sending ? '终止消息生成' : '发送消息'"
+                @click="sending ? stopGeneration() : null"
               >
-                <span v-if="sending" class="submit-dot" />
+                <template v-if="sending">
+                  <span class="stop-icon" aria-hidden="true" />
+                </template>
                 <ArrowUp v-else :size="18" aria-hidden="true" />
               </button>
             </div>
@@ -115,6 +124,7 @@ const errorMessage = ref("");
 const sending = ref(false);
 const messageScroller = ref(null);
 const composerInput = ref(null);
+const currentStreamController = ref(null);
 
 const activeSessionTitle = computed(() => {
   return sessions.value.find((session) => session.id === activeSessionId.value)?.title || "新对话";
@@ -140,6 +150,12 @@ async function loadSessions() {
 }
 
 async function createSession() {
+  const reusableSession = sessions.value.find((session) => session.title === "新对话" && session.message_count === 0);
+  if (reusableSession) {
+    await selectSession(reusableSession.id);
+    return;
+  }
+
   const { data } = await createSessionApi({ title: "新对话" });
   await loadSessions();
   await selectSession(data.id);
@@ -195,6 +211,7 @@ async function sendMessage() {
 
   errorMessage.value = "";
   sending.value = true;
+  currentStreamController.value = new AbortController();
 
   const draftContent = content.value;
   const tempUserId = `user-${Date.now()}`;
@@ -264,8 +281,14 @@ async function sendMessage() {
           await loadSessions();
         },
       },
+      { signal: currentStreamController.value.signal },
     );
   } catch (error) {
+    if (isAbortError(error)) {
+      markGenerationStopped(tempAssistantId);
+      return;
+    }
+
     const userIndex = messages.value.findIndex(
       (item) => item.tempId === tempUserId || item.id === streamedUserMessageId,
     );
@@ -282,7 +305,28 @@ async function sendMessage() {
     handleApiError(error, "发送失败，请检查后端日志。");
   } finally {
     sending.value = false;
+    currentStreamController.value = null;
   }
+}
+
+function stopGeneration() {
+  currentStreamController.value?.abort();
+}
+
+function isAbortError(error) {
+  return error?.name === "AbortError";
+}
+
+function markGenerationStopped(tempAssistantId) {
+  const index = messages.value.findIndex((item) => item.tempId === tempAssistantId);
+  if (index < 0) return;
+
+  const currentContent = messages.value[index].content || "";
+  messages.value.splice(index, 1, {
+    ...messages.value[index],
+    content: currentContent || "已停止生成。",
+    streaming: false,
+  });
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -367,7 +411,7 @@ async function scrollMessageToTop(messageKey) {
 
 .topbar-copy h1 {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--app-text);
   text-align: left;
@@ -421,6 +465,7 @@ async function scrollMessageToTop(messageKey) {
 }
 
 .message-stream {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -447,6 +492,38 @@ async function scrollMessageToTop(messageKey) {
   background: #dbe4ef;
   border-radius: 999px;
   border: 2px solid #ffffff;
+}
+
+.empty-state {
+  position: absolute;
+  top: 30%;
+  right: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  transform: translateY(-50%);
+}
+
+.empty-title {
+  margin: 0;
+  color: #111111;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.empty-subtitle {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
 }
 
 .message-row {
@@ -582,6 +659,17 @@ async function scrollMessageToTop(messageKey) {
   z-index: 0;
 }
 
+.composer-shell.empty-composer {
+  top: 46%;
+  bottom: auto;
+  padding: 0;
+  transform: translateY(36px);
+}
+
+.composer-shell.empty-composer::before {
+  display: none;
+}
+
 .composer-card {
   position: relative;
   z-index: 1;
@@ -635,6 +723,7 @@ async function scrollMessageToTop(messageKey) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   width: 34px;
   height: 34px;
   border: none;
@@ -651,16 +740,23 @@ async function scrollMessageToTop(messageKey) {
   height: 24px;
 }
 
+.composer-submit.is-stopping {
+  width: 34px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.stop-icon {
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
 .composer-submit:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 14px 28px rgba(47, 103, 246, 0.26);
-}
-
-.submit-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
 }
 
 .composer-submit:disabled {
@@ -700,9 +796,18 @@ async function scrollMessageToTop(messageKey) {
     padding: 18px 0 180px;
   }
 
+  .empty-state {
+    transform: translateY(-50%);
+  }
+
   .composer-shell {
     grid-template-columns: 16px minmax(0, 1fr) 16px;
     padding: 14px 0 18px;
+  }
+
+  .composer-shell.empty-composer {
+    padding: 0;
+    transform: translateY(34px);
   }
 
   .composer-shell::before {

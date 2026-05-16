@@ -14,6 +14,7 @@ class SessionUpdateRequest(BaseModel):
 class SessionResponse(BaseModel):
     id: int
     title: str
+    message_count: int = 0
     created_at: datetime
     updated_at: datetime
 

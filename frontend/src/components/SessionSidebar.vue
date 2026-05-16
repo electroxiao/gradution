@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar">
     <div class="brand-card">
-      <div class="brand-avatar"><BrainCircuit :size="19" aria-hidden="true" /></div>
+      <div class="brand-avatar"><Bot :size="19" aria-hidden="true" /></div>
       <div>
         <h3>知识辅导</h3>
       </div>
@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-import { BrainCircuit, MoreHorizontal, Plus } from "lucide-vue-next";
+import { Bot, MoreHorizontal, Plus } from "lucide-vue-next";
 import { ref } from "vue";
 
 import AnimatedTitle from "./AnimatedTitle.vue";
@@ -160,8 +160,9 @@ function confirmDelete() {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #2f67f6 0%, #7ca7ff 100%);
-  color: #fff;
+  background: var(--app-primary);
+  border: 1px solid var(--app-primary);
+  color: #ffffff;
   font-weight: 700;
 }
 

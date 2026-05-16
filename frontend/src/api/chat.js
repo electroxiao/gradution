@@ -9,7 +9,7 @@ export const listMessagesApi = (sessionId) => http.get(`/api/chat/sessions/${ses
 export const listRecentConsultationsApi = (limit = 20) =>
   http.get("/api/chat/consultations/recent", { params: { limit } });
 
-export async function streamMessageApi(sessionId, payload, handlers = {}) {
+export async function streamMessageApi(sessionId, payload, handlers = {}, options = {}) {
   const token = getAccessToken();
   const response = await fetch(`${API_BASE_URL}/api/chat/sessions/${sessionId}/messages/stream`, {
     method: "POST",
@@ -18,6 +18,7 @@ export async function streamMessageApi(sessionId, payload, handlers = {}) {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(payload),
+    signal: options.signal,
   });
 
   if (!response.ok || !response.body) {
