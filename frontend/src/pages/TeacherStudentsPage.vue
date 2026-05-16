@@ -20,21 +20,55 @@
           <div class="select-row">
             <label>
               <span>分类</span>
-              <select v-model="classFilter">
-                <option value="">全部班级</option>
-                <option v-for="className in classOptions" :key="className" :value="className">
-                  {{ className }}
-                </option>
-              </select>
+              <Listbox v-model="classFilter" as="div" class="animated-select">
+                <div class="animated-select-wrap">
+                  <ListboxButton class="animated-select-button">
+                    <span>{{ classFilter || "全部班级" }}</span>
+                    <ChevronDown :size="16" aria-hidden="true" />
+                  </ListboxButton>
+                  <Transition name="select-pop">
+                    <ListboxOptions class="animated-select-options">
+                      <ListboxOption v-slot="{ active, selected }" as="template" value="">
+                        <li :class="['animated-select-option', { active, selected }]">全部班级</li>
+                      </ListboxOption>
+                      <ListboxOption
+                        v-for="className in classOptions"
+                        v-slot="{ active, selected }"
+                        :key="className"
+                        as="template"
+                        :value="className"
+                      >
+                        <li :class="['animated-select-option', { active, selected }]">{{ className }}</li>
+                      </ListboxOption>
+                    </ListboxOptions>
+                  </Transition>
+                </div>
+              </Listbox>
             </label>
 
             <label>
               <span>排序</span>
-              <select v-model="sortMode">
-                <option value="weak-desc">按薄弱点数</option>
-                <option value="unfinished-desc">按未完成作业数</option>
-                <option value="name-asc">按姓名</option>
-              </select>
+              <Listbox v-model="sortMode" as="div" class="animated-select">
+                <div class="animated-select-wrap">
+                  <ListboxButton class="animated-select-button">
+                    <span>{{ sortLabel }}</span>
+                    <ChevronDown :size="16" aria-hidden="true" />
+                  </ListboxButton>
+                  <Transition name="select-pop">
+                    <ListboxOptions class="animated-select-options">
+                      <ListboxOption v-slot="{ active, selected }" as="template" value="weak-desc">
+                        <li :class="['animated-select-option', { active, selected }]">按薄弱点数</li>
+                      </ListboxOption>
+                      <ListboxOption v-slot="{ active, selected }" as="template" value="unfinished-desc">
+                        <li :class="['animated-select-option', { active, selected }]">按未完成作业数</li>
+                      </ListboxOption>
+                      <ListboxOption v-slot="{ active, selected }" as="template" value="name-asc">
+                        <li :class="['animated-select-option', { active, selected }]">按姓名</li>
+                      </ListboxOption>
+                    </ListboxOptions>
+                  </Transition>
+                </div>
+              </Listbox>
             </label>
           </div>
         </div>
@@ -149,10 +183,12 @@
 </template>
 
 <script setup>
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import {
   ClipboardList,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MessageCircleQuestion,
   MessagesSquare,
   SearchX,
@@ -214,6 +250,12 @@ const totalPages = computed(() => Math.max(1, Math.ceil(filteredStudents.value.l
 const pagedStudents = computed(() => {
   const start = (currentPage.value - 1) * pageSize;
   return filteredStudents.value.slice(start, start + pageSize);
+});
+
+const sortLabel = computed(() => {
+  if (sortMode.value === "unfinished-desc") return "按未完成作业数";
+  if (sortMode.value === "name-asc") return "按姓名";
+  return "按薄弱点数";
 });
 
 watch([searchQuery, classFilter, sortMode], () => {
@@ -408,7 +450,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .search-field input,
-.select-row select {
+.animated-select-button {
   height: 38px;
   padding: 0 12px;
   border-radius: 8px;
@@ -418,6 +460,107 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.animated-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.animated-select-wrap {
+  position: relative;
+}
+
+.animated-select-button {
+  width: 100%;
+  min-height: 37px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--app-line);
+  background: #fff;
+  color: #214666;
+  font: inherit;
+  text-align: left;
+}
+
+.animated-select-button:hover:not(:disabled),
+.animated-select-button[aria-expanded="true"] {
+  border-color: #bfd0ea;
+  background: #fff;
+}
+
+.animated-select-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.animated-select-button svg {
+  flex: 0 0 auto;
+  color: #7890a7;
+  transition: transform 140ms var(--motion-ease);
+}
+
+.animated-select-button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.animated-select-options {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid #dce8f5;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+  transform-origin: top center;
+}
+
+.animated-select-option {
+  padding: 9px 10px;
+  border-radius: 7px;
+  color: #214666;
+  cursor: pointer;
+  line-height: 1.25;
+}
+
+.animated-select-option.active {
+  background: var(--app-primary-soft);
+  color: var(--app-primary-deep);
+}
+
+.animated-select-option.selected {
+  background: var(--app-primary);
+  color: #ffffff;
+}
+
+.select-pop-enter-active,
+.select-pop-leave-active {
+  transition:
+    opacity 140ms var(--motion-ease),
+    transform 140ms var(--motion-ease);
+}
+
+.select-pop-enter-from,
+.select-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+
+.select-pop-enter-to,
+.select-pop-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .student-items {

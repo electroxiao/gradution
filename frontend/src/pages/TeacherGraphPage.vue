@@ -27,10 +27,24 @@
           </button>
         </div>
       </div>
-      <select v-model="selectedGraphChapter" class="toolbar-select" @change="searchGraph">
-        <option value="">全部章节</option>
-        <option v-for="chapter in graphChapterOptions" :key="chapter" :value="chapter">{{ chapter }}</option>
-      </select>
+      <Listbox v-model="selectedGraphChapter" as="div" class="animated-select toolbar-select" @update:model-value="searchGraph">
+        <div class="animated-select-wrap">
+          <ListboxButton class="animated-select-button">
+            <span>{{ selectedGraphChapter || "全部章节" }}</span>
+            <ChevronDown :size="16" aria-hidden="true" />
+          </ListboxButton>
+          <Transition name="select-pop">
+            <ListboxOptions class="animated-select-options">
+              <ListboxOption v-slot="{ active, selected }" as="template" value="">
+                <li :class="['animated-select-option', { active, selected }]">全部章节</li>
+              </ListboxOption>
+              <ListboxOption v-for="chapter in graphChapterOptions" v-slot="{ active, selected }" :key="chapter" as="template" :value="chapter">
+                <li :class="['animated-select-option', { active, selected }]">{{ chapter }}</li>
+              </ListboxOption>
+            </ListboxOptions>
+          </Transition>
+        </div>
+      </Listbox>
       <span class="graph-meta">节点 {{ graph.nodes.length }} / 边 {{ graph.edges.length }}</span>
       <button class="ghost" @click="searchGraph">搜索</button>
       <button class="ghost" @click="toggleFullscreen">全屏</button>
@@ -41,9 +55,8 @@
       <section ref="graphViewport" class="graph-panel formal-panel">
         <div class="graph-panel-head">
           <div>
-            <h3>正式知识图谱</h3>
+            <h3>知识图谱</h3>
           </div>
-          <span class="graph-mode-copy">编辑正式图谱中的节点与关系</span>
         </div>
 
         <div v-if="hasGraphLoaded && !isGraphLoading && !graph.nodes.length" class="graph-state">当前没有可展示的知识图谱节点。</div>
@@ -65,7 +78,7 @@
         <div class="panel-card action-card">
           <div class="panel-head">
             <h3>基础操作</h3>
-            <span>正式图谱</span>
+            <span>图谱</span>
           </div>
           <div class="action-bar">
             <button @click="startCreateNode">新增节点</button>
@@ -93,32 +106,49 @@
 
         <div class="panel-card detail-card">
           <div class="panel-head">
-            <h3>正式图谱编辑</h3>
+            <h3>图谱编辑</h3>
             <span v-if="selectedNode">节点</span>
             <span v-else-if="selectedEdge">关系</span>
             <span v-else>未选择</span>
           </div>
 
-          <div v-if="selectedNode" class="detail-body">
+          <div v-if="selectedNode" class="detail-body edit-detail-form node-edit-form">
             <label>
               节点名
               <input v-model="nodeForm.name" />
             </label>
-            <label>
+            <label class="description-field">
               描述
               <textarea v-model="nodeForm.desc" rows="5" placeholder="节点描述"></textarea>
             </label>
             <label>
               章节标签
-              <input v-model="nodeForm.chapter" placeholder="例如：第 3 章" />
+              <Listbox v-model="nodeForm.chapter" as="div" class="animated-select">
+                <div class="animated-select-wrap">
+                  <ListboxButton class="animated-select-button">
+                    <span>{{ nodeForm.chapter || "未设置章节" }}</span>
+                    <ChevronDown :size="16" aria-hidden="true" />
+                  </ListboxButton>
+                  <Transition name="select-pop">
+                    <ListboxOptions class="animated-select-options">
+                      <ListboxOption v-slot="{ active, selected }" as="template" value="">
+                        <li :class="['animated-select-option', { active, selected }]">未设置章节</li>
+                      </ListboxOption>
+                      <ListboxOption v-for="chapter in graphChapterOptions" v-slot="{ active, selected }" :key="chapter" as="template" :value="chapter">
+                        <li :class="['animated-select-option', { active, selected }]">{{ chapter }}</li>
+                      </ListboxOption>
+                    </ListboxOptions>
+                  </Transition>
+                </div>
+              </Listbox>
             </label>
             <div class="detail-actions">
-              <button @click="submitNode">保存修改</button>
-              <button class="danger" @click="deleteNode">删除</button>
+              <button class="primary" @click="submitNode">保存修改</button>
+              <button class="danger" @click="openDeleteNodeConfirm">删除</button>
             </div>
           </div>
 
-          <div v-else-if="selectedEdge" class="detail-body">
+          <div v-else-if="selectedEdge" class="detail-body edit-detail-form edge-edit-form">
             <label>
               起点
               <div class="edge-search-box">
@@ -173,8 +203,8 @@
               <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('target')">当前节点填入终点</button>
             </div>
             <div class="detail-actions">
-              <button @click="submitEdge">保存修改</button>
-              <button class="danger" @click="deleteEdge">删除</button>
+              <button class="primary" @click="submitEdge">保存修改</button>
+              <button class="danger" @click="openDeleteEdgeConfirm">删除</button>
             </div>
           </div>
 
@@ -189,7 +219,7 @@
       <div class="modal-card">
         <h3>新增节点</h3>
         <p v-if="nodeDialogMessage" class="modal-feedback">{{ nodeDialogMessage }}</p>
-        <div class="detail-body">
+        <div class="detail-body modal-form">
           <label>
             节点名
             <input v-model="nodeForm.name" placeholder="请输入唯一节点名" @keydown.enter.prevent="submitNode" />
@@ -198,18 +228,36 @@
             描述
             <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述" @keydown.ctrl.enter.prevent="submitNode"></textarea>
           </label>
-          <label>
-            章节标签
-            <input v-model="nodeForm.chapter" placeholder="例如：第 3 章" @keydown.enter.prevent="submitNode" />
-          </label>
-          <div class="edge-quick-actions">
-            <button class="ghost" type="button" :disabled="isGeneratingNodeDesc" @click="generateNodeDescription">
+          <div class="edge-quick-actions node-ai-action">
+            <button class="primary" type="button" :disabled="isGeneratingNodeDesc" @click="generateNodeDescription">
+              <Sparkles :size="16" :stroke-width="2" aria-hidden="true" />
               {{ isGeneratingNodeDesc ? "生成中..." : "AI 生成描述" }}
             </button>
           </div>
-          <div class="detail-actions">
-            <button class="ghost" @click="cancelCreateNode">取消</button>
-            <button @click="submitNode">确认创建</button>
+          <label>
+            章节标签
+            <Listbox v-model="nodeForm.chapter" as="div" class="animated-select select-up">
+              <div class="animated-select-wrap">
+                <ListboxButton class="animated-select-button">
+                  <span>{{ nodeForm.chapter || "未设置章节" }}</span>
+                  <ChevronDown :size="16" aria-hidden="true" />
+                </ListboxButton>
+                <Transition name="select-pop">
+                  <ListboxOptions class="animated-select-options">
+                    <ListboxOption v-slot="{ active, selected }" as="template" value="">
+                      <li :class="['animated-select-option', { active, selected }]">未设置章节</li>
+                    </ListboxOption>
+                    <ListboxOption v-for="chapter in graphChapterOptions" v-slot="{ active, selected }" :key="chapter" as="template" :value="chapter">
+                      <li :class="['animated-select-option', { active, selected }]">{{ chapter }}</li>
+                    </ListboxOption>
+                  </ListboxOptions>
+                </Transition>
+              </div>
+            </Listbox>
+          </label>
+          <div class="detail-actions modal-actions">
+            <button class="primary" @click="submitNode">确认创建</button>
+            <button class="ghost modal-secondary" @click="cancelCreateNode">取消</button>
           </div>
         </div>
       </div>
@@ -219,7 +267,7 @@
       <div class="modal-card">
         <h3>新增关系</h3>
         <p v-if="edgeDialogMessage" class="modal-feedback">{{ edgeDialogMessage }}</p>
-        <div class="detail-body">
+        <div class="detail-body modal-form">
           <label>
             起点
             <div class="edge-search-box">
@@ -270,22 +318,39 @@
               </div>
             </div>
           </label>
-          <div class="edge-quick-actions">
-            <button class="ghost" type="button" @click="swapEdgeDirection">交换起终点</button>
-            <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('source')">当前节点填入起点</button>
-            <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('target')">当前节点填入终点</button>
+          <div class="edge-quick-actions modal-quick-actions">
+            <button class="ghost modal-secondary" type="button" @click="swapEdgeDirection">交换起终点</button>
+            <button v-if="selectedNode" class="ghost modal-secondary" type="button" @click="useSelectedNodeForEdge('source')">当前节点填入起点</button>
+            <button v-if="selectedNode" class="ghost modal-secondary" type="button" @click="useSelectedNodeForEdge('target')">当前节点填入终点</button>
           </div>
-          <div class="detail-actions">
-            <button class="ghost" @click="cancelCreateEdge">取消</button>
-            <button @click="submitEdge">确认创建</button>
+          <div class="detail-actions modal-actions">
+            <button class="primary" @click="submitEdge">确认创建</button>
+            <button class="ghost modal-secondary" @click="cancelCreateEdge">取消</button>
           </div>
         </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div v-if="deleteConfirmTarget" class="dialog-backdrop" @click.self="closeDeleteConfirm">
+        <div class="dialog-card">
+          <h4>{{ deleteConfirmTarget.kind === "node" ? "删除节点" : "删除关系" }}</h4>
+          <p>{{ deleteConfirmMessage }}</p>
+          <div class="dialog-actions">
+            <button type="button" class="ghost-btn" :disabled="isDeletingGraphItem" @click="closeDeleteConfirm">取消</button>
+            <button type="button" class="danger-btn" :disabled="isDeletingGraphItem" @click="confirmDeleteGraphItem">
+              {{ isDeletingGraphItem ? "删除中..." : "确认删除" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
 <script setup>
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
+import { ChevronDown, Sparkles } from "lucide-vue-next";
 import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -331,6 +396,8 @@ const isGeneratingNodeDesc = ref(false);
 const nodeDialogMessage = ref("");
 const edgeDialogMessage = ref("");
 const autoCreatedNodeNames = ref([]);
+const deleteConfirmTarget = ref(null);
+const isDeletingGraphItem = ref(false);
 
 const nodeForm = reactive({ name: "", desc: "", chapter: "" });
 const edgeForm = reactive({ source: "", relation: "DEPENDS_ON", target: "" });
@@ -348,6 +415,13 @@ const autoCreatedNodes = computed(() =>
     .map((name) => graph.value.nodes.find((node) => node.name === name))
     .filter(Boolean),
 );
+const deleteConfirmMessage = computed(() => {
+  if (!deleteConfirmTarget.value) return "";
+  if (deleteConfirmTarget.value.kind === "node") {
+    return `确定删除节点「${deleteConfirmTarget.value.name}」吗？删除后相关关系也会被移除。`;
+  }
+  return "确定删除这条关系吗？删除后无法恢复。";
+});
 let graphSuggestTimer = null;
 const edgeSearchTimers = { source: null, target: null };
 
@@ -596,27 +670,38 @@ async function generateNodeDescription() {
   }
 }
 
-async function deleteNode() {
+function openDeleteNodeConfirm() {
   if (!selectedNode.value) return;
-  if (!confirm(`确定删除节点 "${selectedNode.value.name}" 吗？`)) return;
-  try {
-    await deleteTeacherNodeApi(selectedNode.value.name);
-    clearSelection();
-    await refreshGraph({ preserveSearch: true, restartLayout: false });
-  } catch (error) {
-    handleApiError(error, "删除节点失败。");
-  }
+  deleteConfirmTarget.value = { kind: "node", name: selectedNode.value.name };
 }
 
-async function deleteEdge() {
+function openDeleteEdgeConfirm() {
   if (!selectedEdge.value) return;
-  if (!confirm("确定删除这条关系吗？")) return;
+  deleteConfirmTarget.value = { kind: "edge", edgeKey: selectedEdge.value.edge_key };
+}
+
+function closeDeleteConfirm() {
+  if (isDeletingGraphItem.value) return;
+  deleteConfirmTarget.value = null;
+}
+
+async function confirmDeleteGraphItem() {
+  if (!deleteConfirmTarget.value) return;
+  const target = deleteConfirmTarget.value;
+  isDeletingGraphItem.value = true;
   try {
-    await deleteTeacherEdgeApi(selectedEdge.value.edge_key);
+    if (target.kind === "node") {
+      await deleteTeacherNodeApi(target.name);
+    } else {
+      await deleteTeacherEdgeApi(target.edgeKey);
+    }
+    deleteConfirmTarget.value = null;
     clearSelection();
     await refreshGraph({ preserveSearch: true, restartLayout: false });
   } catch (error) {
-    handleApiError(error, "删除关系失败。");
+    handleApiError(error, target.kind === "node" ? "删除节点失败。" : "删除关系失败。");
+  } finally {
+    isDeletingGraphItem.value = false;
   }
 }
 
@@ -764,15 +849,19 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .graph-page {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 14px;
+  height: calc(100vh - 38px);
+  min-height: 0;
+  overflow: hidden;
   font-size: var(--compact-body);
 }
 
 .toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr) auto 86px 86px 86px;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
   padding: 10px;
   border: 1px solid var(--app-line);
   border-radius: 10px;
@@ -782,7 +871,37 @@ function handleApiError(error, fallbackMessage) {
 
 .toolbar-search {
   position: relative;
-  flex: 1;
+  min-width: 0;
+}
+
+.toolbar .ghost {
+  white-space: nowrap;
+  min-height: 36px;
+  width: 100%;
+  padding: 0 14px;
+}
+
+.toolbar .ghost:first-of-type {
+  background: var(--app-primary);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(47, 103, 246, 0.18);
+}
+
+.toolbar .ghost:first-of-type:hover:not(:disabled) {
+  background: var(--app-primary-deep);
+}
+
+.toolbar .ghost:not(:first-of-type) {
+  border: 1px solid var(--app-primary);
+  background: #fff;
+  color: var(--app-primary);
+}
+
+.toolbar .ghost:not(:first-of-type):hover:not(:disabled) {
+  background: var(--app-primary-soft);
+}
+
+.toolbar-search {
   min-width: 260px;
 }
 
@@ -801,18 +920,129 @@ function handleApiError(error, fallbackMessage) {
   font: inherit;
 }
 
+.toolbar-input:focus,
+.detail-body input:focus,
+.detail-body textarea:focus {
+  border-color: #bfd0ea;
+  box-shadow: none;
+  outline: none;
+}
+
 .toolbar-input {
+  min-width: 0;
+}
+
+.animated-select {
+  width: 100%;
   min-width: 0;
 }
 
 .toolbar-select {
   min-width: 140px;
-  padding: 10px 12px;
+}
+
+.animated-select-wrap {
+  position: relative;
+}
+
+.animated-select-button {
+  width: 100%;
+  min-height: 37px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
   border: 1px solid var(--app-line);
   border-radius: 8px;
   background: #fff;
   color: #214666;
   font: inherit;
+  text-align: left;
+}
+
+.animated-select-button:hover:not(:disabled),
+.animated-select-button[aria-expanded="true"] {
+  border-color: #bfd0ea;
+  background: #fff;
+}
+
+.animated-select-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.animated-select-button svg {
+  flex: 0 0 auto;
+  color: #7890a7;
+  transition: transform 140ms var(--motion-ease);
+}
+
+.animated-select-button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.animated-select-options {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid #dce8f5;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+  transform-origin: top center;
+}
+
+.select-up .animated-select-options {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform-origin: bottom center;
+}
+
+.animated-select-option {
+  padding: 9px 10px;
+  border-radius: 7px;
+  color: #214666;
+  cursor: pointer;
+  line-height: 1.25;
+}
+
+.animated-select-option.active {
+  background: var(--app-primary-soft);
+  color: var(--app-primary-deep);
+}
+
+.animated-select-option.selected {
+  background: var(--app-primary);
+  color: #ffffff;
+}
+
+.select-pop-enter-active,
+.select-pop-leave-active {
+  transition:
+    opacity 140ms var(--motion-ease),
+    transform 140ms var(--motion-ease);
+}
+
+.select-pop-enter-from,
+.select-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+
+.select-pop-enter-to,
+.select-pop-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .graph-meta {
@@ -911,7 +1141,9 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .graph-panel {
@@ -920,19 +1152,17 @@ button:disabled {
   background: #ffffff;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
   position: relative;
-  padding: 12px;
+  padding: 2px 0 0;
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 10px;
-}
-
-.formal-panel {
-  min-height: 760px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .formal-panel :deep(.graph-canvas) {
-  height: 660px;
-  min-height: 660px;
+  height: 100%;
+  min-height: 0;
 }
 
 .graph-panel-head {
@@ -940,6 +1170,7 @@ button:disabled {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  padding-left: 10px;
 }
 
 .graph-panel-head h3 {
@@ -948,18 +1179,9 @@ button:disabled {
   font-size: var(--compact-section-title);
 }
 
-.graph-mode-copy {
-  max-width: 250px;
-  color: #6f8297;
-  font-size: 13px;
-  line-height: 1.6;
-  text-align: right;
-}
-
 .graph-state {
   position: absolute;
-  inset: 16px;
-  top: 88px;
+  inset: 54px 0 0;
   display: grid;
   place-items: center;
   color: #6f8297;
@@ -973,6 +1195,8 @@ button:disabled {
   display: grid;
   gap: 10px;
   grid-template-rows: auto minmax(440px, 1fr);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel-card {
@@ -1068,6 +1292,20 @@ button:disabled {
   padding-right: 4px;
 }
 
+.edit-detail-form {
+  height: 100%;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.node-edit-form {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+
+.edge-edit-form {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
 .detail-body label {
   display: grid;
   gap: 6px;
@@ -1076,22 +1314,61 @@ button:disabled {
   font-weight: 400;
 }
 
+.description-field {
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .detail-body textarea {
   resize: none;
+}
+
+.description-field textarea {
+  height: 100%;
+  min-height: 120px;
 }
 
 .detail-actions {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-self: end;
+}
+
+.edit-detail-form .detail-actions {
+  justify-content: space-between;
+}
+
+.detail-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 13px;
+  line-height: 1;
+}
+
+.primary {
+  background: var(--app-primary);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(47, 103, 246, 0.18);
+}
+
+.detail-actions .primary {
+  box-shadow: none;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--app-primary-deep);
 }
 
 .danger {
-  background: #f97316;
+  background: #ef4444;
 }
 
 .danger:hover:not(:disabled) {
-  background: #ea580c;
+  background: #dc2626;
 }
 
 .sub-head {
@@ -1099,11 +1376,14 @@ button:disabled {
 }
 
 .empty-detail {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
   color: #6f8297;
   line-height: 1.7;
   font-size: var(--compact-body);
   text-align: center;
-  padding: 20px 0;
+  padding: 20px;
 }
 
 .empty-detail.compact {
@@ -1152,22 +1432,152 @@ button:disabled {
   color: #0f2840;
 }
 
+.modal-form {
+  overflow: visible;
+}
+
+.node-ai-action {
+  display: grid;
+}
+
+.node-ai-action button {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.node-ai-action svg {
+  flex: 0 0 auto;
+  color: #ffffff;
+  stroke: currentColor;
+}
+
+.modal-actions {
+  justify-content: space-between;
+}
+
+.modal-secondary,
+.modal-quick-actions .modal-secondary {
+  border: 1px solid var(--app-primary);
+  background: #ffffff;
+  color: var(--app-primary);
+}
+
+.modal-secondary:hover:not(:disabled),
+.modal-quick-actions .modal-secondary:hover:not(:disabled) {
+  background: var(--app-primary-soft);
+  color: var(--app-primary-deep);
+}
+
+.modal-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modal-quick-actions button {
+  flex: 1 1 auto;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgba(9, 19, 33, 0.46);
+}
+
+.dialog-card {
+  width: min(92vw, 380px);
+  padding: 18px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+}
+
+.dialog-card h4 {
+  margin: 0 0 10px;
+  color: var(--app-text);
+}
+
+.dialog-card p {
+  margin: 0 0 16px;
+  color: var(--app-text-muted);
+  line-height: 1.45;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.ghost-btn,
+.danger-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ghost-btn {
+  background: #f4f7fb;
+  color: #475569;
+}
+
+.danger-btn {
+  background: #ef4444;
+  color: #fff;
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.danger-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 @media (max-width: 900px) {
+  .graph-page {
+    height: auto;
+    min-height: calc(100vh - 38px);
+    overflow: visible;
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .toolbar-search {
+    min-width: 0;
+  }
+
+  .graph-meta {
+    justify-self: start;
+  }
+
   .graph-mode-layout {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .formal-panel {
-    min-height: 640px;
+    min-height: 560px;
   }
 
   .formal-panel :deep(.graph-canvas) {
-    height: 560px;
-    min-height: 560px;
+    min-height: 480px;
   }
 
   .graph-side-panel {
     min-height: auto;
+    overflow: visible;
     grid-template-rows: auto auto;
   }
 }
@@ -1175,11 +1585,6 @@ button:disabled {
 @media (max-width: 720px) {
   .graph-panel-head {
     flex-direction: column;
-  }
-
-  .graph-mode-copy {
-    max-width: none;
-    text-align: left;
   }
 
   .action-bar {

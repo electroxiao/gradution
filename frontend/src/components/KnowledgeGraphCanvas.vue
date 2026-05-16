@@ -145,8 +145,8 @@ defineExpose({ fitGraph, focusNodes, restartLayout });
 <style scoped>
 .graph-canvas {
   width: 100%;
-  height: 680px;
-  min-height: 680px;
+  height: 100%;
+  min-height: 0;
   border-radius: 10px;
   background: #ffffff;
   overflow: hidden;
