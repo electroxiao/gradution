@@ -302,6 +302,7 @@ button:disabled {
 .skeleton-row,
 .skeleton-graph {
   position: relative;
+  contain: paint;
   overflow: hidden;
   background: var(--skeleton-base);
 }
@@ -315,9 +316,10 @@ button:disabled {
   content: "";
   position: absolute;
   inset: 0;
-  transform: translateX(-100%);
+  transform: translate3d(-100%, 0, 0);
   background: linear-gradient(90deg, transparent, var(--skeleton-shine), transparent);
   animation: skeleton-shimmer 1.15s var(--motion-ease) infinite;
+  will-change: transform;
 }
 
 .skeleton-card {
@@ -387,7 +389,7 @@ button:disabled {
 
 @keyframes skeleton-shimmer {
   100% {
-    transform: translateX(100%);
+    transform: translate3d(100%, 0, 0);
   }
 }
 

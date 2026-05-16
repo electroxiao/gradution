@@ -7,6 +7,7 @@
       'chat-layout': isChatRoute,
       'assignment-lab-layout': isAssignmentDetailRoute,
       'auto-collapsed': autoCollapseSidebar,
+      'no-sidebar-transition': suppressSidebarTransition,
     }"
   >
     <aside v-if="!hideSidebar" class="console-sidebar student-sidebar">
@@ -50,7 +51,7 @@
 
 <script setup>
 import { Bot, ClipboardList, LayoutDashboard, TriangleAlert } from "lucide-vue-next";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { useAuthStore } from "../stores/auth";
@@ -59,6 +60,7 @@ const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 const viewportWidth = ref(typeof window === "undefined" ? 1440 : window.innerWidth);
+const suppressSidebarTransition = ref(false);
 const hideSidebar = computed(() => Boolean(route.meta.hideStudentSidebar));
 const isChatRoute = computed(() => route.path === "/chat");
 const isAssignmentDetailRoute = computed(() => /^\/assignments\/[^/]+$/.test(route.path));
@@ -66,6 +68,7 @@ const autoCollapseSidebar = computed(() => viewportWidth.value <= 1120);
 const collapseSidebar = computed(
   () => !hideSidebar.value && Boolean(route.meta.collapseStudentSidebar || isChatRoute.value || autoCollapseSidebar.value),
 );
+let sidebarTransitionTimer = null;
 
 function syncViewportWidth() {
   viewportWidth.value = window.innerWidth;
@@ -77,7 +80,32 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", syncViewportWidth);
+  clearSidebarTransitionTimer();
 });
+
+watch(
+  () => route.path,
+  (toPath, fromPath) => {
+    if (fromPath === "/chat" && toPath === "/weak-points") {
+      temporarilySuppressSidebarTransition();
+    }
+  },
+);
+
+function temporarilySuppressSidebarTransition() {
+  clearSidebarTransitionTimer();
+  suppressSidebarTransition.value = true;
+  sidebarTransitionTimer = setTimeout(() => {
+    suppressSidebarTransition.value = false;
+    sidebarTransitionTimer = null;
+  }, 320);
+}
+
+function clearSidebarTransitionTimer() {
+  if (!sidebarTransitionTimer) return;
+  clearTimeout(sidebarTransitionTimer);
+  sidebarTransitionTimer = null;
+}
 
 function logout() {
   authStore.logout();
@@ -107,6 +135,14 @@ function logout() {
 
 .console-shell.collapsed {
   --sidebar-current-width: var(--sidebar-collapsed-width);
+}
+
+.console-shell.no-sidebar-transition,
+.console-shell.no-sidebar-transition .console-sidebar,
+.console-shell.no-sidebar-transition .console-brand h1,
+.console-shell.no-sidebar-transition .nav-copy,
+.console-shell.no-sidebar-transition .logout-btn {
+  transition: none;
 }
 
 .console-sidebar {
