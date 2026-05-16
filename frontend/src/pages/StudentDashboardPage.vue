@@ -1,28 +1,32 @@
 <template>
-  <section v-if="!isDashboardLoading" class="app-page dashboard-page content-ready">
+  <section class="app-page dashboard-page content-ready">
     <PageHeader title="学习工作台">
     </PageHeader>
 
-    <section v-if="!isDashboardLoading" class="summary-row">
+    <section class="summary-row">
       <article class="summary-card">
         <span class="summary-icon blue"><ClipboardList :size="22" aria-hidden="true" /></span>
         <span>作业总数</span>
-        <strong>{{ assignments.length }} <small>份</small></strong>
+        <strong v-if="!isAssignmentsLoading">{{ assignments.length }} <small>份</small></strong>
+        <span v-else class="metric-skeleton" aria-label="作业总数加载中"></span>
       </article>
       <article class="summary-card">
         <span class="summary-icon cyan"><Clock3 :size="22" aria-hidden="true" /></span>
         <span>待完成</span>
-        <strong>{{ pendingAssignments.length }} <small>份</small></strong>
+        <strong v-if="!isAssignmentsLoading">{{ pendingAssignments.length }} <small>份</small></strong>
+        <span v-else class="metric-skeleton" aria-label="待完成作业加载中"></span>
       </article>
       <article class="summary-card">
         <span class="summary-icon green"><CircleCheck :size="22" aria-hidden="true" /></span>
         <span>已通过题目</span>
-        <strong>{{ acceptedTotal }} <small>题</small></strong>
+        <strong v-if="!isAssignmentsLoading">{{ acceptedTotal }} <small>题</small></strong>
+        <span v-else class="metric-skeleton" aria-label="已通过题目加载中"></span>
       </article>
       <article class="summary-card">
         <span class="summary-icon amber"><TriangleAlert :size="22" aria-hidden="true" /></span>
         <span>待掌握薄弱点</span>
-        <strong>{{ weakPoints.length }} <small>个</small></strong>
+        <strong v-if="!isWeakPointsLoading">{{ weakPoints.length }} <small>个</small></strong>
+        <span v-else class="metric-skeleton" aria-label="薄弱点加载中"></span>
       </article>
     </section>
 
@@ -39,7 +43,14 @@
           <router-link class="app-button-ghost" to="/assignments">全部作业</router-link>
         </div>
 
-        <div v-if="!isAssignmentsLoading && pendingAssignments.length" class="assignment-list">
+        <div v-if="isAssignmentsLoading" class="assignment-list" aria-label="待完成作业加载中">
+          <article v-for="index in 3" :key="`assignment-skeleton-${index}`" class="assignment-item skeleton-row">
+            <span class="skeleton-line short"></span>
+            <span class="skeleton-line long"></span>
+            <span class="skeleton-line mid"></span>
+          </article>
+        </div>
+        <div v-else-if="pendingAssignments.length" class="assignment-list">
           <article v-for="item in pendingAssignments.slice(0, 4)" :key="item.id" class="assignment-item">
             <div class="item-main">
               <div class="item-head">
@@ -97,7 +108,13 @@
             </div>
             <router-link class="app-button-ghost" to="/weak-points">去训练</router-link>
           </div>
-          <div v-if="!isWeakPointsLoading && weakPoints.length" class="weak-list">
+          <div v-if="isWeakPointsLoading" class="weak-list" aria-label="薄弱点加载中">
+            <article v-for="index in 3" :key="`weak-skeleton-${index}`" class="skeleton-row">
+              <span class="skeleton-line mid"></span>
+              <span class="skeleton-line long"></span>
+            </article>
+          </div>
+          <div v-else-if="weakPoints.length" class="weak-list">
             <article v-for="item in weakPoints.slice(0, 5)" :key="item.id || item.node_id || item.name">
               <strong>{{ item.name || item.node_name || item.title }}</strong>
               <p>{{ item.reason || item.description }}</p>
@@ -137,7 +154,6 @@ const pendingAssignments = computed(() => {
   return assignments.value.filter((item) => (item.accepted_count || 0) < (item.question_count || 0));
 });
 const acceptedTotal = computed(() => assignments.value.reduce((sum, item) => sum + (item.accepted_count || 0), 0));
-const isDashboardLoading = computed(() => isAssignmentsLoading.value || isWeakPointsLoading.value);
 
 onMounted(() => {
   loadAssignments();
@@ -206,7 +222,7 @@ function handleApiError(error, fallbackMessage, target) {
 .panel {
   border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
@@ -241,6 +257,21 @@ function handleApiError(error, fallbackMessage, target) {
   color: var(--app-text);
   font-size: 14px;
   font-weight: 500;
+}
+
+.metric-skeleton,
+.skeleton-line {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #eef3f8 0%, #f8fafc 48%, #eef3f8 100%);
+  background-size: 180% 100%;
+  animation: dashboard-shimmer 1.2s ease-in-out infinite;
+}
+
+.metric-skeleton {
+  grid-column: 2;
+  width: 72px;
+  height: 25px;
 }
 
 .summary-icon {
@@ -355,6 +386,43 @@ function handleApiError(error, fallbackMessage, target) {
 .assignment-item {
   width: 100%;
   align-self: flex-start;
+}
+
+.skeleton-row {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  min-height: 82px;
+}
+
+.weak-list .skeleton-row {
+  min-height: 68px;
+}
+
+.skeleton-line {
+  height: 10px;
+}
+
+.skeleton-line.short {
+  width: 86px;
+}
+
+.skeleton-line.mid {
+  width: 52%;
+}
+
+.skeleton-line.long {
+  width: 78%;
+}
+
+@keyframes dashboard-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -120% 0;
+  }
 }
 
 .assignment-panel .empty-state {
@@ -501,7 +569,7 @@ function handleApiError(error, fallbackMessage, target) {
   gap: 10px;
   padding: 12px;
   border-radius: 10px;
-  background: linear-gradient(180deg, rgba(238, 244, 255, 0.92) 0%, rgba(255, 255, 255, 0.92) 100%);
+  background: linear-gradient(180deg, #eef4ff 0%, #ffffff 100%);
   box-shadow: 0 18px 42px rgba(47, 103, 246, 0.08);
 }
 

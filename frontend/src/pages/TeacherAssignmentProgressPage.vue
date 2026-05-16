@@ -1475,7 +1475,7 @@ button:disabled {
   margin: 0 -16px -16px;
   padding: 14px 16px;
   border-top: 1px solid var(--app-line);
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   backdrop-filter: blur(8px);
 }
 

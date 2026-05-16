@@ -1031,7 +1031,7 @@ pre {
   grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.88);
+  background: #ffffff;
 }
 
 .editor-pane.has-result {
@@ -1100,7 +1100,7 @@ pre {
   padding: 28px 32px;
   border: 1px solid #d8e2ee;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+  background: #ffffff;
   box-shadow: 0 18px 42px rgba(15, 35, 70, 0.10);
 }
 
@@ -1142,7 +1142,7 @@ pre {
   min-height: 88px;
   border: 1px solid #e1e8f2;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.96);
+  background: #ffffff;
   padding: 16px 24px;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(15, 35, 70, 0.06);

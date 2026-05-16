@@ -24,10 +24,11 @@
         </div>
       </article>
       <article class="metric-card">
-        <span class="metric-icon green"><UserRoundCheck :size="22" aria-hidden="true" /></span>
+        <span class="metric-icon green"><ClipboardList :size="22" aria-hidden="true" /></span>
         <div class="metric-copy">
-          <span>受影响学生数</span>
-          <strong>{{ dashboard.affected_students }} <small>人</small></strong>
+          <span>最近作业未提交</span>
+          <strong>{{ latestAssignmentUnsubmittedText }} <small>人</small></strong>
+          <small class="metric-note">{{ latestAssignmentTitleText }}</small>
         </div>
       </article>
     </section>
@@ -88,8 +89,8 @@
 </template>
 
 <script setup>
-import { TriangleAlert, UserRoundCheck, Users } from "lucide-vue-next";
-import { onMounted, ref } from "vue";
+import { ClipboardList, TriangleAlert, Users } from "lucide-vue-next";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { getTeacherDashboardApi, listTeacherConsultationHotspotsApi } from "../api/teacher";
@@ -102,6 +103,16 @@ const consultationHotspots = ref([]);
 const errorMessage = ref("");
 const hasLoaded = ref(false);
 const isInitialLoading = ref(true);
+
+const latestAssignmentUnsubmittedText = computed(() => {
+  const value = dashboard.value?.latest_assignment_unsubmitted_students;
+  return Number.isFinite(value) ? value : "--";
+});
+
+const latestAssignmentTitleText = computed(() => {
+  const title = dashboard.value?.latest_assignment_title;
+  return title ? `最近：${title}` : "暂无作业";
+});
 
 onMounted(async () => {
   await loadDashboard();
@@ -171,7 +182,7 @@ function handleApiError(error, fallbackMessage) {
 .empty-panel {
   border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
@@ -231,6 +242,17 @@ function handleApiError(error, fallbackMessage) {
   color: var(--app-text);
   font-size: 14px;
   font-weight: 500;
+}
+
+.metric-copy .metric-note {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rank-panel,

@@ -188,4 +188,4 @@ def get_teacher_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    return get_weak_point_dashboard(db)
+    return get_weak_point_dashboard(db, current_user)

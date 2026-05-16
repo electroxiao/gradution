@@ -277,7 +277,7 @@ function handleApiError(error, fallbackMessage) {
 .feedback {
   border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 

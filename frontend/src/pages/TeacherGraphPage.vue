@@ -917,7 +917,7 @@ button:disabled {
 .graph-panel {
   border: 1px solid #e2ebf4;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.06);
   position: relative;
   padding: 12px;
@@ -964,7 +964,7 @@ button:disabled {
   place-items: center;
   color: #6f8297;
   font-size: var(--compact-body);
-  background: rgba(255, 255, 255, 0.88);
+  background: #ffffff;
   border-radius: 10px;
   z-index: 2;
 }

@@ -355,7 +355,7 @@ function handleApiError(error, fallbackMessage) {
 .empty-profile {
   border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   box-shadow: var(--app-shadow-strong);
 }
 

@@ -4,7 +4,7 @@ import hashlib
 from datetime import datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session, selectinload
 
 from backend.core.config import settings
@@ -64,12 +64,16 @@ FAST_PASS_THRESHOLD_SECONDS = 60
 def list_teacher_assignments(db: Session, teacher: User) -> list[AssignmentSummaryResponse]:
     assignments = (
         db.query(Assignment)
-        .options(selectinload(Assignment.questions), selectinload(Assignment.assignees))
+        .options(
+            selectinload(Assignment.questions),
+            selectinload(Assignment.assignees).selectinload(AssignmentAssignee.student),
+        )
         .filter(Assignment.teacher_id == teacher.id)
         .order_by(Assignment.updated_at.desc(), Assignment.id.desc())
         .all()
     )
-    return [_assignment_summary(db, item) for item in assignments]
+    submission_counts = _assignment_submission_counts(db, [item.id for item in assignments])
+    return [_assignment_summary(item, submission_counts.get(item.id)) for item in assignments]
 
 
 def create_assignment(db: Session, teacher: User, payload: AssignmentCreateRequest) -> AssignmentDetailResponse:
@@ -474,13 +478,17 @@ def list_student_assignments(db: Session, student: User) -> list[AssignmentSumma
     assignments = (
         db.query(Assignment)
         .join(AssignmentAssignee, AssignmentAssignee.assignment_id == Assignment.id)
-        .options(selectinload(Assignment.questions), selectinload(Assignment.assignees))
+        .options(
+            selectinload(Assignment.questions),
+            selectinload(Assignment.assignees).selectinload(AssignmentAssignee.student),
+        )
         .filter(AssignmentAssignee.student_id == student.id)
         .filter(Assignment.status != "draft")
         .order_by(Assignment.updated_at.desc(), Assignment.id.desc())
         .all()
     )
-    return [_assignment_summary(db, item, student=student) for item in assignments]
+    submission_counts = _assignment_submission_counts(db, [item.id for item in assignments], student=student)
+    return [_assignment_summary(item, submission_counts.get(item.id)) for item in assignments]
 
 
 def get_student_assignment_detail(db: Session, student: User, assignment_id: int) -> AssignmentDetailResponse:
@@ -1177,12 +1185,35 @@ def _sync_question_knowledge_nodes(db: Session, question: AssignmentQuestion, kn
             db.delete(relation)
 
 
-def _assignment_summary(db: Session, assignment: Assignment, student: User | None = None) -> AssignmentSummaryResponse:
-    query = db.query(AssignmentSubmission).filter(AssignmentSubmission.assignment_id == assignment.id)
+def _assignment_submission_counts(
+    db: Session,
+    assignment_ids: list[int],
+    student: User | None = None,
+) -> dict[int, tuple[int, int]]:
+    if not assignment_ids:
+        return {}
+    query = (
+        db.query(
+            AssignmentSubmission.assignment_id,
+            func.count(AssignmentSubmission.id).label("submitted_count"),
+            func.sum(case((AssignmentSubmission.status == "accepted", 1), else_=0)).label("accepted_count"),
+        )
+        .filter(AssignmentSubmission.assignment_id.in_(assignment_ids))
+    )
     if student:
         query = query.filter(AssignmentSubmission.student_id == student.id)
-    submitted_count = query.with_entities(func.count(AssignmentSubmission.id)).scalar() or 0
-    accepted_count = query.filter(AssignmentSubmission.status == "accepted").with_entities(func.count(AssignmentSubmission.id)).scalar() or 0
+    query = query.group_by(AssignmentSubmission.assignment_id)
+    return {
+        int(row.assignment_id): (int(row.submitted_count or 0), int(row.accepted_count or 0))
+        for row in query.all()
+    }
+
+
+def _assignment_summary(
+    assignment: Assignment,
+    submission_counts: tuple[int, int] | None = None,
+) -> AssignmentSummaryResponse:
+    submitted_count, accepted_count = submission_counts or (0, 0)
     return AssignmentSummaryResponse(
         id=assignment.id,
         title=assignment.title,

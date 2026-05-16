@@ -26,7 +26,7 @@
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <div class="weak-workbench">
+    <div :class="['weak-workbench', { 'training-open': isTrainingLayoutOpen }]">
       <aside class="panel weak-list-panel">
         <header class="weak-list-header">
           <div>
@@ -35,19 +35,24 @@
           </div>
         </header>
 
-        <div class="weak-list-tools">
+        <div :class="['weak-search-control', { expanded: isWeakSearchOpen }]">
+          <button type="button" class="weak-search-icon" aria-label="搜索薄弱点" @click="openWeakSearch">
+            <Search :size="18" aria-hidden="true" />
+          </button>
           <input
+            ref="weakSearchInput"
             v-model="weakSearchQuery"
             type="search"
             placeholder="搜索薄弱点"
             aria-label="搜索薄弱点"
+            :tabindex="isWeakSearchOpen ? 0 : -1"
+            @keydown.esc="closeWeakSearch"
           />
-          <select v-model="weakSortMode" aria-label="薄弱点排序">
-            <option value="recent">最近出现优先</option>
-            <option value="first">首次记录优先</option>
-            <option value="name">按名称排序</option>
-          </select>
+          <button type="button" class="weak-search-clear" aria-label="收起搜索" @click="closeWeakSearch">
+            <X :size="16" aria-hidden="true" />
+          </button>
         </div>
+        <div :class="['weak-search-slot', { expanded: isWeakSearchOpen }]" aria-hidden="true"></div>
 
         <div v-if="isInitialLoading" class="weak-list-loading">
           <div v-for="index in 5" :key="`weak-list-skeleton-${index}`" class="skeleton-row"></div>
@@ -97,131 +102,134 @@
         </div>
       </section>
 
-      <aside v-if="showQuizPanel" class="panel quiz-panel">
-        <header class="quiz-header">
-          <h3>薄弱点训练</h3>
-          <button class="close-btn" aria-label="关闭训练面板" @click="closeQuizPanel">
-            <X :size="18" aria-hidden="true" />
-          </button>
-        </header>
-
-        <div class="quiz-body">
-          <div v-if="quizStep === 'intro'" class="quiz-intro">
-            <div class="intro-icon">
-              <span class="icon-circle"><TriangleAlert :size="24" aria-hidden="true" /></span>
-            </div>
-            <p class="intro-text">
-              是否针对 <strong>【{{ quizNodeName }}】</strong>开始训练？
-            </p>
-            <div class="intro-actions">
-              <button class="secondary-btn" @click="closeQuizPanel">稍后再说</button>
-              <button class="primary-btn" @click="startQuiz" :disabled="isGenerating">
-                {{ isGenerating ? '准备中...' : '开始训练' }}
+      <div :class="['weak-side-panel-shell', { wide: isSidePanelWide }]">
+        <Transition name="weak-side-panel" mode="out-in">
+          <aside v-if="showQuizPanel" key="quiz-panel" class="panel quiz-panel">
+            <header class="quiz-header">
+              <h3>薄弱点训练</h3>
+              <button class="close-btn" aria-label="关闭训练面板" @click="closeQuizPanel">
+                <X :size="18" aria-hidden="true" />
               </button>
-            </div>
-          </div>
+            </header>
 
-          <div v-else-if="quizStep === 'quiz'" class="quiz-content">
-            <div class="quiz-meta">
-              <span class="quiz-badge">题目</span>
-              <span class="quiz-node">{{ quizNodeName }}</span>
-            </div>
-            <div class="quiz-question">
-              <MarkdownContent :content="quizQuestion" />
-              <span v-if="isGenerating" class="streaming-indicator">正在生成...</span>
-            </div>
-            <div class="quiz-answer">
-              <textarea
-                v-model="userAnswer"
-                rows="4"
-                placeholder="请输入你的答案..."
-                :disabled="isSubmitting"
-              />
-            </div>
-            <div class="quiz-actions">
-              <button class="secondary-btn" @click="closeQuizPanel">放弃</button>
-              <button
-                class="primary-btn"
-                @click="submitAnswer"
-                :disabled="isSubmitting || isGenerating || !userAnswer.trim()"
-              >
-                {{ isSubmitting ? '判题中...' : '提交答案' }}
-              </button>
-            </div>
-          </div>
+            <div class="quiz-body">
+              <div v-if="quizStep === 'intro'" class="quiz-intro">
+                <div class="intro-icon">
+                  <span class="icon-circle"><TriangleAlert :size="24" aria-hidden="true" /></span>
+                </div>
+                <p class="intro-text">
+                  是否针对 <strong>【{{ quizNodeName }}】</strong>开始训练？
+                </p>
+                <div class="intro-actions">
+                  <button class="secondary-btn" @click="closeQuizPanel">稍后再说</button>
+                  <button class="primary-btn" @click="startQuiz" :disabled="isGenerating">
+                    {{ isGenerating ? '准备中...' : '开始训练' }}
+                  </button>
+                </div>
+              </div>
 
-          <div v-else-if="quizStep === 'result'" class="quiz-result">
-            <div v-if="isSubmitting" class="result-icon">
-              <LoaderCircle :size="28" aria-hidden="true" />
+              <div v-else-if="quizStep === 'quiz'" class="quiz-content">
+                <div class="quiz-meta">
+                  <span class="quiz-badge">题目</span>
+                  <span class="quiz-node">{{ quizNodeName }}</span>
+                </div>
+                <div class="quiz-question">
+                  <MarkdownContent :content="quizQuestion" />
+                  <span v-if="isGenerating" class="streaming-indicator">正在生成...</span>
+                </div>
+                <div class="quiz-answer">
+                  <textarea
+                    v-model="userAnswer"
+                    rows="4"
+                    placeholder="请输入你的答案..."
+                    :disabled="isSubmitting"
+                  />
+                </div>
+                <div class="quiz-actions">
+                  <button class="secondary-btn" @click="closeQuizPanel">放弃</button>
+                  <button
+                    class="primary-btn"
+                    @click="submitAnswer"
+                    :disabled="isSubmitting || isGenerating || !userAnswer.trim()"
+                  >
+                    {{ isSubmitting ? '判题中...' : '提交答案' }}
+                  </button>
+                </div>
+              </div>
+
+              <div v-else-if="quizStep === 'result'" class="quiz-result">
+                <div v-if="isSubmitting" class="result-icon">
+                  <LoaderCircle :size="28" aria-hidden="true" />
+                </div>
+                <div v-else class="result-icon" :class="isCorrect ? 'correct' : 'incorrect'">
+                  <CircleCheck v-if="isCorrect" :size="28" aria-hidden="true" />
+                  <CircleX v-else :size="28" aria-hidden="true" />
+                </div>
+                <h4 class="result-title">{{ isSubmitting ? '判断中...' : (isCorrect ? '回答正确！' : '回答不完全正确') }}</h4>
+                <div class="result-feedback">
+                  <MarkdownContent :content="feedbackContent" />
+                  <span v-if="isSubmitting" class="streaming-indicator">正在生成反馈...</span>
+                </div>
+                <div v-if="!isSubmitting" class="result-actions">
+                  <button class="secondary-btn" @click="resetQuiz">再来一题</button>
+                  <button class="primary-btn" @click="handleComplete">
+                    {{ isCorrect ? '完成' : '我知道了' }}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div v-else class="result-icon" :class="isCorrect ? 'correct' : 'incorrect'">
-              <CircleCheck v-if="isCorrect" :size="28" aria-hidden="true" />
-              <CircleX v-else :size="28" aria-hidden="true" />
+          </aside>
+
+          <aside v-else-if="currentWeakPointId" key="recommendation-panel" class="panel recommendation-panel">
+            <header class="recommendation-header">
+              <h3>{{ currentWeakPointName || "当前暂无薄弱点" }}</h3>
+            </header>
+
+            <template v-if="learningOrder.length">
+              <p class="recommendation-summary">
+                {{ recommendationSummary || "系统正在围绕当前薄弱点收敛推荐学习顺序。" }}
+              </p>
+
+              <p class="recommendation-tip">完成全部推荐结点的学习后，当前薄弱点会自动转为已掌握并进入历史记录。</p>
+
+              <div class="recommendation-block">
+                <span class="recommendation-label">推荐顺序</span>
+                <ol class="learning-order">
+                  <li v-for="item in learningOrder" :key="item">{{ item }}</li>
+                </ol>
+              </div>
+
+              <div v-if="recommendedNodes.length" class="recommendation-block">
+                <span class="recommendation-label">推荐理由</span>
+                <ul class="recommendation-list">
+                  <li v-for="item in recommendedNodes" :key="item.id">
+                    <strong>{{ item.name }}</strong>
+                    <p>{{ item.reason || "这是当前阶段最值得优先补齐的相关知识点。" }}</p>
+                  </li>
+                </ul>
+              </div>
+            </template>
+
+            <div v-else class="side-empty">
+              <h3>等待推荐</h3>
+              <p>选择左侧薄弱点后，系统会展示推荐学习顺序和训练入口。</p>
             </div>
-            <h4 class="result-title">{{ isSubmitting ? '判断中...' : (isCorrect ? '回答正确！' : '回答不完全正确') }}</h4>
-            <div class="result-feedback">
-              <MarkdownContent :content="feedbackContent" />
-              <span v-if="isSubmitting" class="streaming-indicator">正在生成反馈...</span>
+          </aside>
+
+          <aside v-else key="empty-recommendation-panel" class="panel recommendation-panel">
+            <div class="side-empty">
+              <h3>选择薄弱点</h3>
+              <p>从左侧列表选择一个知识点，查看图谱和推荐训练。</p>
             </div>
-            <div v-if="!isSubmitting" class="result-actions">
-              <button class="secondary-btn" @click="resetQuiz">再来一题</button>
-              <button class="primary-btn" @click="handleComplete">
-                {{ isCorrect ? '完成' : '我知道了' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <aside v-else-if="currentWeakPointId" class="panel recommendation-panel">
-        <header class="recommendation-header">
-          <h3>{{ currentWeakPointName || "当前暂无薄弱点" }}</h3>
-        </header>
-
-        <template v-if="learningOrder.length">
-          <p class="recommendation-summary">
-            {{ recommendationSummary || "系统正在围绕当前薄弱点收敛推荐学习顺序。" }}
-          </p>
-
-          <p class="recommendation-tip">完成全部推荐结点的学习后，当前薄弱点会自动转为已掌握并进入历史记录。</p>
-
-          <div class="recommendation-block">
-            <span class="recommendation-label">推荐顺序</span>
-            <ol class="learning-order">
-              <li v-for="item in learningOrder" :key="item">{{ item }}</li>
-            </ol>
-          </div>
-
-          <div v-if="recommendedNodes.length" class="recommendation-block">
-            <span class="recommendation-label">推荐理由</span>
-            <ul class="recommendation-list">
-              <li v-for="item in recommendedNodes" :key="item.id">
-                <strong>{{ item.name }}</strong>
-                <p>{{ item.reason || "这是当前阶段最值得优先补齐的相关知识点。" }}</p>
-              </li>
-            </ul>
-          </div>
-        </template>
-
-        <div v-else class="side-empty">
-          <h3>等待推荐</h3>
-          <p>选择左侧薄弱点后，系统会展示推荐学习顺序和训练入口。</p>
-        </div>
-      </aside>
-
-      <aside v-else class="panel recommendation-panel">
-        <div class="side-empty">
-          <h3>选择薄弱点</h3>
-          <p>从左侧列表选择一个知识点，查看图谱和推荐训练。</p>
-        </div>
-      </aside>
+          </aside>
+        </Transition>
+      </div>
     </div>
 
     <section v-if="recentConsultations.length || historyWeakPoints.length" class="panel records-section">
       <div class="records-header">
         <div>
           <h2>学习记录</h2>
-          <p>最近咨询和历史薄弱点集中在这里，避免记录越来越多时拉长主页面。</p>
         </div>
         <div class="record-tabs" role="tablist" aria-label="学习记录类型">
           <button
@@ -279,7 +287,7 @@
 </template>
 
 <script setup>
-import { CircleCheck, CircleX, History, LoaderCircle, MessageCircleQuestion, TriangleAlert, X } from "lucide-vue-next";
+import { CircleCheck, CircleX, History, LoaderCircle, MessageCircleQuestion, Search, TriangleAlert, X } from "lucide-vue-next";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
@@ -302,7 +310,8 @@ const weakPoints = ref([]);
 const historyWeakPoints = ref([]);
 const recentConsultations = ref([]);
 const weakSearchQuery = ref("");
-const weakSortMode = ref("recent");
+const isWeakSearchOpen = ref(false);
+const weakSearchInput = ref(null);
 const activeRecordTab = ref("consultations");
 const errorMessage = ref("");
 const graphNodes = ref([]);
@@ -321,8 +330,11 @@ const graphRequests = new Map();
 let graphPrefetchTimer = null;
 let graphCacheVersion = 0;
 const GRAPH_PREFETCH_CONCURRENCY = 3;
+const SIDE_PANEL_WIDTH_TRANSITION_MS = 180;
 
 const showQuizPanel = ref(false);
+const isTrainingLayoutOpen = ref(false);
+const isSidePanelWide = ref(false);
 const quizNodeId = ref("");
 const quizNodeName = ref("");
 const quizStep = ref("intro");
@@ -332,6 +344,7 @@ const feedbackContent = ref("");
 const isCorrect = ref(false);
 const isGenerating = ref(false);
 const isSubmitting = ref(false);
+let quizPanelCloseTimer = null;
 
 const filteredWeakPoints = computed(() => {
   const keyword = weakSearchQuery.value.trim().toLowerCase();
@@ -339,15 +352,7 @@ const filteredWeakPoints = computed(() => {
     ? weakPoints.value.filter((item) => item.node_name?.toLowerCase().includes(keyword))
     : [...weakPoints.value];
 
-  return items.sort((left, right) => {
-    if (weakSortMode.value === "name") {
-      return (left.node_name || "").localeCompare(right.node_name || "", "zh-CN");
-    }
-    if (weakSortMode.value === "first") {
-      return compareDateDesc(left.first_seen_at, right.first_seen_at);
-    }
-    return compareDateDesc(left.last_seen_at, right.last_seen_at);
-  });
+  return items.sort((left, right) => compareDateDesc(left.last_seen_at, right.last_seen_at));
 });
 
 onMounted(async () => {
@@ -367,6 +372,7 @@ onBeforeUnmount(() => {
   if (graphPrefetchTimer) {
     clearTimeout(graphPrefetchTimer);
   }
+  clearQuizPanelCloseTimer();
 });
 
 async function loadWeakPoints(options = {}) {
@@ -522,8 +528,11 @@ function handleNodeSelect(nodeId) {
   selectedNodeId.value = nodeId;
   const node = findGraphNodeById(graphNodes.value, nodeId);
   if (!node || !["recommended", "mastered"].includes(node.status)) return;
+  clearQuizPanelCloseTimer();
   quizNodeId.value = nodeId;
   quizNodeName.value = node.name || nodeId;
+  isTrainingLayoutOpen.value = true;
+  isSidePanelWide.value = true;
   showQuizPanel.value = true;
   quizStep.value = "intro";
   quizQuestion.value = "";
@@ -532,7 +541,23 @@ function handleNodeSelect(nodeId) {
 }
 
 function closeQuizPanel() {
-  showQuizPanel.value = false;
+  clearQuizPanelCloseTimer();
+  isSidePanelWide.value = false;
+  quizPanelCloseTimer = setTimeout(() => {
+    showQuizPanel.value = false;
+    isTrainingLayoutOpen.value = false;
+    resetQuizPanelState();
+    quizPanelCloseTimer = null;
+  }, SIDE_PANEL_WIDTH_TRANSITION_MS);
+}
+
+function clearQuizPanelCloseTimer() {
+  if (!quizPanelCloseTimer) return;
+  clearTimeout(quizPanelCloseTimer);
+  quizPanelCloseTimer = null;
+}
+
+function resetQuizPanelState() {
   quizNodeId.value = "";
   quizNodeName.value = "";
   quizStep.value = "intro";
@@ -630,6 +655,17 @@ function formatDate(value) {
   });
 }
 
+async function openWeakSearch() {
+  isWeakSearchOpen.value = true;
+  await nextTick();
+  weakSearchInput.value?.focus();
+}
+
+function closeWeakSearch() {
+  weakSearchQuery.value = "";
+  isWeakSearchOpen.value = false;
+}
+
 function compareDateDesc(leftValue, rightValue) {
   const leftTime = new Date(leftValue || 0).getTime() || 0;
   const rightTime = new Date(rightValue || 0).getTime() || 0;
@@ -695,7 +731,7 @@ function handleApiError(error, fallbackMessage) {
 .panel {
   border: 1px solid var(--app-line);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
@@ -707,6 +743,10 @@ function handleApiError(error, fallbackMessage) {
   row-gap: 6px;
   min-height: 98px;
   padding: 18px;
+}
+
+.summary-row > .skeleton-card {
+  min-height: 98px;
 }
 
 .summary-card strong {
@@ -776,15 +816,19 @@ function handleApiError(error, fallbackMessage) {
 
 .weak-workbench {
   display: grid;
-  grid-template-columns: minmax(220px, 0.7fr) minmax(420px, 1.8fr) minmax(280px, 0.9fr);
+  grid-template-columns: minmax(220px, 0.7fr) minmax(420px, 1.8fr) minmax(280px, auto);
   gap: 14px;
   align-items: start;
 }
 
+.weak-workbench.training-open {
+  grid-template-columns: minmax(220px, 0.62fr) minmax(340px, 1fr) minmax(380px, auto);
+}
+
 .weak-list-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   height: 500px;
   min-width: 0;
   padding: 14px;
@@ -795,6 +839,118 @@ function handleApiError(error, fallbackMessage) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 12px;
+  padding-right: 46px;
+}
+
+.weak-list-header > div {
+  min-width: 0;
+}
+
+.weak-search-control {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 0;
+  align-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dce6f2;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #61748a;
+  box-shadow: none;
+  overflow: hidden;
+  transition:
+    top 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    right 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    border-color 0.18s ease,
+    background 0.18s ease;
+  will-change: top, right, width;
+}
+
+.weak-search-control.expanded {
+  grid-template-columns: 34px minmax(0, 1fr) 28px;
+  top: 66px;
+  right: 14px;
+  width: calc(100% - 28px);
+  border-color: #c8d8ec;
+}
+
+.weak-search-slot {
+  height: 0;
+  margin-bottom: 0;
+  transition:
+    height 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-bottom 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.weak-search-slot.expanded {
+  height: 34px;
+  margin-bottom: 12px;
+}
+
+.weak-search-icon,
+.weak-search-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+}
+
+.weak-search-control:hover {
+  border-color: #b9cce4;
+  background: #f6faff;
+  color: #2f67f6;
+}
+
+.weak-search-icon:active,
+.weak-search-clear:active {
+  transform: scale(0.96);
+}
+
+.weak-search-control input {
+  appearance: none;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: none;
+  transition: opacity 0.16s ease 0.08s;
+}
+
+.weak-search-control.expanded input {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.weak-search-control input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.weak-search-control .weak-search-clear {
+  width: 28px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.weak-search-control.expanded .weak-search-clear {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .weak-list-header h2,
@@ -823,18 +979,6 @@ function handleApiError(error, fallbackMessage) {
   line-height: 1.5;
 }
 
-.weak-list-tools {
-  display: grid;
-  gap: 8px;
-}
-
-.weak-list-tools input,
-.weak-list-tools select {
-  min-height: 34px;
-  padding: 8px 10px;
-  border-radius: 10px;
-}
-
 .weak-list-loading,
 .weak-list {
   min-height: 0;
@@ -842,7 +986,14 @@ function handleApiError(error, fallbackMessage) {
 
 .weak-list-loading {
   display: grid;
+  flex: 1;
   gap: 8px;
+  overflow: hidden;
+}
+
+.weak-list-loading .skeleton-row {
+  min-height: 71px;
+  border-radius: 12px;
 }
 
 .weak-list {
@@ -877,7 +1028,6 @@ function handleApiError(error, fallbackMessage) {
 .weak-list-item.active {
   border-color: #93b4e7;
   background: #edf5ff;
-  box-shadow: inset 3px 0 0 #2f67f6;
 }
 
 .weak-list-name {
@@ -934,7 +1084,7 @@ function handleApiError(error, fallbackMessage) {
   padding: 10px 14px;
   flex-wrap: wrap;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff;
   backdrop-filter: blur(6px);
   border-radius: 12px 12px 0 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
@@ -991,6 +1141,15 @@ function handleApiError(error, fallbackMessage) {
   min-height: 0;
 }
 
+.graph-container .skeleton-graph {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
 .graph-state {
   position: absolute;
   inset: 0;
@@ -998,7 +1157,7 @@ function handleApiError(error, fallbackMessage) {
   place-items: center;
   color: #6f8297;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.88);
+  background: #ffffff;
   border-radius: 12px;
   z-index: 2;
 }
@@ -1010,6 +1169,25 @@ function handleApiError(error, fallbackMessage) {
   min-height: 0;
   height: 500px;
   overflow-y: auto;
+}
+
+.weak-side-panel-shell {
+  justify-self: end;
+  width: 280px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  transition: width 0.18s ease;
+}
+
+.weak-side-panel-shell.wide {
+  width: 380px;
+}
+
+.weak-side-panel-shell > .panel {
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .recommendation-panel {
@@ -1482,7 +1660,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 1180px) {
-  .weak-workbench {
+  .weak-workbench,
+  .weak-workbench.training-open {
     grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.5fr);
   }
 
@@ -1499,7 +1678,8 @@ function handleApiError(error, fallbackMessage) {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
 
-  .weak-workbench {
+  .weak-workbench,
+  .weak-workbench.training-open {
     grid-template-columns: 1fr;
   }
 
@@ -1542,4 +1722,5 @@ function handleApiError(error, fallbackMessage) {
     align-items: flex-start;
   }
 }
+
 </style>

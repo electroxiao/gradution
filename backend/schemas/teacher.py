@@ -97,7 +97,8 @@ class GraphEdgeUpdateRequest(BaseModel):
 class DashboardMetricResponse(BaseModel):
     total_students: int
     total_unmastered_weak_points: int
-    affected_students: int
+    latest_assignment_title: str | None = None
+    latest_assignment_unsubmitted_students: int | None = None
     top_nodes: list[dict]
 
 

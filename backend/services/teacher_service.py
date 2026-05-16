@@ -342,7 +342,7 @@ def list_student_weak_points(db: Session, student_id: int) -> list[TeacherStuden
     ]
 
 
-def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricResponse:
+def get_weak_point_dashboard(db: Session, teacher: User | None = None, limit: int = 10) -> DashboardMetricResponse:
     total_students = db.query(func.count(User.id)).filter(User.role == "student").scalar() or 0
     total_unmastered = (
         db.query(func.count(UserWeakPoint.id))
@@ -350,12 +350,7 @@ def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricRes
         .scalar()
         or 0
     )
-    affected_students = (
-        db.query(func.count(func.distinct(UserWeakPoint.user_id)))
-        .filter(UserWeakPoint.status == "unmastered")
-        .scalar()
-        or 0
-    )
+    latest_assignment_title, latest_assignment_unsubmitted_students = _latest_assignment_unsubmitted_students(db, teacher)
     top_rows = (
         db.query(
             KnowledgeNode.id,
@@ -372,7 +367,8 @@ def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricRes
     return DashboardMetricResponse(
         total_students=int(total_students),
         total_unmastered_weak_points=int(total_unmastered),
-        affected_students=int(affected_students),
+        latest_assignment_title=latest_assignment_title,
+        latest_assignment_unsubmitted_students=latest_assignment_unsubmitted_students,
         top_nodes=[
             {
                 "id": row.id,
@@ -382,6 +378,47 @@ def get_weak_point_dashboard(db: Session, limit: int = 10) -> DashboardMetricRes
             for row in top_rows
         ],
     )
+
+
+def _latest_assignment_unsubmitted_students(db: Session, teacher: User | None) -> tuple[str | None, int | None]:
+    query = db.query(Assignment).filter(Assignment.status != "draft")
+    if teacher:
+        query = query.filter(Assignment.teacher_id == teacher.id)
+    assignment = query.order_by(Assignment.updated_at.desc(), Assignment.id.desc()).first()
+    if not assignment:
+        return None, None
+
+    question_count = (
+        db.query(func.count(AssignmentQuestion.id))
+        .filter(AssignmentQuestion.assignment_id == assignment.id)
+        .scalar()
+        or 0
+    )
+    if int(question_count) <= 0:
+        return assignment.title, 0
+
+    rows = (
+        db.query(
+            AssignmentAssignee.student_id,
+            func.count(func.distinct(AssignmentSubmission.question_id)).label("submitted_question_count"),
+        )
+        .outerjoin(
+            AssignmentSubmission,
+            and_(
+                AssignmentSubmission.assignment_id == assignment.id,
+                AssignmentSubmission.student_id == AssignmentAssignee.student_id,
+            ),
+        )
+        .filter(AssignmentAssignee.assignment_id == assignment.id)
+        .group_by(AssignmentAssignee.student_id)
+        .all()
+    )
+    unsubmitted_count = sum(
+        1
+        for row in rows
+        if int(row.submitted_question_count or 0) < int(question_count)
+    )
+    return assignment.title, unsubmitted_count
 
 
 def get_graph(keyword: str = "", chapter: str = "", limit: int = 1000) -> GraphQueryResponse:
