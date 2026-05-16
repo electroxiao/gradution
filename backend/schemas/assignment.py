@@ -39,7 +39,6 @@ class AssignmentQuestionInput(BaseModel):
 
 class AssignmentCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=255)
-    description: str = Field(default="")
     status: str = Field(default="draft", max_length=32)
     starts_at: datetime | None = None
     due_at: datetime | None = None
@@ -50,7 +49,6 @@ class AssignmentCreateRequest(BaseModel):
 
 class AssignmentUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
-    description: str | None = None
     status: str | None = Field(default=None, max_length=32)
     starts_at: datetime | None = None
     due_at: datetime | None = None
@@ -153,6 +151,7 @@ class AssignmentSubmissionResponse(BaseModel):
     ai_review_json: Any = None
     decision_source: str | None = None
     teacher_review_note: str | None = None
+    is_late: bool = False
     trust_label: str | None = None
     trust_score: float | None = None
     started_at: datetime | None = None
@@ -165,7 +164,6 @@ class AssignmentSubmissionResponse(BaseModel):
 class AssignmentSummaryResponse(BaseModel):
     id: int
     title: str
-    description: str
     status: str
     starts_at: datetime | None = None
     due_at: datetime | None = None
@@ -184,7 +182,6 @@ class AssignmentSummaryResponse(BaseModel):
 class AssignmentDetailResponse(BaseModel):
     id: int
     title: str
-    description: str
     status: str
     starts_at: datetime | None = None
     due_at: datetime | None = None
@@ -240,6 +237,7 @@ class AssignmentProgressCellResponse(BaseModel):
     submitted_at: datetime | None = None
     run_time_ms: int | None = None
     duration_seconds: int | None = None
+    is_late: bool = False
 
 
 class AssignmentProgressResponse(BaseModel):
@@ -264,6 +262,7 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     ai_review_json: Any = None
     decision_source: str | None = None
     teacher_review_note: str | None = None
+    is_late: bool = False
     trust_label: str | None = None
     trust_score: float | None = None
     reviewed_at: datetime | None = None

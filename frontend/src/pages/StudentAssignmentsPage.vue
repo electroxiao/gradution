@@ -47,18 +47,18 @@
         <article v-for="item in pagedAssignments" :key="item.id" class="assignment-row">
           <div class="card-copy col-name">
             <h2>{{ item.title }}</h2>
-            <p class="date-line">发布时间：{{ formatDateTime(item.created_at) }}</p>
+            <p class="date-line">{{ assignmentTimeSummary(item) }}</p>
             <p>{{ assignmentTypeSummary(item) }}</p>
-            <p>{{ item.description || "暂无说明" }}</p>
           </div>
 
-          <div><span class="status" :class="item.status">{{ statusText(item.status) }}</span></div>
+          <div><span class="status" :class="availabilityStatus(item)">{{ availabilityText(item) }}</span></div>
           <strong class="number-cell">{{ item.question_count }}</strong>
           <strong class="number-cell">{{ item.submitted_count }}</strong>
           <strong class="number-cell">{{ item.accepted_count }}</strong>
           <span class="progress-text">完成 {{ item.accepted_count }}/{{ item.question_count }}</span>
           <div class="card-actions">
-            <router-link class="open-link" :to="`/assignments/${item.id}`">进入作业</router-link>
+            <router-link v-if="assignmentCanEnter(item)" class="open-link" :to="`/assignments/${item.id}`">进入作业</router-link>
+            <span v-else class="open-link disabled">未开始</span>
           </div>
         </article>
       </div>
@@ -134,7 +134,7 @@ async function loadAssignments() {
 }
 
 function statusText(status) {
-  return { draft: "草稿", published: "已发布", closed: "已关闭" }[status] || status;
+  return { draft: "草稿", published: "已发布", closed: "已发布" }[status] || status;
 }
 
 function formatDateTime(value) {
@@ -158,6 +158,40 @@ function assignmentTypeSummary(item) {
     counts.programming ? `编程题 ${counts.programming}` : "",
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "暂无题型统计";
+}
+
+function assignmentTimeSummary(item) {
+  const start = item.starts_at ? `开始：${formatDateTime(item.starts_at)}` : "开始：发布后立即";
+  const due = item.due_at ? `截止：${formatDateTime(item.due_at)}` : "截止：未设置";
+  return `${start} · ${due}`;
+}
+
+function availabilityStatus(item) {
+  if (!hasStarted(item)) return "not-started";
+  if (isOverdue(item)) return "overdue";
+  return statusText(item.status) === "草稿" ? "draft" : "published";
+}
+
+function availabilityText(item) {
+  if (!hasStarted(item)) return "未开始";
+  if (isOverdue(item)) return "已逾期";
+  return "进行中";
+}
+
+function assignmentCanEnter(item) {
+  return hasStarted(item);
+}
+
+function hasStarted(item) {
+  if (!item.starts_at) return true;
+  const startsAt = new Date(item.starts_at).getTime();
+  return Number.isNaN(startsAt) || startsAt <= Date.now();
+}
+
+function isOverdue(item) {
+  if (!item.due_at) return false;
+  const dueAt = new Date(item.due_at).getTime();
+  return !Number.isNaN(dueAt) && dueAt < Date.now();
 }
 
 function setPage(page) {
@@ -371,7 +405,13 @@ function handleApiError(error, fallbackMessage) {
   color: #0f8a4b;
 }
 
-.status.closed {
+.status.not-started {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.status.overdue {
   background: #fff1f2;
   border-color: #fecdd3;
   color: #be123c;
@@ -437,6 +477,12 @@ function handleApiError(error, fallbackMessage) {
 .primary-link {
   background: var(--app-primary);
   color: #fff;
+}
+
+.open-link.disabled {
+  background: #eef2f7;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .back-link {

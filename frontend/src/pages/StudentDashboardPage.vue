@@ -54,15 +54,15 @@
           <article v-for="item in pendingAssignments.slice(0, 4)" :key="item.id" class="assignment-item">
             <div class="item-main">
               <div class="item-head">
-                <span class="status" :class="item.status">{{ statusText(item.status) }}</span>
+                <span class="status" :class="availabilityStatus(item)">{{ availabilityText(item) }}</span>
                 <span class="item-meta">{{ item.question_count }} 题</span>
               </div>
               <h3>{{ item.title }}</h3>
-              <p>{{ item.description || "暂无说明" }}</p>
             </div>
             <div class="item-side">
               <span>{{ item.submitted_count }}/{{ item.question_count }} 已提交</span>
-              <router-link class="app-button" :to="`/assignments/${item.id}`">进入</router-link>
+              <router-link v-if="assignmentCanEnter(item)" class="app-button" :to="`/assignments/${item.id}`">进入</router-link>
+              <span v-else class="app-button disabled">未开始</span>
             </div>
           </article>
         </div>
@@ -187,7 +187,35 @@ async function loadWeakPoints() {
 }
 
 function statusText(status) {
-  return { draft: "草稿", published: "已发布", closed: "已关闭" }[status] || status;
+  return { draft: "草稿", published: "已发布", closed: "已发布" }[status] || status;
+}
+
+function availabilityStatus(item) {
+  if (!hasStarted(item)) return "not-started";
+  if (isOverdue(item)) return "overdue";
+  return statusText(item.status) === "草稿" ? "draft" : "published";
+}
+
+function availabilityText(item) {
+  if (!hasStarted(item)) return "未开始";
+  if (isOverdue(item)) return "已逾期";
+  return "进行中";
+}
+
+function assignmentCanEnter(item) {
+  return hasStarted(item);
+}
+
+function hasStarted(item) {
+  if (!item.starts_at) return true;
+  const startsAt = new Date(item.starts_at).getTime();
+  return Number.isNaN(startsAt) || startsAt <= Date.now();
+}
+
+function isOverdue(item) {
+  if (!item.due_at) return false;
+  const dueAt = new Date(item.due_at).getTime();
+  return !Number.isNaN(dueAt) && dueAt < Date.now();
 }
 
 function handleApiError(error, fallbackMessage, target) {
@@ -477,9 +505,20 @@ function handleApiError(error, fallbackMessage, target) {
   font-weight: 400;
 }
 
-.status.closed {
-  background: #f0f2f5;
-  color: #64748b;
+.status.not-started {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.status.overdue {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.app-button.disabled {
+  background: #eef2f7;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .weak-list article {

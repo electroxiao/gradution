@@ -8,7 +8,7 @@
         <PageHeader
           :title="assignment.title"
           title-tag="h1"
-          :subtitle="assignment.description || '完成全部题目后提交作业。'"
+          subtitle="完成全部题目后提交作业。"
           :show-status="false"
         >
           <template #actions>
@@ -60,10 +60,13 @@
               {{ loadingPreviousResult ? "加载中..." : "查看上次提交" }}
             </button>
             <button type="button" class="primary-btn" :disabled="submitting || !canSubmitAssignment" @click="submitAssignment">
-              {{ submitting ? "提交中..." : "提交作业" }}
+              {{ submitting ? "提交中..." : (isAssignmentOverdue ? "逾期提交" : "提交作业") }}
             </button>
           </div>
         </header>
+        <p v-if="isAssignmentOverdue" class="late-note">
+          已超过截止时间，仍可提交，系统会记录为逾期提交。
+        </p>
 
         <div v-if="isProgrammingQuestion" class="editor-shell">
           <CodeEditor v-model="activeCode" />
@@ -115,7 +118,10 @@
         <section v-if="lastResult" class="result-console" :class="{ 'ai-rejected-result': isAiRejectedAfterPassingTests }">
           <header>
             <h3>测试结果</h3>
-            <span :class="['result-status', lastResult.status]">{{ statusText(lastResult.status) }}</span>
+            <div class="result-header-tags">
+              <span v-if="lastResult.is_late" class="late-pill">逾期提交</span>
+              <span :class="['result-status', lastResult.status]">{{ statusText(lastResult.status) }}</span>
+            </div>
           </header>
           <div v-if="isAiRejectedAfterPassingTests" class="ai-reject-alert">
             <strong>测试用例已通过，但 AI 判定未通过</strong>
@@ -358,6 +364,11 @@ const objectiveAnswer = computed({
 });
 const canSubmitAssignment = computed(() => assignment.value?.questions?.length
   && assignment.value.questions.every((question) => isQuestionAnswered(question)));
+const isAssignmentOverdue = computed(() => {
+  if (!assignment.value?.due_at) return false;
+  const dueAt = new Date(assignment.value.due_at).getTime();
+  return !Number.isNaN(dueAt) && dueAt < Date.now();
+});
 const aiConcepts = computed(() => {
   const names = new Set(aiKeywords.value.map((item) => String(item)).filter(Boolean));
   for (const fact of aiFacts.value) {
@@ -510,7 +521,9 @@ async function submitAssignment() {
       answers: assignment.value.questions.map((question) => buildQuestionSubmitPayload(question)),
     });
     lastResultByQuestion.value = {};
-    successMessage.value = "提交成功，系统将在后台完成判题。";
+    successMessage.value = isAssignmentOverdue.value
+      ? "逾期提交成功，系统将在后台完成判题。"
+      : "提交成功，系统将在后台完成判题。";
     const submittedAt = new Date().toISOString();
     for (const question of assignment.value.questions || []) {
       startedAtByQuestion.value[question.id] = submittedAt;
@@ -711,6 +724,7 @@ function submissionToRunResult(submission) {
   return {
     submission,
     status: submission.status,
+    is_late: Boolean(submission.is_late),
     results: Array.isArray(submission.results_json) ? submission.results_json : [],
     ai_review: submission.ai_review_json,
     decision_source: submission.decision_source,
@@ -803,7 +817,7 @@ function statusText(status) {
     teacher_rejected: "教师判定未通过",
     submitted: "判题中",
     published: "已发布",
-    closed: "已关闭",
+    closed: "已发布",
   }[status] || status;
 }
 
@@ -858,7 +872,7 @@ function resultCaseText(item) {
 
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
-  if (status === 401 || status === 403) {
+  if (status === 401) {
     clearAuthSession();
     router.push("/login");
     return;
@@ -1028,14 +1042,14 @@ pre {
 
 .editor-pane {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100vh;
   overflow: hidden;
   background: #ffffff;
 }
 
 .editor-pane.has-result {
-  grid-template-rows: auto minmax(0, 1fr) 8px minmax(160px, var(--result-pane-height, 50%));
+  grid-template-rows: auto auto minmax(0, 1fr) 8px minmax(160px, var(--result-pane-height, 50%));
 }
 
 .editor-toolbar,
@@ -1061,8 +1075,25 @@ pre {
   gap: 8px;
 }
 
+.late-note {
+  margin: 0;
+  border-bottom: 1px solid #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  padding: 8px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.result-header-tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .language-pill,
 .draft-pill,
+.late-pill,
 .result-status {
   padding: 4px 8px;
   border-radius: 999px;
@@ -1484,6 +1515,11 @@ pre {
   justify-content: space-between;
   gap: 10px;
   align-items: center;
+}
+
+.late-pill {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .diagnosis-head span {

@@ -11,7 +11,6 @@ class Assignment(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(255), index=True)
-    description: Mapped[str] = mapped_column(Text, default="")
     teacher_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(32), default="draft", index=True)
     starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -116,6 +115,7 @@ class AssignmentSubmission(Base):
     ai_review_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     final_decision_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
     teacher_review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_late: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", index=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     trust_label: Mapped[str | None] = mapped_column(String(64), nullable=True)

@@ -15,7 +15,9 @@ def ensure_schema_and_seed(engine: Engine) -> None:
     _ensure_assignment_submission_timing_columns(engine)
     _ensure_assignment_grading_columns(engine)
     _ensure_assignment_type_and_bank_columns(engine)
+    _ensure_assignment_availability_columns(engine)
     _ensure_assignment_graph_linkage(engine)
+    _drop_assignment_description_column(engine)
     _ensure_chat_knowledge_events_table(engine)
     _ensure_teacher_seed(engine)
     _ensure_student_class_seed(engine)
@@ -173,6 +175,27 @@ def _ensure_assignment_type_and_bank_columns(engine: Engine) -> None:
             connection.execute(text("CREATE INDEX ix_question_bank_items_content_hash ON question_bank_items (content_hash)"))
 
 
+def _ensure_assignment_availability_columns(engine: Engine) -> None:
+    inspector = inspect(engine)
+    try:
+        table_names = set(inspector.get_table_names())
+        assignment_columns = {column["name"] for column in inspector.get_columns("assignments")} if "assignments" in table_names else set()
+        submission_columns = {column["name"] for column in inspector.get_columns("assignment_submissions")} if "assignment_submissions" in table_names else set()
+    except Exception:
+        return
+
+    with engine.begin() as connection:
+        if "assignments" in table_names:
+            if "starts_at" not in assignment_columns:
+                connection.execute(text("ALTER TABLE assignments ADD COLUMN starts_at DATETIME NULL"))
+            if "due_at" not in assignment_columns:
+                connection.execute(text("ALTER TABLE assignments ADD COLUMN due_at DATETIME NULL"))
+            connection.execute(text("UPDATE assignments SET status = 'published' WHERE status = 'closed'"))
+        if "assignment_submissions" in table_names and "is_late" not in submission_columns:
+            connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN is_late BOOLEAN NOT NULL DEFAULT 0"))
+            connection.execute(text("CREATE INDEX ix_assignment_submissions_is_late ON assignment_submissions (is_late)"))
+
+
 def _ensure_assignment_graph_linkage(engine: Engine) -> None:
     inspector = inspect(engine)
     try:
@@ -204,6 +227,25 @@ def _ensure_assignment_graph_linkage(engine: Engine) -> None:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_label VARCHAR(64) NULL"))
             if "trust_score" not in submission_columns:
                 connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_score FLOAT NULL"))
+
+
+def _drop_assignment_description_column(engine: Engine) -> None:
+    if engine.dialect.name != "mysql":
+        return
+    inspector = inspect(engine)
+    try:
+        table_names = set(inspector.get_table_names())
+        if "assignments" not in table_names:
+            return
+        columns = {column["name"] for column in inspector.get_columns("assignments")}
+    except Exception:
+        return
+
+    if "description" not in columns:
+        return
+
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE assignments DROP COLUMN description"))
 
 
 def _ensure_chat_knowledge_events_table(engine: Engine) -> None:

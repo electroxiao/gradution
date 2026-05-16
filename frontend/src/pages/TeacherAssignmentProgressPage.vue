@@ -60,7 +60,7 @@
               <span class="status-dot" :class="row.submitted ? 'submitted' : 'unsubmitted'"></span>
               <div>
                 <strong>{{ row.submitted ? "已提交" : "未提交" }}</strong>
-                <small>{{ row.submittedQuestionCount }}/{{ questionTotal }} 题</small>
+                <small>{{ row.submittedQuestionCount }}/{{ questionTotal }} 题{{ row.hasLateSubmission ? " · 含逾期" : "" }}</small>
               </div>
             </div>
             <span class="time-cell">{{ formatDateTime(row.latestSubmittedAt) }}</span>
@@ -97,6 +97,7 @@
               <h3>{{ selectedStudent?.username }} / {{ selectedQuestion?.title }}</h3>
             </div>
             <span class="status-pill" :class="selectedCell.status">{{ statusText(selectedCell.status) }}</span>
+            <span v-if="selectedCell.is_late" class="late-pill">逾期提交</span>
           </div>
           <button type="button" class="close-button" @click="closeDetail">关闭</button>
         </div>
@@ -156,6 +157,7 @@
                       <span class="timeline-title-row">
                         <strong>#{{ selectedSubmissions.length - index }} {{ statusText(submission.status) }}</strong>
                         <em v-if="index === 0">最新</em>
+                        <em v-if="submission.is_late" class="late">逾期</em>
                       </span>
                       <span class="timeline-evidence">{{ evidenceText(submission) }}</span>
                       <small>{{ formatDateTime(submission.submitted_at) }}</small>
@@ -371,6 +373,7 @@ const studentRows = computed(() => {
       submitted: fullySubmittedStudentIds.value.has(student.id),
       submittedQuestionCount: submittedCells.length,
       latestSubmittedAt: latestCell?.submitted_at || null,
+      hasLateSubmission: submittedCells.some((cell) => cell.is_late),
       detailCell: latestCell || (detailQuestion ? cellFor(student.id, detailQuestion.id) : null),
       detailQuestion,
     };
@@ -1158,6 +1161,12 @@ function handleApiError(error, fallbackMessage) {
   white-space: nowrap;
 }
 
+.timeline-title-row em.late,
+.late-pill {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .timeline-item strong {
   color: #10283d;
   min-width: 0;
@@ -1169,7 +1178,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .status-pill,
-.decision-pill {
+.decision-pill,
+.late-pill {
   padding: 5px 10px;
   border-radius: 999px;
   white-space: nowrap;

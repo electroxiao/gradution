@@ -82,7 +82,6 @@ def test_assignment_submission_integration_flow(
         headers=teacher_headers,
         json={
             "title": assignment_title,
-            "description": "Created by backend integration tests.",
             "status": "published",
             "student_ids": [test_student["id"]],
             "questions": [

@@ -53,7 +53,7 @@ from backend.services.neo4j_service import get_neo4j_driver
 from backend.services.sandbox_service import run_java_submission
 
 
-VALID_ASSIGNMENT_STATUSES = {"draft", "published", "closed"}
+VALID_ASSIGNMENT_STATUSES = {"draft", "published"}
 VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid", "observed_ai"}
 VALID_AI_REVIEW_LEVELS = {"light", "deep"}
 VALID_REVIEW_STATUSES = {"accepted", "teacher_rejected"}
@@ -80,7 +80,6 @@ def create_assignment(db: Session, teacher: User, payload: AssignmentCreateReque
     _validate_status(payload.status)
     assignment = Assignment(
         title=payload.title.strip(),
-        description=payload.description,
         teacher_id=teacher.id,
         status=payload.status,
         starts_at=payload.starts_at,
@@ -115,8 +114,6 @@ def update_assignment(
     assignment = _get_teacher_assignment(db, teacher, assignment_id)
     if payload.title is not None:
         assignment.title = payload.title.strip()
-    if payload.description is not None:
-        assignment.description = payload.description
     if payload.status is not None:
         _validate_status(payload.status)
         assignment.status = payload.status
@@ -483,7 +480,7 @@ def list_student_assignments(db: Session, student: User) -> list[AssignmentSumma
             selectinload(Assignment.assignees).selectinload(AssignmentAssignee.student),
         )
         .filter(AssignmentAssignee.student_id == student.id)
-        .filter(Assignment.status != "draft")
+        .filter(Assignment.status == "published")
         .order_by(Assignment.updated_at.desc(), Assignment.id.desc())
         .all()
     )
@@ -492,7 +489,7 @@ def list_student_assignments(db: Session, student: User) -> list[AssignmentSumma
 
 
 def get_student_assignment_detail(db: Session, student: User, assignment_id: int) -> AssignmentDetailResponse:
-    assignment = _get_student_assignment(db, student, assignment_id)
+    assignment = _get_student_assignment(db, student, assignment_id, require_started=True)
     return _assignment_detail(db, assignment, teacher_view=False, student=student)
 
 
@@ -502,7 +499,7 @@ def submit_assignment(
     assignment_id: int,
     payload: AssignmentBulkSubmitRequest,
 ) -> dict:
-    assignment = _get_student_assignment(db, student, assignment_id)
+    assignment = _get_student_assignment(db, student, assignment_id, require_started=True)
     questions = sorted(assignment.questions, key=lambda item: (item.sort_order, item.id))
     question_by_id = {question.id: question for question in questions}
     answer_by_question_id = {item.question_id: item for item in payload.answers}
@@ -514,6 +511,7 @@ def submit_assignment(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请完成所有题目后再提交作业。")
 
     submitted_at = datetime.now()
+    is_late = _assignment_is_late(assignment, submitted_at)
     submissions: list[AssignmentSubmission] = []
     for question in questions:
         item = answer_by_question_id.get(question.id)
@@ -550,6 +548,7 @@ def submit_assignment(
             ],
             ai_review_json=None,
             final_decision_source="background_pending",
+            is_late=is_late,
             started_at=started_at,
             duration_seconds=_duration_seconds(started_at, submitted_at),
             submitted_at=submitted_at,
@@ -639,7 +638,7 @@ def _grade_pending_assignment_submission(db: Session, submission_id: int) -> Non
 
 
 def list_student_submissions(db: Session, student: User, assignment_id: int) -> list[AssignmentSubmissionResponse]:
-    _get_student_assignment(db, student, assignment_id)
+    _get_student_assignment(db, student, assignment_id, require_started=True)
     submissions = (
         db.query(AssignmentSubmission)
         .filter(
@@ -692,6 +691,7 @@ def get_teacher_assignment_progress(db: Session, teacher: User, assignment_id: i
                         submitted_at=latest.submitted_at,
                         run_time_ms=_sum_run_time_ms(latest.results_json),
                         duration_seconds=latest.duration_seconds,
+                        is_late=bool(latest.is_late),
                     )
                 )
             else:
@@ -802,6 +802,7 @@ def _teacher_submission_detail_response(submission: AssignmentSubmission) -> Ass
         ai_review_json=submission.ai_review_json,
         decision_source=submission.final_decision_source,
         teacher_review_note=submission.teacher_review_note,
+        is_late=bool(submission.is_late),
         trust_label=submission.trust_label,
         trust_score=submission.trust_score,
         reviewed_at=submission.reviewed_at,
@@ -891,7 +892,7 @@ def _prepare_assignment_rag_help(
     question_id: int,
     payload: AssignmentAiHelpRequest,
 ):
-    assignment = _get_student_assignment(db, student, assignment_id)
+    assignment = _get_student_assignment(db, student, assignment_id, require_started=True)
     question = _get_assignment_question(assignment, question_id)
     client = get_openai_client()
     reasoning_trace: list = []
@@ -936,7 +937,6 @@ def _prepare_assignment_rag_help(
 def _build_assignment_help_context(assignment: Assignment, question: AssignmentQuestion, payload: AssignmentAiHelpRequest) -> str:
     return f"""
 作业：{assignment.title}
-作业说明：{assignment.description or "无"}
 题目：{question.title or "编程题"}
 题目描述：
 {question.prompt}
@@ -995,7 +995,7 @@ def _sse_event(event: str, payload: dict) -> str:
 
 def _validate_status(status_value: str) -> None:
     if status_value not in VALID_ASSIGNMENT_STATUSES:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="作业状态必须是 draft、published 或 closed。")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="作业状态必须是 draft 或 published。")
 
 
 def _get_teacher_assignment(db: Session, teacher: User, assignment_id: int) -> Assignment:
@@ -1016,7 +1016,12 @@ def _get_teacher_assignment(db: Session, teacher: User, assignment_id: int) -> A
     return assignment
 
 
-def _get_student_assignment(db: Session, student: User, assignment_id: int) -> Assignment:
+def _get_student_assignment(
+    db: Session,
+    student: User,
+    assignment_id: int,
+    require_started: bool = False,
+) -> Assignment:
     assignment = (
         db.query(Assignment)
         .join(AssignmentAssignee, AssignmentAssignee.assignment_id == Assignment.id)
@@ -1030,13 +1035,36 @@ def _get_student_assignment(db: Session, student: User, assignment_id: int) -> A
         .filter(
             Assignment.id == assignment_id,
             AssignmentAssignee.student_id == student.id,
-            Assignment.status != "draft",
+            Assignment.status == "published",
         )
         .first()
     )
     if not assignment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="作业不存在或未分配给你。")
+    if require_started:
+        _ensure_assignment_started(assignment)
     return assignment
+
+
+def _ensure_assignment_started(assignment: Assignment, now: datetime | None = None) -> None:
+    if not _assignment_has_started(assignment, now):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="作业尚未开始。")
+
+
+def _assignment_has_started(assignment: Assignment, now: datetime | None = None) -> bool:
+    starts_at = _to_naive_local(getattr(assignment, "starts_at", None))
+    if not starts_at:
+        return True
+    current_time = _to_naive_local(now) or datetime.now()
+    return starts_at <= current_time
+
+
+def _assignment_is_late(assignment: Assignment, submitted_at: datetime | None = None) -> bool:
+    due_at = _to_naive_local(getattr(assignment, "due_at", None))
+    if not due_at:
+        return False
+    current_time = _to_naive_local(submitted_at) or datetime.now()
+    return due_at < current_time
 
 
 def _get_assignment_question(assignment: Assignment, question_id: int) -> AssignmentQuestion:
@@ -1217,7 +1245,6 @@ def _assignment_summary(
     return AssignmentSummaryResponse(
         id=assignment.id,
         title=assignment.title,
-        description=assignment.description,
         status=assignment.status,
         starts_at=assignment.starts_at,
         due_at=assignment.due_at,
@@ -1291,7 +1318,6 @@ def _assignment_detail(
     return AssignmentDetailResponse(
         id=assignment.id,
         title=assignment.title,
-        description=assignment.description,
         status=assignment.status,
         starts_at=assignment.starts_at,
         due_at=assignment.due_at,
@@ -1635,6 +1661,7 @@ def _submission_to_response(
         ai_review_json=submission.ai_review_json,
         decision_source=submission.final_decision_source,
         teacher_review_note=submission.teacher_review_note,
+        is_late=bool(submission.is_late),
         trust_label=submission.trust_label,
         trust_score=submission.trust_score,
         started_at=submission.started_at,

@@ -152,11 +152,27 @@
             </label>
           </div>
         </label>
-        <label class="field">
+        <div class="field status-field">
+          <span>状态</span>
+          <div class="status-segmented" role="radiogroup" aria-label="作业状态">
+            <button
+              v-for="option in statusOptions"
+              :key="option.value"
+              type="button"
+              role="radio"
+              :aria-checked="form.status === option.value"
+              :class="{ active: form.status === option.value }"
+              @click="form.status = option.value"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </div>
+        <label class="field time-field">
           <span>开始时间</span>
           <input v-model="form.starts_at" type="datetime-local" />
         </label>
-        <label class="field">
+        <label class="field time-field">
           <span>截止时间</span>
           <input v-model="form.due_at" type="datetime-local" />
         </label>
@@ -562,6 +578,10 @@ const form = ref({
   class_names: [],
   questions: [],
 });
+const statusOptions = [
+  { value: "published", label: "已发布" },
+  { value: "draft", label: "草稿" },
+];
 
 const classOptions = computed(() => {
   const classes = [...new Set(students.value.map((student) => student.class_name).filter(Boolean))];
@@ -1041,7 +1061,6 @@ async function saveAssignment() {
     } else {
       await updateTeacherAssignmentApi(assignmentId.value, {
         title: payload.title,
-        description: "",
         status: payload.status,
         starts_at: payload.starts_at,
         due_at: payload.due_at,
@@ -1083,7 +1102,6 @@ function validateForm() {
 function buildPayload() {
   return {
     title: form.value.title.trim(),
-    description: "",
     status: form.value.status || "published",
     starts_at: fromDatetimeLocal(form.value.starts_at),
     due_at: fromDatetimeLocal(form.value.due_at),
@@ -1851,8 +1869,9 @@ function formatApiErrorDetail(detail, fallbackMessage) {
 
 .meta-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.82fr) minmax(220px, 0.82fr);
+  grid-template-columns: max-content minmax(240px, 300px) repeat(2, minmax(240px, 1fr));
   gap: 12px;
+  align-items: start;
 }
 
 .title-field {
@@ -1916,6 +1935,59 @@ textarea {
 
 .class-field {
   min-width: 0;
+  width: max-content;
+}
+
+.status-field {
+  min-width: 0;
+}
+
+.time-field {
+  min-width: 0;
+}
+
+.time-field input {
+  min-width: 0;
+}
+
+.status-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 40px;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #d9e3f2;
+  border-radius: 7px;
+  background: #f8fbff;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+}
+
+.status-segmented button {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid #d9e3f2;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.status-segmented button:last-child {
+  border-right: 0;
+}
+
+.status-segmented button.active {
+  background: #2f6ef4;
+  color: #fff;
+}
+
+.status-segmented button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #9bbcff;
+  outline-offset: -2px;
 }
 
 .class-check {
@@ -2494,6 +2566,19 @@ textarea {
   .editor-empty-actions {
     grid-template-columns: 1fr 1fr;
   }
+
+  .meta-grid {
+    grid-template-columns: max-content minmax(240px, 300px);
+    justify-content: start;
+  }
+
+  .title-field {
+    grid-column: 1 / -1;
+  }
+
+  .time-field {
+    width: 300px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -2521,6 +2606,12 @@ textarea {
   .meta-grid,
   .ai-controls {
     grid-template-columns: 1fr 1fr;
+    justify-content: stretch;
+  }
+
+  .class-field,
+  .time-field {
+    width: 100%;
   }
 }
 

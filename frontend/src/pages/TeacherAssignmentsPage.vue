@@ -68,10 +68,8 @@
         <article v-for="item in pagedAssignments" :key="item.id" class="assignment-row">
           <div class="assignment-copy col-name">
             <h3>{{ item.title }}</h3>
-            <p class="date-line">发布时间：{{ formatDateTime(item.created_at) }}</p>
-            <p class="description-line muted">{{ assignmentTypeSummary(item) }}</p>
-            <p v-if="item.description" class="description-line">{{ item.description }}</p>
-            <p v-else class="description-line muted">暂无说明</p>
+            <p class="date-line">{{ assignmentTimeSummary(item) }}</p>
+            <p class="type-line muted">{{ assignmentTypeSummary(item) }}</p>
           </div>
 
           <div><span class="status" :class="item.status">{{ statusText(item.status) }}</span></div>
@@ -153,7 +151,6 @@ const filters = [
   { value: "all", label: "全部" },
   { value: "draft", label: "草稿箱" },
   { value: "published", label: "已发布" },
-  { value: "closed", label: "已关闭" },
 ];
 
 const publishedCount = computed(() => assignments.value.filter((item) => item.status === "published").length);
@@ -221,7 +218,7 @@ async function confirmDelete() {
 }
 
 function statusText(status) {
-  return { draft: "草稿", published: "已发布", closed: "已关闭" }[status] || status;
+  return { draft: "草稿", published: "已发布", closed: "已发布" }[status] || status;
 }
 
 function formatDateTime(value) {
@@ -249,6 +246,12 @@ function assignmentTypeSummary(item) {
     counts.programming ? `编程题 ${counts.programming}` : "",
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "暂无题型统计";
+}
+
+function assignmentTimeSummary(item) {
+  const start = item.starts_at ? `开始：${formatDateTime(item.starts_at)}` : "开始：发布后立即";
+  const due = item.due_at ? `截止：${formatDateTime(item.due_at)}` : "截止：未设置";
+  return `${start} · ${due}`;
 }
 
 function setPage(page) {
@@ -458,8 +461,8 @@ function handleApiError(error, fallbackMessage) {
   font-size: calc(var(--compact-caption) * 0.75 + 1px);
 }
 
-.description-line {
-  margin-top: 4px !important;
+.type-line {
+  margin-top: 3px !important;
   max-width: 360px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -534,8 +537,8 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .assignment-row {
-  min-height: 54px;
-  padding: 9px 11px;
+  min-height: 46px;
+  padding: 7px 11px;
   border-bottom: 1px solid var(--app-line);
 }
 
