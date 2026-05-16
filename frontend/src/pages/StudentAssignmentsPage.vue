@@ -4,21 +4,21 @@
 
     <section v-if="!isInitialLoading" class="summary-row">
       <article class="summary-card blue">
-        <div class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></div>
+        <div class="summary-icon"><ClipboardList :size="22" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>作业总数</span>
           <strong>{{ assignments.length }} <small>份</small></strong>
         </div>
       </article>
       <article class="summary-card cyan">
-        <div class="summary-icon"><Clock3 :size="18" aria-hidden="true" /></div>
+        <div class="summary-icon"><Clock3 :size="22" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>待完成</span>
           <strong>{{ pendingCount }} <small>份</small></strong>
         </div>
       </article>
       <article class="summary-card green">
-        <div class="summary-icon"><CircleCheck :size="18" aria-hidden="true" /></div>
+        <div class="summary-icon"><CircleCheck :size="22" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>已通过题目</span>
           <strong>{{ acceptedTotal }} <small>题</small></strong>
@@ -240,14 +240,11 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .summary-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 48px;
   height: 48px;
+  display: inline-grid;
+  place-items: center;
   border-radius: 12px;
-  font-size: 20px;
-  font-weight: 600;
   flex-shrink: 0;
 }
 
@@ -265,13 +262,13 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .cyan .summary-icon {
-  background: #e9fbfb;
+  background: #e8fbfb;
   color: #0e9384;
 }
 
 .green .summary-icon {
-  background: #eefaf3;
-  color: #12a15c;
+  background: #eaf8ef;
+  color: #229954;
 }
 
 .assignment-panel {

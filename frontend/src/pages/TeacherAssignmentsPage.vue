@@ -10,28 +10,28 @@
 
     <section v-if="!isInitialLoading" class="summary-row">
       <article class="summary-item shell-card blue">
-        <div class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></div>
+        <div class="summary-icon"><ClipboardList :size="22" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>全部作业</span>
           <strong>{{ assignments.length }} <small>份</small></strong>
         </div>
       </article>
-      <article class="summary-item shell-card green">
-        <div class="summary-icon"><Send :size="18" aria-hidden="true" /></div>
+      <article class="summary-item shell-card cyan">
+        <div class="summary-icon"><Send :size="22" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>已发布</span>
           <strong>{{ publishedCount }} <small>份</small></strong>
         </div>
       </article>
-      <article class="summary-item shell-card purple">
-        <div class="summary-icon"><Upload :size="18" aria-hidden="true" /></div>
+      <article class="summary-item shell-card amber">
+        <div class="summary-icon"><Upload :size="22" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>提交次数</span>
           <strong>{{ totalSubmissions }} <small>次</small></strong>
         </div>
       </article>
-      <article class="summary-item shell-card amber">
-        <div class="summary-icon"><CircleCheck :size="18" aria-hidden="true" /></div>
+      <article class="summary-item shell-card green">
+        <div class="summary-icon"><CircleCheck :size="22" aria-hidden="true" /></div>
         <div class="summary-copy">
           <span>通过提交</span>
           <strong>{{ totalAccepted }} <small>次</small></strong>
@@ -323,14 +323,11 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .summary-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 48px;
   height: 48px;
+  display: inline-grid;
+  place-items: center;
   border-radius: 12px;
-  font-size: 20px;
-  font-weight: 600;
   flex-shrink: 0;
 }
 
@@ -340,13 +337,13 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .green .summary-icon {
-  background: #eefaf3;
-  color: #12a15c;
+  background: #eaf8ef;
+  color: #229954;
 }
 
-.purple .summary-icon {
-  background: #f2efff;
-  color: #7a5af8;
+.cyan .summary-icon {
+  background: #e8fbfb;
+  color: #0e9384;
 }
 
 .amber .summary-icon {

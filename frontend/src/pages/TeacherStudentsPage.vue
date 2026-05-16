@@ -71,21 +71,21 @@
       <section v-if="activeStudent" class="student-profile">
         <section class="summary-grid">
           <article class="summary-card weak-summary">
-            <span class="summary-icon"><TriangleAlert :size="18" aria-hidden="true" /></span>
+            <span class="summary-icon"><TriangleAlert :size="22" aria-hidden="true" /></span>
             <div>
               <p>当前薄弱点</p>
               <strong>{{ studentWeakPoints.length }} <small>个</small></strong>
             </div>
           </article>
           <article class="summary-card consultation-summary">
-            <span class="summary-icon"><MessageCircleQuestion :size="18" aria-hidden="true" /></span>
+            <span class="summary-icon"><MessageCircleQuestion :size="22" aria-hidden="true" /></span>
             <div>
               <p>最近咨询知识点</p>
               <strong>{{ studentConsultations.length }} <small>个</small></strong>
             </div>
           </article>
           <article class="summary-card assignment-summary">
-            <span class="summary-icon"><ClipboardList :size="18" aria-hidden="true" /></span>
+            <span class="summary-icon"><ClipboardList :size="22" aria-hidden="true" /></span>
             <div>
               <p>未完成作业次数</p>
               <strong>{{ activeStudent.unfinished_assignment_count || 0 }} <small>次</small></strong>
@@ -539,28 +539,25 @@ function handleApiError(error, fallbackMessage) {
 .summary-icon {
   width: 48px;
   height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-grid;
+  place-items: center;
   border-radius: 12px;
-  font-size: 20px;
-  font-weight: 600;
   flex-shrink: 0;
 }
 
 .weak-summary .summary-icon {
-  background: #edf3ff;
-  color: var(--app-primary);
+  background: #fff7e9;
+  color: #f79009;
 }
 
 .consultation-summary .summary-icon {
-  background: #f3eaff;
-  color: #8b5cf6;
+  background: #e8fbfb;
+  color: #0e9384;
 }
 
 .assignment-summary .summary-icon {
-  background: #eaf8ef;
-  color: #229954;
+  background: #edf3ff;
+  color: var(--app-primary);
 }
 
 .summary-card p {

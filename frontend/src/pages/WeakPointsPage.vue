@@ -723,6 +723,9 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .weak-page {
+  --weak-list-panel-width: 260px;
+  --weak-scrollbar-width: 4px;
+  --weak-scrollbar-edge-offset: 2px;
   gap: 14px;
   font-size: var(--compact-body);
 }
@@ -836,21 +839,23 @@ function handleApiError(error, fallbackMessage) {
 
 .weak-workbench {
   display: grid;
-  grid-template-columns: minmax(220px, 0.7fr) minmax(420px, 1.8fr) minmax(280px, auto);
+  grid-template-columns: var(--weak-list-panel-width) minmax(420px, 1fr) minmax(280px, auto);
   gap: 14px;
   align-items: start;
 }
 
 .weak-workbench.training-open {
-  grid-template-columns: minmax(220px, 0.62fr) minmax(340px, 1fr) minmax(380px, auto);
+  grid-template-columns: var(--weak-list-panel-width) minmax(340px, 1fr) minmax(380px, auto);
 }
 
 .weak-list-panel {
   position: relative;
   display: flex;
   flex-direction: column;
+  width: var(--weak-list-panel-width);
   height: 500px;
-  min-width: 0;
+  min-width: var(--weak-list-panel-width);
+  max-width: var(--weak-list-panel-width);
   padding: 14px;
 }
 
@@ -1021,10 +1026,47 @@ function handleApiError(error, fallbackMessage) {
   flex: 1;
   flex-direction: column;
   gap: 8px;
+  margin-right: calc(var(--weak-scrollbar-edge-offset) - 14px);
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: calc(14px - var(--weak-scrollbar-edge-offset));
+}
+
+.weak-list,
+.recommendation-panel,
+.quiz-body,
+.record-list {
   scrollbar-width: thin;
-  scrollbar-color: #c7d7e8 transparent;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.weak-list::-webkit-scrollbar,
+.recommendation-panel::-webkit-scrollbar,
+.quiz-body::-webkit-scrollbar,
+.record-list::-webkit-scrollbar {
+  width: var(--weak-scrollbar-width);
+  height: var(--weak-scrollbar-width);
+}
+
+.weak-list::-webkit-scrollbar-track,
+.recommendation-panel::-webkit-scrollbar-track,
+.quiz-body::-webkit-scrollbar-track,
+.record-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.weak-list::-webkit-scrollbar-thumb,
+.recommendation-panel::-webkit-scrollbar-thumb,
+.quiz-body::-webkit-scrollbar-thumb,
+.record-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.42);
+}
+
+.weak-list::-webkit-scrollbar-thumb:hover,
+.recommendation-panel::-webkit-scrollbar-thumb:hover,
+.quiz-body::-webkit-scrollbar-thumb:hover,
+.record-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.58);
 }
 
 .weak-list-item {
@@ -1209,6 +1251,10 @@ function handleApiError(error, fallbackMessage) {
   overflow: hidden;
 }
 
+.weak-side-panel-shell > .recommendation-panel {
+  overflow-y: auto;
+}
+
 .weak-side-panel-shell.motion-opening > .panel {
   transform-origin: right center;
   animation: weak-panel-open 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -1243,30 +1289,8 @@ function handleApiError(error, fallbackMessage) {
 
 .recommendation-panel {
   padding: 16px;
+  padding-right: calc(16px - var(--weak-scrollbar-edge-offset));
   gap: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: #c7d7e8 transparent;
-}
-
-.recommendation-panel::-webkit-scrollbar {
-  width: 10px;
-}
-
-.recommendation-panel::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.recommendation-panel::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(147, 175, 204, 0.78), rgba(118, 147, 178, 0.9));
-  border: 3px solid transparent;
-  border-radius: 999px;
-  background-clip: content-box;
-}
-
-.recommendation-panel::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(118, 147, 178, 0.95), rgba(92, 124, 156, 0.98));
-  border: 3px solid transparent;
-  background-clip: content-box;
 }
 
 .recommendation-header h3 {
@@ -1375,6 +1399,7 @@ function handleApiError(error, fallbackMessage) {
   flex: 1;
   overflow-y: auto;
   padding: 14px;
+  padding-right: calc(14px - var(--weak-scrollbar-edge-offset));
 }
 
 .quiz-intro {
@@ -1608,9 +1633,10 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
+  margin-right: calc(var(--weak-scrollbar-edge-offset) - 16px);
   max-height: 250px;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: calc(16px - var(--weak-scrollbar-edge-offset));
 }
 
 .record-empty {
@@ -1713,12 +1739,17 @@ function handleApiError(error, fallbackMessage) {
 @media (max-width: 1180px) {
   .weak-workbench,
   .weak-workbench.training-open {
-    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.5fr);
+    grid-template-columns: var(--weak-list-panel-width) minmax(0, 1fr);
+  }
+
+  .weak-side-panel-shell {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    width: 100%;
   }
 
   .quiz-panel,
   .recommendation-panel {
-    grid-column: 1 / -1;
     height: auto;
     max-height: 360px;
   }
@@ -1737,6 +1768,12 @@ function handleApiError(error, fallbackMessage) {
   .weak-list-panel,
   .graph-container {
     height: 420px;
+  }
+
+  .weak-list-panel {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
   }
 
   .graph-header {
