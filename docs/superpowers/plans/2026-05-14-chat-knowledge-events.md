@@ -368,7 +368,7 @@ def test_record_turn_knowledge_events_only_writes_existing_nodes(auto_test_prefi
             f'''
             [
               {{"name":"{node.node_name}","confidence":0.93,"evidence":"提到了 ArrayList"}},
-              {{"name":"不存在的知识点","confidence":0.99,"evidence":"不应创建新节点"}}
+              {{"name":"不存在的知识点","confidence":0.99,"evidence":"不应创建新结点"}}
             ]
             '''
         )
@@ -497,7 +497,7 @@ def extract_candidates_from_turn(
         for item in (previous_context or [])[-2:]
     ) or "无"
     prompt = f"""
-请从这一轮 Java 编程辅导对话中抽取涉及的正式知识点候选。
+请从这一轮 Java 编程辅导对话中抽取涉及的知识点候选。
 
 要求：
 1. 只抽 Java 编程知识点。
@@ -1286,7 +1286,7 @@ Add this section after the summary row and before the graph layout:
 Replace:
 
 ```vue
-<div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱节点，请先完成作业或在聊天页面提问以记录薄弱点。</div>
+<div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱结点，请先完成作业或在聊天页面提问以记录薄弱点。</div>
 ```
 
 with:
@@ -1298,7 +1298,7 @@ with:
 Replace:
 
 ```vue
-<p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识节点。</p>
+<p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识结点。</p>
 ```
 
 with:
@@ -1499,7 +1499,7 @@ git commit -m "feat(teacher): show chat consultation hotspots"
 In `docs/teacher-graph-maintenance.md`, update the data boundary section to state:
 
 ```markdown
-- ChatPage 不再在回答前检索 Neo4j 图谱；聊天回答完成后会异步抽取本轮涉及的正式知识点，写入提问记录用于学生回看和教师热点统计。
+- ChatPage 在聊天回答完成后会异步抽取本轮涉及的知识点，写入提问记录用于学生回看和教师热点统计。
 - 聊天提问记录只是弱学习足迹，不会写入 `user_weak_points`，也不会改变 `user_knowledge_states`。
 ```
 

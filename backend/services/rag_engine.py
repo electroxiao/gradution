@@ -361,7 +361,7 @@ def _select_weak_points_from_path(client, question, selected_path_fact, dependen
         return []
 
     prompt = f"""
-你是一名 Java 学习诊断助手。请根据问题和已选路径，从候选知识节点中挑出 1 到 2 个最主要的薄弱点。
+你是一名 Java 学习诊断助手。请根据问题、已选路径和下列知识结点，挑出 1 到 2 个最主要的薄弱点。
 
 问题:
 {question}
@@ -372,11 +372,11 @@ def _select_weak_points_from_path(client, question, selected_path_fact, dependen
 路径选择原因:
 {selected_path_fact.get("reason", "未提供")}
 
-候选节点:
+可选知识项:
 {json.dumps(candidate_nodes, ensure_ascii=False)}
 
 只返回 JSON 数组，每项格式如下：
-{{"node_name": "节点名", "reason": "为什么这是主要薄弱点"}}
+{{"node_name": "结点名", "reason": "为什么这是主要薄弱点"}}
 
 要求：
 1. 最多返回 {max_points} 个。
@@ -429,16 +429,16 @@ def query_graph_with_reasoning(
     seeds = _query_seed_nodes(driver, question, keywords, limit_per_kw=max(2, width), max_total=max(2, min(width, 3)))
     if not seeds:
         _log_timing("query_graph_with_reasoning.total", fn_started_at, "no_seeds")
-        _append_trace(retrieval_trace, "retrieval", "种子召回", "未召回到可用种子节点", stage="seed_recall", mode="student")
+        _append_trace(retrieval_trace, "retrieval", "种子召回", "未召回到可用种子结点", stage="seed_recall", mode="student")
         return []
 
     for seed in seeds[:width]:
         evidence.append({"type": "seed", "seed": seed["name"], "keyword": seed["keyword"], "desc": seed["desc"], "score": seed["match_score"], "match_type": seed["match_type"]})
-    _append_trace(retrieval_trace, "retrieval", "种子召回", f"召回 {len(seeds[:width])} 个种子节点", details=[f"{seed['name']} | {seed['match_type']} | score={seed['match_score']:.2f}" for seed in seeds[:width]], stage="seed_recall", mode="student")
+    _append_trace(retrieval_trace, "retrieval", "种子召回", f"召回 {len(seeds[:width])} 个种子结点", details=[f"{seed['name']} | {seed['match_type']} | score={seed['match_score']:.2f}" for seed in seeds[:width]], stage="seed_recall", mode="student")
 
     subgraph_nodes = _query_subgraph_nodes(driver, question, keywords, seeds, max_nodes=max(width * max_depth * 3, 12))
     node_map = {node["name"]: node for node in subgraph_nodes}
-    _append_trace(retrieval_trace, "retrieval", "子图召回", f"召回 {len(subgraph_nodes)} 个相关节点", details=[f"{node['name']} score={node['score']:.2f}" for node in subgraph_nodes[:12]], stage="subgraph_recall", mode="student")
+    _append_trace(retrieval_trace, "retrieval", "子图召回", f"召回 {len(subgraph_nodes)} 个相关结点", details=[f"{node['name']} score={node['score']:.2f}" for node in subgraph_nodes[:12]], stage="subgraph_recall", mode="student")
 
     subgraph_edges = _query_edges_between_nodes(driver, list(node_map.keys()))
     _append_trace(retrieval_trace, "retrieval", "子图边召回", f"召回 {len(subgraph_edges)} 条相关边", details=[f"{edge['source']} -[{edge['relation']},{edge['direction']}]-> {edge['target']}" for edge in subgraph_edges[:12]], stage="subgraph_edges", mode="student")

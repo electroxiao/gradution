@@ -103,7 +103,7 @@ def stream_judge_answer(node_id: str, question: str, answer: str, db, user):
                     "properties": {
                         "node_id": {
                             "type": "string",
-                            "description": "知识点节点ID",
+                            "description": "知识点结点ID",
                         }
                     },
                     "required": ["node_id"],

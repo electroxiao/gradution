@@ -433,7 +433,7 @@ def test_extract_candidates_from_turn_uses_formal_nodes_as_allowed_options():
     )
 
     prompt = client.completions.calls[0]["messages"][0]["content"]
-    assert "只能从下面的正式知识图谱节点中选择" in prompt
+    assert "只能从下面的知识图谱结点中选择" in prompt
     assert '{"id":7,"name":"封装(Encapsulation)"}' in prompt
     assert "confidence" not in prompt
     assert "evidence" not in prompt

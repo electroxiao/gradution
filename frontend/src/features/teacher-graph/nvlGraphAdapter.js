@@ -59,7 +59,7 @@ function resolveNodeColor(nodeType, isSelected, status) {
     return nodeType;
   }
 
-  // 节点类型颜色
+  // 结点类型颜色
   const normalized = normalizeType(nodeType);
   if (normalized) {
     // 精确匹配类型

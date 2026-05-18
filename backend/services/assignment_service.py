@@ -1189,7 +1189,7 @@ def _sync_question_knowledge_nodes(db: Session, question: AssignmentQuestion, kn
     if normalized_ids:
         count = db.query(func.count(KnowledgeNode.id)).filter(KnowledgeNode.id.in_(normalized_ids)).scalar()
         if count != len(normalized_ids):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="题目绑定的知识点包含无效节点。")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="题目绑定的知识点包含无效结点。")
 
     existing = {item.knowledge_node_id: item for item in question.knowledge_nodes}
     keep_ids: set[int] = set()

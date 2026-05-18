@@ -811,7 +811,7 @@ def generate_graph_node_description(node_name: str) -> dict:
             raise ValueError("empty response")
         return {"desc": content}
     except Exception as error:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"生成节点描述失败：{error}") from error
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"生成结点描述失败：{error}") from error
 
 
 def _normalize_relation(relation: str) -> str:
