@@ -1,5 +1,5 @@
 <template>
-  <div class="detail-page" :class="{ 'ai-open': showAiPanel }">
+  <div class="detail-page" :class="{ 'ai-open': isAiPanelOpen }">
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
     <p v-if="successMessage" class="feedback success">{{ successMessage }}</p>
 
@@ -53,8 +53,8 @@
           <div class="toolbar-actions">
             <span class="language-pill">{{ questionTypeText(activeQuestion.question_type) }}</span>
             <span class="draft-pill">已自动保存</span>
-            <button type="button" class="secondary-btn" @click="showAiPanel = !showAiPanel">
-              {{ showAiPanel ? "收起 AI" : "AI 助教" }}
+            <button v-if="canShowAiHelp" type="button" class="secondary-btn" @click="showAiPanel = !showAiPanel">
+              {{ isAiPanelOpen ? "收起 AI" : "AI 助教" }}
             </button>
             <button type="button" class="secondary-btn" :disabled="loadingPreviousResult" @click="showPreviousSubmissionResult">
               {{ loadingPreviousResult ? "加载中..." : "查看上次提交" }}
@@ -220,9 +220,9 @@
         </section>
       </section>
 
-      <div v-if="activeQuestion && showAiPanel" class="resize-handle ai-resize-handle" @pointerdown="startAiResize" />
+      <div v-if="activeQuestion && isAiPanelOpen" class="resize-handle ai-resize-handle" @pointerdown="startAiResize" />
 
-      <aside v-if="activeQuestion && showAiPanel" class="ai-pane">
+      <aside v-if="activeQuestion && isAiPanelOpen" class="ai-pane">
         <header class="ai-header">
           <div>
             <h2>作业助教</h2>
@@ -252,7 +252,7 @@
 
 <script setup>
 import { CircleCheck, CircleX, X } from "lucide-vue-next";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import {
@@ -265,6 +265,7 @@ import CodeEditor from "../components/CodeEditor.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
 import PageHeader from "../components/PageHeader.vue";
 import ReadonlyCodeBlock from "../components/ReadonlyCodeBlock.vue";
+import { shouldShowAssignmentAiHelp } from "../features/student-assignments/aiHelpVisibility";
 import { useAuthStore } from "../stores/auth";
 import { clearAuthSession } from "../utils/authStorage";
 
@@ -374,6 +375,14 @@ const isAiRejectedAfterPassingTests = computed(() => {
     && result.results.length > 0
     && result.results.every((item) => item.status === "accepted");
   return testsPassed && (result.status === "ai_rejected" || aiDecision === "ai_rejected" || aiDecision === "wrong_answer");
+});
+const canShowAiHelp = computed(() => shouldShowAssignmentAiHelp(activeQuestion.value, lastResult.value));
+const isAiPanelOpen = computed(() => canShowAiHelp.value && showAiPanel.value);
+
+watch(canShowAiHelp, (canShow) => {
+  if (!canShow) {
+    showAiPanel.value = false;
+  }
 });
 
 onMounted(async () => {
