@@ -1,12 +1,3 @@
-const TYPE_COLOR_MAP = {
-  syntax: "#6aa9ff",
-  collection: "#49a57d",
-  exception: "#f29a4a",
-  oop: "#7c74f5",
-  io: "#3ba7b8",
-  thread: "#d56ca4",
-};
-
 const STATUS_COLOR_MAP = {
   weak: "#ef4444",
   recommended: "#2563eb",
@@ -39,11 +30,7 @@ function createNodeHtml(label, isSelected) {
   return element;
 }
 
-function normalizeType(rawType) {
-  return String(rawType || "").trim().toLowerCase();
-}
-
-function resolveNodeColor(nodeType, isSelected, status) {
+function resolveNodeColor(color, isSelected, status) {
   // 选中状态优先
   if (isSelected) {
     return "#2b76f0";
@@ -55,25 +42,8 @@ function resolveNodeColor(nodeType, isSelected, status) {
   }
 
   // 自定义颜色
-  if (nodeType && nodeType.startsWith("#")) {
-    return nodeType;
-  }
-
-  // 节点类型颜色
-  const normalized = normalizeType(nodeType);
-  if (normalized) {
-    // 精确匹配类型
-    if (TYPE_COLOR_MAP[normalized]) {
-      return TYPE_COLOR_MAP[normalized];
-    }
-    
-    // 包含关系匹配
-    if (normalized.includes("collection")) return TYPE_COLOR_MAP.collection;
-    if (normalized.includes("exception")) return TYPE_COLOR_MAP.exception;
-    if (normalized.includes("thread")) return TYPE_COLOR_MAP.thread;
-    if (normalized.includes("syntax")) return TYPE_COLOR_MAP.syntax;
-    if (normalized.includes("oop")) return TYPE_COLOR_MAP.oop;
-    if (normalized.includes("io")) return TYPE_COLOR_MAP.io;
+  if (color && color.startsWith("#")) {
+    return color;
   }
 
   // 默认颜色
@@ -88,7 +58,7 @@ export function toNvlNodes(nodes, selectedNodeId = "") {
     return {
       id: String(node.id),
       size: isSelected ? 34 : 28,
-      color: resolveNodeColor(node.color || node.node_type, isSelected, node.status),
+      color: resolveNodeColor(node.color, isSelected, node.status),
       selected: isSelected,
       html: createNodeHtml(label, isSelected),
     };

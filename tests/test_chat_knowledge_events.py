@@ -25,7 +25,7 @@ from backend.api.routes import chat as chat_routes
 from backend.api.routes import teacher as teacher_routes
 from backend.schemas.chat import ChatConsultationEventResponse, MessageCreateRequest
 from backend.schemas.teacher import TeacherConsultationSummaryResponse
-from backend.services import chat_service, rag_engine
+from backend.services import chat_service
 from backend.services.chat_knowledge_event_service import (
     ConsultationEventSummary,
     ConsultationSummary,
@@ -613,20 +613,7 @@ def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db
     session = ChatSession(user_id=user.id, title="已有对话")
     isolated_db.add(session)
     isolated_db.flush()
-    graph_calls = {"keywords": 0, "graph": 0}
-
-    def fake_extract_keywords(*args, **kwargs):
-        graph_calls["keywords"] += 1
-        return ["空指针异常"]
-
-    def fake_query_graph(*args, **kwargs):
-        graph_calls["graph"] += 1
-        return []
-
     monkeypatch.setattr(chat_service, "get_openai_client", lambda: FakeStreamClient())
-    monkeypatch.setattr(rag_engine, "extract_keywords_with_llm", fake_extract_keywords)
-    monkeypatch.setattr(rag_engine, "query_graph_with_reasoning", fake_query_graph)
-    monkeypatch.setattr(rag_engine, "ask_deepseek_stream", lambda *args, **kwargs: iter(["旧路径"]))
     monkeypatch.setattr(
         chat_service,
         "_schedule_turn_knowledge_extraction",
@@ -643,7 +630,6 @@ def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db
         )
     )
 
-    assert graph_calls == {"keywords": 0, "graph": 0}
     assert any(event.startswith("event: assistant_delta") for event in events)
     assert any(event.startswith("event: assistant_done") for event in events)
     user_payload = _event_payload(events, "user_message")

@@ -245,32 +245,6 @@
         <div v-if="aiAnswer" class="ai-answer">
           <MarkdownContent :content="aiAnswer" />
         </div>
-        <div v-if="aiConcepts.length" class="concept-block">
-          <strong>相关知识点</strong>
-          <div class="concept-list">
-            <span v-for="concept in aiConcepts" :key="concept">{{ concept }}</span>
-          </div>
-        </div>
-
-        <details v-if="aiReasoningTrace.length || aiRetrievalTrace.length" class="trace-box">
-          <summary>查看检索过程</summary>
-          <div v-if="aiReasoningTrace.length" class="trace-group">
-            <strong>推理轨迹</strong>
-            <ul>
-              <li v-for="(item, index) in aiReasoningTrace" :key="`reason-${index}`">
-                {{ item.title }}：{{ item.summary }}
-              </li>
-            </ul>
-          </div>
-          <div v-if="aiRetrievalTrace.length" class="trace-group">
-            <strong>检索轨迹</strong>
-            <ul>
-              <li v-for="(item, index) in aiRetrievalTrace" :key="`retrieval-${index}`">
-                {{ item.title }}：{{ item.summary }}
-              </li>
-            </ul>
-          </div>
-        </details>
       </aside>
     </main>
   </div>
@@ -316,10 +290,6 @@ const startedAtByQuestion = ref({});
 const lastResultByQuestion = ref({});
 const aiMessage = ref("");
 const aiAnswer = ref("");
-const aiKeywords = ref([]);
-const aiFacts = ref([]);
-const aiReasoningTrace = ref([]);
-const aiRetrievalTrace = ref([]);
 const aiHelpError = ref("");
 const errorMessage = ref("");
 const successMessage = ref("");
@@ -368,18 +338,6 @@ const isAssignmentOverdue = computed(() => {
   if (!assignment.value?.due_at) return false;
   const dueAt = new Date(assignment.value.due_at).getTime();
   return !Number.isNaN(dueAt) && dueAt < Date.now();
-});
-const aiConcepts = computed(() => {
-  const names = new Set(aiKeywords.value.map((item) => String(item)).filter(Boolean));
-  for (const fact of aiFacts.value) {
-    for (const key of ["seed", "target", "node_name", "frontier_entity"]) {
-      if (fact?.[key]) names.add(String(fact[key]));
-    }
-    if (Array.isArray(fact?.nodes)) {
-      fact.nodes.filter(Boolean).forEach((name) => names.add(String(name)));
-    }
-  }
-  return Array.from(names).slice(0, 8);
 });
 const lastResult = computed(() => {
   if (!activeQuestion.value) return null;
@@ -611,12 +569,6 @@ async function requestAiHelp(message, keepModalOnFailure) {
         last_result: lastResult.value,
       },
       {
-        onMetadata(data) {
-          aiKeywords.value = data.keywords || [];
-          aiFacts.value = data.facts || [];
-          aiReasoningTrace.value = data.reasoning_trace || [];
-          aiRetrievalTrace.value = data.retrieval_trace || [];
-        },
         onAnswerDelta(data) {
           aiAnswer.value += data.content || "";
         },
@@ -641,10 +593,6 @@ async function requestAiHelp(message, keepModalOnFailure) {
 
 function clearAiHelp() {
   aiAnswer.value = "";
-  aiKeywords.value = [];
-  aiFacts.value = [];
-  aiReasoningTrace.value = [];
-  aiRetrievalTrace.value = [];
   aiHelpError.value = "";
 }
 
@@ -1022,8 +970,6 @@ button:disabled {
 .sample-card,
 .result-item,
 .ai-answer,
-.concept-block,
-.trace-box,
 .ai-state,
 .ai-error {
   padding: 9px 10px;
@@ -1615,38 +1561,6 @@ textarea {
 .ai-error {
   background: #fff8f8;
   color: #b42318;
-}
-
-.concept-block,
-.trace-box {
-  display: grid;
-  gap: 10px;
-}
-
-.concept-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.concept-list span {
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #edf6ff;
-  color: #1f5f99;
-  font-size: var(--compact-caption);
-}
-
-.trace-box summary {
-  color: #18344f;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.trace-group ul {
-  margin: 8px 0 0;
-  padding-left: 18px;
-  color: #5f7287;
 }
 
 @media (max-width: 900px) {

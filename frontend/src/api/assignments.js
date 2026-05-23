@@ -82,7 +82,6 @@ export async function streamAssignmentAiHelpApi(assignmentId, questionId, payloa
       const parsed = parseSseEvent(rawEvent);
       if (!parsed) continue;
 
-      if (parsed.event === "metadata") handlers.onMetadata?.(parsed.data);
       if (parsed.event === "answer_delta") handlers.onAnswerDelta?.(parsed.data);
       if (parsed.event === "answer_done") handlers.onAnswerDone?.(parsed.data);
       if (parsed.event === "error") handlers.onError?.(parsed.data);

@@ -1,10 +1,18 @@
+import inspect
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from backend.models.knowledge import KnowledgeNode, UserWeakPoint
+from backend.schemas.teacher import (
+    GraphNodeCreateRequest,
+    GraphNodeResponse,
+    GraphNodeUpdateRequest,
+    TeacherKnowledgeNodeRefResponse,
+)
+from backend.services.knowledge_progress_service import mark_node_weak
 from backend.services.knowledge_state_service import _query_candidate_nodes, get_weak_points_graph
 from backend.services.knowledge_progress_service import resolve_existing_graph_node_names
 from backend.services.knowledge_state_service import _load_target_weak_point
-from backend.services.weak_point_service import upsert_weak_points
 
 
 class _FakeSession:
@@ -82,20 +90,20 @@ def test_resolve_existing_graph_node_names_keeps_only_exact_graph_names() -> Non
         assert resolve_existing_graph_node_names(["集合", "ArrayList", "集合"]) == ["ArrayList"]
 
 
-def test_upsert_weak_points_only_marks_resolved_graph_nodes() -> None:
-    db = Mock()
-    user = SimpleNamespace(id=1)
-    session = SimpleNamespace(id=2)
+def test_weak_points_no_longer_track_source_chat_session() -> None:
+    assert "source_session_id" not in UserWeakPoint.__mapper__.columns
+    assert "source_session_id" not in inspect.signature(mark_node_weak).parameters
 
-    with (
-        patch("backend.services.weak_point_service.resolve_existing_graph_node_names", return_value=["ArrayList"]),
-        patch("backend.services.weak_point_service.mark_node_weak", return_value=True) as mark_node_weak,
+
+def test_teacher_knowledge_schemas_no_longer_expose_node_type() -> None:
+    assert "node_type" not in KnowledgeNode.__mapper__.columns
+    for schema in (
+        TeacherKnowledgeNodeRefResponse,
+        GraphNodeResponse,
+        GraphNodeCreateRequest,
+        GraphNodeUpdateRequest,
     ):
-        added = upsert_weak_points(db, user, session, ["ArrayList", "不存在的临时概念"])
-
-    assert added == ["ArrayList"]
-    mark_node_weak.assert_called_once_with(db, user, "ArrayList", source_session_id=2)
-    db.commit.assert_called_once()
+        assert "node_type" not in schema.model_fields
 
 
 def test_load_target_weak_point_matches_knowledge_node_id() -> None:

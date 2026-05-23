@@ -46,7 +46,6 @@ from backend.schemas.assignment import (
     AssignmentUpdateRequest,
     QuestionBankItemResponse,
 )
-from backend.services import rag_engine
 from backend.services.chat_service import get_openai_client
 from backend.services.knowledge_progress_service import mark_node_weak
 from backend.services.neo4j_service import get_neo4j_driver
@@ -242,76 +241,80 @@ def _recommend_assignment_knowledge_nodes(
     payload: AssignmentGenerateQuestionRequest,
     limit: int = 5,
 ) -> list[dict]:
-    query_text = "\n".join(
-        item
-        for item in [
-            f"知识点：{payload.knowledge_point}" if payload.knowledge_point else "",
-            f"教师要求：{payload.requirement}",
-            f"题目标题：{title}",
-            f"题目描述：{prompt}",
-        ]
-        if item
-    )
-    keywords = []
-    try:
-        client = get_openai_client()
-        driver = get_neo4j_driver()
-        keywords = rag_engine.extract_keywords_with_llm(client, query_text)
-        facts = rag_engine.query_graph_with_reasoning(
-            driver,
-            client,
-            query_text,
-            keywords=keywords,
-            max_depth=2,
-            width=4,
-            entity_top_k=6,
-        )
-    except Exception:
-        facts = []
-
-    candidates: list[str] = []
-    for keyword in [payload.knowledge_point, *keywords]:
-        if keyword:
-            candidates.append(str(keyword))
-    for fact in facts:
-        if not isinstance(fact, dict):
-            continue
-        for key in ["node_name", "seed", "target", "source"]:
-            if fact.get(key):
-                candidates.append(str(fact[key]))
-
-    seen: set[str] = set()
-    node_names = []
-    for name in candidates:
-        value = name.strip()
-        if value and value not in seen:
-            seen.add(value)
-            node_names.append(value)
-        if len(node_names) >= limit:
-            break
-
-    graph_node_names = _filter_existing_graph_node_names(node_names)
+    candidates = _assignment_knowledge_search_terms(title, prompt, payload)
+    explicit_terms = _explicit_assignment_knowledge_terms(payload)
+    graph_node_names = _match_existing_graph_node_names(candidates, explicit_terms, limit=limit)
     return _ensure_assignment_knowledge_node_refs(db, graph_node_names)
 
 
-def _filter_existing_graph_node_names(node_names: list[str]) -> list[str]:
-    if not node_names:
+def _assignment_knowledge_search_terms(
+    title: str,
+    prompt: str,
+    payload: AssignmentGenerateQuestionRequest,
+) -> list[str]:
+    raw_terms = [
+        payload.knowledge_point,
+        title,
+        *_extract_search_terms(payload.knowledge_point),
+        *_extract_search_terms(payload.requirement),
+        *_extract_search_terms(title),
+        *_extract_search_terms(prompt),
+    ]
+    seen: set[str] = set()
+    terms: list[str] = []
+    for item in raw_terms:
+        value = str(item or "").strip()
+        if value and value not in seen:
+            seen.add(value)
+            terms.append(value)
+    return terms
+
+
+def _extract_search_terms(text: str) -> list[str]:
+    return [item.strip() for item in re.findall(r"[A-Za-z0-9_+#.-]+|[\u4e00-\u9fff]+", text or "") if item.strip()]
+
+
+def _explicit_assignment_knowledge_terms(payload: AssignmentGenerateQuestionRequest) -> list[str]:
+    return [
+        term
+        for term in [payload.knowledge_point, *_extract_search_terms(payload.knowledge_point)]
+        if str(term or "").strip()
+    ]
+
+
+def _match_existing_graph_node_names(terms: list[str], explicit_terms: list[str], limit: int) -> list[str]:
+    if not terms:
         return []
     try:
         driver = get_neo4j_driver()
         with driver.session(database=settings.neo4j_db_name) as session:
             records = session.run(
                 """
-                UNWIND $names AS candidate
-                MATCH (n:Knowledge {name: candidate})
-                RETURN DISTINCT n.name AS node_name
+                MATCH (n:Knowledge)
+                WHERE any(term IN $terms WHERE
+                    n.name = term
+                    OR toLower(n.name) CONTAINS toLower(term)
+                )
+                OR any(term IN $explicit_terms WHERE
+                    toLower(term) CONTAINS toLower(n.name)
+                    AND size(n.name) >= 3
+                )
+                RETURN DISTINCT n.name AS node_name,
+                       CASE
+                           WHEN n.name IN $terms THEN 0
+                           WHEN any(term IN $terms WHERE toLower(n.name) CONTAINS toLower(term)) THEN 1
+                           ELSE 2
+                       END AS rank
+                ORDER BY rank ASC, size(n.name) DESC, n.name ASC
+                LIMIT $limit
                 """,
-                names=node_names,
+                terms=terms,
+                explicit_terms=explicit_terms,
+                limit=limit,
             )
-            existing = {record["node_name"] for record in records if record["node_name"]}
+            return [record["node_name"] for record in records if record["node_name"]]
     except Exception:
         return []
-    return [name for name in node_names if name in existing]
 
 
 def _ensure_assignment_knowledge_node_refs(db: Session, node_names: list[str]) -> list[dict]:
@@ -858,80 +861,19 @@ def assignment_ai_help_stream(
     question_id: int,
     payload: AssignmentAiHelpRequest,
 ):
-    client, help_context, keywords, facts, reasoning_trace, retrieval_trace = _prepare_assignment_rag_help(
-        db,
-        student,
-        assignment_id,
-        question_id,
-        payload,
-    )
-    yield _sse_event(
-        "metadata",
-        {
-            "keywords": [str(item) for item in keywords],
-            "facts": facts,
-            "reasoning_trace": reasoning_trace,
-            "retrieval_trace": retrieval_trace,
-        },
-    )
+    assignment = _get_student_assignment(db, student, assignment_id, require_started=True)
+    question = _get_assignment_question(assignment, question_id)
+    client = get_openai_client()
+    help_context = _build_assignment_help_context(assignment, question, payload)
 
     chunks: list[str] = []
     try:
-        for chunk in _stream_assignment_rag_help(client, help_context, facts):
+        for chunk in _stream_assignment_context_help(client, help_context):
             chunks.append(chunk)
             yield _sse_event("answer_delta", {"content": chunk})
         yield _sse_event("answer_done", {"answer": "".join(chunks)})
     except Exception as error:
         yield _sse_event("error", {"detail": f"AI 帮助失败：{error}"})
-
-
-def _prepare_assignment_rag_help(
-    db: Session,
-    student: User,
-    assignment_id: int,
-    question_id: int,
-    payload: AssignmentAiHelpRequest,
-):
-    assignment = _get_student_assignment(db, student, assignment_id, require_started=True)
-    question = _get_assignment_question(assignment, question_id)
-    client = get_openai_client()
-    reasoning_trace: list = []
-    retrieval_trace: list = []
-    help_context = _build_assignment_help_context(assignment, question, payload)
-
-    try:
-        driver = get_neo4j_driver()
-        keywords = rag_engine.extract_keywords_with_llm(
-            client,
-            help_context,
-            history=[],
-            trace=reasoning_trace,
-        )
-        facts = rag_engine.query_graph_with_reasoning(
-            driver,
-            client,
-            help_context,
-            keywords=keywords,
-            max_depth=2,
-            width=3,
-            reasoning_trace=reasoning_trace,
-            retrieval_trace=retrieval_trace,
-        )
-    except Exception as error:
-        print(f"[assignment_ai_help_stream] 图谱检索失败: {error}")
-        keywords = []
-        facts = []
-        retrieval_trace.append(
-            {
-                "type": "retrieval",
-                "title": "图谱检索失败",
-                "summary": "本次未能完成知识图谱检索，已退回到作业上下文辅导。",
-                "details": [str(error)],
-                "stage": "assignment_rag",
-                "mode": "student",
-            }
-        )
-    return client, help_context, keywords, facts, reasoning_trace, retrieval_trace
 
 
 def _build_assignment_help_context(assignment: Assignment, question: AssignmentQuestion, payload: AssignmentAiHelpRequest) -> str:
@@ -954,29 +896,25 @@ def _build_assignment_help_context(assignment: Assignment, question: AssignmentQ
 """
 
 
-def _build_assignment_help_prompt(help_context: str, facts: list) -> str:
-    knowledge_text = rag_engine.build_knowledge_text(facts) if facts else "本次没有检索到明确的图谱知识点。"
+def _build_assignment_help_prompt(help_context: str) -> str:
     return f"""
-你是一名 Java 编程作业助教。请基于【知识图谱检索结果】和【作业上下文】帮助学生学习。
+你是一名 Java 编程作业助教。请基于【作业上下文】帮助学生学习。
 
 要求：
-1. 优先基于检索到的知识点解释，不要脱离题目空泛讲解。
+1. 优先围绕当前题目、学生代码、学生问题和最近运行结果回答，不要脱离上下文空泛讲解。
 2. 不要直接给出完整可复制的标准答案。
 3. 如果代码有编译或运行错误，先解释错误类型，再给最小修改方向。
-4. 如果测试输出不匹配，指出可能相关的概念误区和下一步排查方法。
+4. 如果测试输出不匹配，指出可能原因和下一步排查方法。
 5. 回答要中文、具体、分步骤，建议控制在 4 到 8 句话。
 6. 可以给短小代码片段或伪代码，但不要提供整题完整答案。
-
-【知识图谱检索结果】
-{knowledge_text}
 
 【作业上下文】
 {help_context}
 """
 
 
-def _stream_assignment_rag_help(client, help_context: str, facts: list):
-    prompt = _build_assignment_help_prompt(help_context, facts)
+def _stream_assignment_context_help(client, help_context: str):
+    prompt = _build_assignment_help_prompt(help_context)
     stream = client.chat.completions.create(
         model=settings.llm_model_name,
         messages=[{"role": "user", "content": prompt}],

@@ -171,8 +171,6 @@ def mark_node_weak(
     db: Session,
     user: User,
     node_name: str,
-    *,
-    source_session_id: int | None = None,
 ) -> bool:
     node = get_or_create_knowledge_node(db, node_name)
     weak_point = get_weak_point_for_node(db, user, node.id)
@@ -182,7 +180,6 @@ def mark_node_weak(
         weak_point = UserWeakPoint(
             user_id=user.id,
             knowledge_node_id=node.id,
-            source_session_id=source_session_id,
             status="unmastered",
         )
         db.add(weak_point)
@@ -191,7 +188,6 @@ def mark_node_weak(
         if weak_point.status != "unmastered":
             weak_point.status = "unmastered"
             is_new_or_reactivated = True
-        weak_point.source_session_id = source_session_id
 
     set_knowledge_state_status(db, user, node_name, "weak")
     return is_new_or_reactivated
