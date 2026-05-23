@@ -9,7 +9,7 @@
         <input
           v-model="keyword"
           class="toolbar-input"
-          placeholder="搜索结点名或描述"
+          placeholder="搜索节点名或描述"
           @input="handleGraphKeywordInput"
           @focus="handleGraphKeywordInput"
           @keydown.enter.prevent="searchGraph()"
@@ -45,7 +45,7 @@
           </Transition>
         </div>
       </Listbox>
-      <span class="graph-meta">结点 {{ graph.nodes.length }} / 边 {{ graph.edges.length }}</span>
+      <span class="graph-meta">节点 {{ graph.nodes.length }} / 边 {{ graph.edges.length }}</span>
       <button class="ghost" @click="searchGraph">搜索</button>
       <button class="ghost" @click="toggleFullscreen">全屏</button>
       <button class="ghost" @click="refreshGraph">刷新布局</button>
@@ -59,7 +59,7 @@
           </div>
         </div>
 
-        <div v-if="hasGraphLoaded && !isGraphLoading && !graph.nodes.length" class="graph-state">当前没有可展示的知识图谱结点。</div>
+        <div v-if="hasGraphLoaded && !isGraphLoading && !graph.nodes.length" class="graph-state">当前没有可展示的知识图谱节点。</div>
 
         <KnowledgeGraphCanvas
           v-if="graph.nodes.length && !isGraphLoading"
@@ -81,13 +81,13 @@
             <span>图谱</span>
           </div>
           <div class="action-bar">
-            <button @click="startCreateNode">新增结点</button>
+            <button @click="startCreateNode">新增节点</button>
             <button @click="startCreateEdge">新增关系</button>
           </div>
           <div v-if="autoCreatedNodes.length" class="auto-created-panel">
             <div class="panel-head sub-head">
               <h4>刚自动创建</h4>
-              <span>{{ autoCreatedNodes.length }} 个结点</span>
+              <span>{{ autoCreatedNodes.length }} 个节点</span>
             </div>
             <div class="auto-created-list">
               <button
@@ -107,19 +107,19 @@
         <div class="panel-card detail-card">
           <div class="panel-head">
             <h3>图谱编辑</h3>
-            <span v-if="selectedNode">结点</span>
+            <span v-if="selectedNode">节点</span>
             <span v-else-if="selectedEdge">关系</span>
             <span v-else>未选择</span>
           </div>
 
           <div v-if="selectedNode" class="detail-body edit-detail-form node-edit-form">
             <label>
-              结点名
+              节点名
               <input v-model="nodeForm.name" />
             </label>
             <label class="description-field">
               描述
-              <textarea v-model="nodeForm.desc" rows="5" placeholder="结点描述"></textarea>
+              <textarea v-model="nodeForm.desc" rows="5" placeholder="节点描述"></textarea>
             </label>
             <label>
               章节标签
@@ -199,8 +199,8 @@
             </label>
             <div class="edge-quick-actions">
               <button class="ghost" type="button" @click="swapEdgeDirection">交换起终点</button>
-              <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('source')">当前结点填入起点</button>
-              <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('target')">当前结点填入终点</button>
+              <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('source')">当前节点填入起点</button>
+              <button v-if="selectedNode" class="ghost" type="button" @click="useSelectedNodeForEdge('target')">当前节点填入终点</button>
             </div>
             <div class="detail-actions">
               <button class="primary" @click="submitEdge">保存修改</button>
@@ -209,7 +209,7 @@
           </div>
 
           <div v-else class="empty-detail">
-            <p>点击主画布中的结点或关系，在这里继续编辑。</p>
+            <p>点击主画布中的节点或关系，在这里继续编辑。</p>
           </div>
         </div>
       </aside>
@@ -217,16 +217,16 @@
 
     <div v-if="isCreatingNode" class="modal-overlay" @click.self="cancelCreateNode">
       <div class="modal-card">
-        <h3>新增结点</h3>
+        <h3>新增节点</h3>
         <p v-if="nodeDialogMessage" class="modal-feedback">{{ nodeDialogMessage }}</p>
         <div class="detail-body modal-form">
           <label>
-            结点名
-            <input v-model="nodeForm.name" placeholder="请输入唯一结点名" @keydown.enter.prevent="submitNode" />
+            节点名
+            <input v-model="nodeForm.name" placeholder="请输入唯一节点名" @keydown.enter.prevent="submitNode" />
           </label>
           <label>
             描述
-            <textarea v-model="nodeForm.desc" rows="4" placeholder="结点描述" @keydown.ctrl.enter.prevent="submitNode"></textarea>
+            <textarea v-model="nodeForm.desc" rows="4" placeholder="节点描述" @keydown.ctrl.enter.prevent="submitNode"></textarea>
           </label>
           <div class="edge-quick-actions node-ai-action">
             <button class="primary" type="button" :disabled="isGeneratingNodeDesc" @click="generateNodeDescription">
@@ -320,8 +320,8 @@
           </label>
           <div class="edge-quick-actions modal-quick-actions">
             <button class="ghost modal-secondary" type="button" @click="swapEdgeDirection">交换起终点</button>
-            <button v-if="selectedNode" class="ghost modal-secondary" type="button" @click="useSelectedNodeForEdge('source')">当前结点填入起点</button>
-            <button v-if="selectedNode" class="ghost modal-secondary" type="button" @click="useSelectedNodeForEdge('target')">当前结点填入终点</button>
+            <button v-if="selectedNode" class="ghost modal-secondary" type="button" @click="useSelectedNodeForEdge('source')">当前节点填入起点</button>
+            <button v-if="selectedNode" class="ghost modal-secondary" type="button" @click="useSelectedNodeForEdge('target')">当前节点填入终点</button>
           </div>
           <div class="detail-actions modal-actions">
             <button class="primary" @click="submitEdge">确认创建</button>
@@ -334,7 +334,7 @@
     <Teleport to="body">
       <div v-if="deleteConfirmTarget" class="dialog-backdrop" @click.self="closeDeleteConfirm">
         <div class="dialog-card">
-          <h4>{{ deleteConfirmTarget.kind === "node" ? "删除结点" : "删除关系" }}</h4>
+          <h4>{{ deleteConfirmTarget.kind === "node" ? "删除节点" : "删除关系" }}</h4>
           <p>{{ deleteConfirmMessage }}</p>
           <div class="dialog-actions">
             <button type="button" class="ghost-btn" :disabled="isDeletingGraphItem" @click="closeDeleteConfirm">取消</button>
@@ -418,7 +418,7 @@ const autoCreatedNodes = computed(() =>
 const deleteConfirmMessage = computed(() => {
   if (!deleteConfirmTarget.value) return "";
   if (deleteConfirmTarget.value.kind === "node") {
-    return `确定删除结点「${deleteConfirmTarget.value.name}」吗？删除后相关关系也会被移除。`;
+    return `确定删除节点「${deleteConfirmTarget.value.name}」吗？删除后相关关系也会被移除。`;
   }
   return "确定删除这条关系吗？删除后无法恢复。";
 });
@@ -569,9 +569,9 @@ function cancelCreateEdge() {
 async function submitNode() {
   if (!nodeForm.name.trim()) {
     if (isCreatingNode.value) {
-      nodeDialogMessage.value = "结点名不能为空";
+      nodeDialogMessage.value = "节点名不能为空";
     } else {
-      errorMessage.value = "结点名不能为空";
+      errorMessage.value = "节点名不能为空";
     }
     return;
   }
@@ -593,9 +593,9 @@ async function submitNode() {
     }
   } catch (error) {
     if (isCreatingNode.value) {
-      nodeDialogMessage.value = error?.response?.data?.detail || "保存结点失败。";
+      nodeDialogMessage.value = error?.response?.data?.detail || "保存节点失败。";
     } else {
-      handleApiError(error, "保存结点失败。");
+      handleApiError(error, "保存节点失败。");
     }
   }
 }
@@ -626,7 +626,7 @@ async function submitEdge() {
       const labels = result.created_nodes.map((item) =>
         item?.desc_generated ? `${item.name}（已生成描述）` : `${item.name}（描述待补充）`,
       );
-      edgeDialogMessage.value = `已自动创建结点：${labels.join("、")}`;
+      edgeDialogMessage.value = `已自动创建节点：${labels.join("、")}`;
       isCreatingEdge.value = false;
     } else if (isCreatingEdge.value) {
       autoCreatedNodeNames.value = [];
@@ -655,7 +655,7 @@ async function submitEdge() {
 async function generateNodeDescription() {
   const name = nodeForm.name.trim();
   if (!name) {
-    nodeDialogMessage.value = "请先填写结点名，再生成描述。";
+    nodeDialogMessage.value = "请先填写节点名，再生成描述。";
     return;
   }
   isGeneratingNodeDesc.value = true;
@@ -664,7 +664,7 @@ async function generateNodeDescription() {
     const { data } = await generateTeacherNodeDescriptionApi({ name });
     nodeForm.desc = String(data?.desc || "").trim();
   } catch (error) {
-    nodeDialogMessage.value = error?.response?.data?.detail || "生成结点描述失败。";
+    nodeDialogMessage.value = error?.response?.data?.detail || "生成节点描述失败。";
   } finally {
     isGeneratingNodeDesc.value = false;
   }
@@ -699,7 +699,7 @@ async function confirmDeleteGraphItem() {
     clearSelection();
     await refreshGraph({ preserveSearch: true, restartLayout: false });
   } catch (error) {
-    handleApiError(error, target.kind === "node" ? "删除结点失败。" : "删除关系失败。");
+    handleApiError(error, target.kind === "node" ? "删除节点失败。" : "删除关系失败。");
   } finally {
     isDeletingGraphItem.value = false;
   }

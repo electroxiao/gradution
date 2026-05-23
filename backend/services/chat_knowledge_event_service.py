@@ -59,18 +59,18 @@ def extract_candidates_from_turn(
 要求：
 1. 只输出 JSON 数组，不要输出 Markdown。
 2. 最多 5 个元素。
-3. 只能从下面的知识图谱结点中选择，不允许创造新知识点。
+3. 只能从下面的知识图谱节点中选择，不允许创造新知识点。
 4. 每个元素只包含 node_id、node_name。
-5. node_id 和 node_name 必须来自知识图谱结点列表。
-6. 如果没有合适结点，返回空数组。
+5. node_id 和 node_name 必须来自知识图谱节点列表。
+6. 如果没有合适节点，返回空数组。
 7. 为兼容旧格式，也可以额外包含 name，但 node_id 优先。
 
-知识图谱结点：
+知识图谱节点：
 {formal_node_options}
 
 旧格式兼容要求：
 如果无法输出 node_id，才输出 name。
-name 应是简短、可匹配知识图谱结点的中文知识点名称。
+name 应是简短、可匹配知识图谱节点的中文知识点名称。
 
 上一轮上下文：
 {previous_context or "无"}

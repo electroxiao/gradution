@@ -185,12 +185,6 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     client = get_openai_client()
     should_autogenerate_title = _should_autogenerate_title(session, history)
 
-    user_message.keywords_json = []
-    user_message.facts_json = []
-    user_message.reasoning_trace_json = []
-    user_message.retrieval_trace_json = []
-    db.flush()
-
     yield _sse_event("user_message", _message_to_schema(user_message).model_dump(mode="json"))
 
     answer_started_at = perf_counter()
@@ -211,10 +205,6 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
         session_id=session.id,
         role="assistant",
         content=answer,
-        keywords_json=[],
-        facts_json=[],
-        reasoning_trace_json=[],
-        retrieval_trace_json=[],
     )
     db.add(assistant_message)
 
@@ -348,7 +338,6 @@ def _build_history(db: Session, session_id: int, exclude_message_id: int | None 
         {
             "role": message.role,
             "content": message.content,
-            "keywords": message.keywords_json or [],
         }
         for message in messages
     ]
@@ -359,10 +348,6 @@ def _message_to_schema(message: ChatMessage) -> MessageResponse:
         id=message.id,
         role=message.role,
         content=message.content,
-        keywords=message.keywords_json or [],
-        facts=message.facts_json or [],
-        reasoning_trace=message.reasoning_trace_json or [],
-        retrieval_trace=message.retrieval_trace_json or [],
         created_at=message.created_at,
     )
 

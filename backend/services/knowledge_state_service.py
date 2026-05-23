@@ -150,7 +150,7 @@ def _build_recommendation_fallback(target_name: str, candidates: list[dict]) -> 
         if item.get("source") == "dependency":
             reasons[item["id"]] = "这是当前薄弱点周围最直接的依赖概念，优先补齐通常更有帮助。"
         else:
-            reasons[item["id"]] = "这个结点与当前薄弱点在名称或描述上高度相关，适合作为补充复习内容。"
+            reasons[item["id"]] = "这个节点与当前薄弱点在名称或描述上高度相关，适合作为补充复习内容。"
 
     return {
         "recommended_node_ids": recommended_ids,
@@ -179,7 +179,7 @@ def _recommend_nodes(target: dict, candidates: list[dict], state_map: dict[str, 
     reasons = {}
     for item in ranked:
         if state_map.get(item["id"]) == "mastered":
-            reasons[item["id"]] = "这个结点你已经掌握，可作为回顾支点，帮助衔接当前薄弱点。"
+            reasons[item["id"]] = "这个节点你已经掌握，可作为回顾支点，帮助衔接当前薄弱点。"
         elif item.get("source") == "dependency":
             reasons[item["id"]] = "它与当前薄弱点存在直接依赖关系，先补齐更利于理解后续内容。"
         else:

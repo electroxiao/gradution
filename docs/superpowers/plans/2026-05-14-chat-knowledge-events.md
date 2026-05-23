@@ -368,7 +368,7 @@ def test_record_turn_knowledge_events_only_writes_existing_nodes(auto_test_prefi
             f'''
             [
               {{"name":"{node.node_name}","confidence":0.93,"evidence":"提到了 ArrayList"}},
-              {{"name":"不存在的知识点","confidence":0.99,"evidence":"不应创建新结点"}}
+              {{"name":"不存在的知识点","confidence":0.99,"evidence":"不应创建新节点"}}
             ]
             '''
         )
@@ -1286,7 +1286,7 @@ Add this section after the summary row and before the graph layout:
 Replace:
 
 ```vue
-<div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱结点，请先完成作业或在聊天页面提问以记录薄弱点。</div>
+<div v-else-if="!graphNodes.length" class="graph-state">当前没有可展示的知识图谱节点，请先完成作业或在聊天页面提问以记录薄弱点。</div>
 ```
 
 with:
@@ -1298,7 +1298,7 @@ with:
 Replace:
 
 ```vue
-<p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识结点。</p>
+<p>继续提问时，系统会在选出解释路径后，自动记录少量最关键的知识节点。</p>
 ```
 
 with:

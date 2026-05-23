@@ -6,7 +6,7 @@
 
 - Neo4j 是知识图谱的来源，用于聊天检索、弱点推荐和图谱展示。
 - MySQL 中的 `knowledge_nodes` 只镜像知识点的引用信息，例如题目绑定和章节筛选需要的 `id`、`node_name`、`chapter`。
-- 教师端图谱页面直接编辑 Neo4j 结点和关系，并在需要时同步 MySQL 引用表。
+- 教师端图谱页面直接编辑 Neo4j 节点和关系，并在需要时同步 MySQL 引用表。
 - ChatPage 在聊天回答完成后会异步抽取本轮涉及的知识点，写入提问记录用于学生回看和教师热点统计。
 - 聊天提问记录只是弱学习足迹，不会写入 `user_weak_points`，也不会改变 `user_knowledge_states`。
 
@@ -17,9 +17,9 @@
   - `create_graph_node_with_db_sync()` / `update_graph_node()` / `create_graph_edge_with_db_sync()` 维护图谱并同步引用表。
   - `list_knowledge_node_refs()` 为作业绑定等页面提供知识点搜索。
 - `backend/api/routes/teacher.py`
-  - 暴露 `/api/teacher/graph`、结点、关系、章节批量更新和知识点引用接口。
+  - 暴露 `/api/teacher/graph`、节点、关系、章节批量更新和知识点引用接口。
 - `frontend/src/pages/TeacherGraphPage.vue`
-  - 教师图谱搜索、章节过滤、结点编辑、关系编辑和 AI 生成结点描述。
+  - 教师图谱搜索、章节过滤、节点编辑、关系编辑和 AI 生成节点描述。
 
 ## 维护规则
 

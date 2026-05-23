@@ -1,4 +1,5 @@
 import importlib
+import json
 import inspect as py_inspect
 from datetime import datetime
 
@@ -433,7 +434,7 @@ def test_extract_candidates_from_turn_uses_formal_nodes_as_allowed_options():
     )
 
     prompt = client.completions.calls[0]["messages"][0]["content"]
-    assert "只能从下面的知识图谱结点中选择" in prompt
+    assert "只能从下面的知识图谱节点中选择" in prompt
     assert '{"id":7,"name":"封装(Encapsulation)"}' in prompt
     assert "confidence" not in prompt
     assert "evidence" not in prompt
@@ -645,6 +646,21 @@ def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db
     assert graph_calls == {"keywords": 0, "graph": 0}
     assert any(event.startswith("event: assistant_delta") for event in events)
     assert any(event.startswith("event: assistant_done") for event in events)
+    user_payload = _event_payload(events, "user_message")
+    assistant_payload = _event_payload(events, "assistant_done")["assistant_message"]
+    legacy_fields = {"keywords", "facts", "reasoning_trace", "retrieval_trace"}
+    assert legacy_fields.isdisjoint(user_payload)
+    assert legacy_fields.isdisjoint(assistant_payload)
+
+
+def _event_payload(events: list[str], event_name: str) -> dict:
+    prefix = f"event: {event_name}\n"
+    for event in events:
+        if not event.startswith(prefix):
+            continue
+        data_line = next(line for line in event.splitlines() if line.startswith("data: "))
+        return json.loads(data_line.removeprefix("data: "))
+    raise AssertionError(f"missing event: {event_name}")
 
 
 def test_stream_message_schedules_extraction_before_assistant_done(isolated_db, monkeypatch):

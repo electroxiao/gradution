@@ -111,9 +111,6 @@ defineProps({
 });
 defineEmits(["close"]);
 
-const DEFAULT_RAG_DEPTH = 2;
-const DEFAULT_RAG_WIDTH = 3;
-
 const authStore = useAuthStore();
 const router = useRouter();
 const sessions = ref([]);
@@ -221,18 +218,12 @@ async function sendMessage() {
     tempId: tempUserId,
     role: "user",
     content: draftContent,
-    facts: [],
-    reasoning_trace: [],
-    retrieval_trace: [],
     streaming: false,
   };
   const tempAssistant = {
     tempId: tempAssistantId,
     role: "assistant",
     content: "",
-    facts: [],
-    reasoning_trace: [],
-    retrieval_trace: [],
     streaming: true,
   };
   content.value = "";
@@ -247,8 +238,6 @@ async function sendMessage() {
       activeSessionId.value,
       {
         content: draftContent,
-        rag_depth: DEFAULT_RAG_DEPTH,
-        rag_width: DEFAULT_RAG_WIDTH,
       },
       {
         async onUserMessage(data) {

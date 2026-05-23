@@ -190,7 +190,7 @@
                 {{ recommendationSummary || "系统正在围绕当前薄弱点收敛推荐学习顺序。" }}
               </p>
 
-              <p class="recommendation-tip">完成全部推荐结点的学习后，当前薄弱点会自动转为已掌握并进入历史记录。</p>
+              <p class="recommendation-tip">完成全部推荐节点的学习后，当前薄弱点会自动转为已掌握并进入历史记录。</p>
 
               <div class="recommendation-block">
                 <span class="recommendation-label">推荐顺序</span>

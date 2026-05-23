@@ -111,7 +111,6 @@ class AssignmentSubmission(Base):
     answer_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="submitted", index=True)
     results_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
-    ai_context_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     ai_review_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     final_decision_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
     teacher_review_note: Mapped[str | None] = mapped_column(Text, nullable=True)

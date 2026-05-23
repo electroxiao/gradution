@@ -207,7 +207,7 @@
                 <div class="knowledge-search-box">
                   <input
                     v-model="knowledgeSearchKeyword"
-                    placeholder="搜索图谱结点，例如：JDBC 事务"
+                    placeholder="搜索图谱节点，例如：JDBC 事务"
                     @input="handleKnowledgeSearchInput"
                     @focus="handleKnowledgeSearchInput"
                     @blur="deferHideKnowledgeSuggestions"
