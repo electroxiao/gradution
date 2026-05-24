@@ -5,6 +5,9 @@ __pycache__/
 .venv/
 venv/
 
+.codex_tmp/
+.codex-docx-review/
+
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
@@ -14,10 +17,20 @@ frontend/.vite/
 .claude/
 
 .tmp-docx-render/
+.tmp/
+render_tmp/
+render_check_*/
+docx_render_*/
 thesis_docx_render/
+tmph*/
+artifacts/
 
 毕业设计/
 毕业论文/
+
+*.docx
+tools/inspect_docx_text.py
+tools/revise_ch3_ch5_style.py
 
 .DS_Store
 Thumbs.db
