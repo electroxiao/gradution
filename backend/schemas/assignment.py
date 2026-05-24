@@ -152,8 +152,6 @@ class AssignmentSubmissionResponse(BaseModel):
     decision_source: str | None = None
     teacher_review_note: str | None = None
     is_late: bool = False
-    trust_label: str | None = None
-    trust_score: float | None = None
     started_at: datetime | None = None
     duration_seconds: int | None = None
     submitted_at: datetime
@@ -263,8 +261,6 @@ class AssignmentSubmissionDetailResponse(BaseModel):
     decision_source: str | None = None
     teacher_review_note: str | None = None
     is_late: bool = False
-    trust_label: str | None = None
-    trust_score: float | None = None
     reviewed_at: datetime | None = None
     reviewed_by: int | None = None
     reviewed_by_username: str | None = None

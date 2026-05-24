@@ -57,7 +57,6 @@ VALID_GRADING_MODES = {"testcase", "ai_review", "hybrid", "observed_ai"}
 VALID_AI_REVIEW_LEVELS = {"light", "deep"}
 VALID_REVIEW_STATUSES = {"accepted", "teacher_rejected"}
 VALID_QUESTION_TYPES = {"programming", "multiple_choice", "fill_blank"}
-FAST_PASS_THRESHOLD_SECONDS = 60
 
 
 def list_teacher_assignments(db: Session, teacher: User) -> list[AssignmentSummaryResponse]:
@@ -590,16 +589,6 @@ def _grade_pending_assignment_submission(db: Session, submission_id: int) -> Non
         question_type = _normalize_question_type(question.question_type)
         if question_type == "programming":
             status_value, results, ai_review, decision_source = _grade_submission(assignment, question, submission.code or "")
-            previous_submission = _get_previous_submission_before(db, submission)
-            previous_code = (previous_submission.code or "") if previous_submission else ""
-            trust_label, trust_score = _resolve_submission_trust(
-                status_value,
-                submission.duration_seconds,
-                submission.code or "",
-                previous_code,
-            )
-            submission.trust_label = trust_label
-            submission.trust_score = trust_score
         elif question_type == "multiple_choice":
             status_value, results, ai_review, decision_source = _grade_multiple_choice_locally(question, submission.answer_json)
         else:
@@ -806,8 +795,6 @@ def _teacher_submission_detail_response(submission: AssignmentSubmission) -> Ass
         decision_source=submission.final_decision_source,
         teacher_review_note=submission.teacher_review_note,
         is_late=bool(submission.is_late),
-        trust_label=submission.trust_label,
-        trust_score=submission.trust_score,
         reviewed_at=submission.reviewed_at,
         reviewed_by=submission.reviewed_by,
         reviewed_by_username=submission.reviewer.username if submission.reviewer else None,
@@ -1600,8 +1587,6 @@ def _submission_to_response(
         decision_source=submission.final_decision_source,
         teacher_review_note=submission.teacher_review_note,
         is_late=bool(submission.is_late),
-        trust_label=submission.trust_label,
-        trust_score=submission.trust_score,
         started_at=submission.started_at,
         duration_seconds=submission.duration_seconds,
         submitted_at=submission.submitted_at,
@@ -1626,21 +1611,6 @@ def _get_previous_submission(
     )
 
 
-def _get_previous_submission_before(db: Session, submission: AssignmentSubmission) -> AssignmentSubmission | None:
-    return (
-        db.query(AssignmentSubmission)
-        .filter(
-            AssignmentSubmission.student_id == submission.student_id,
-            AssignmentSubmission.assignment_id == submission.assignment_id,
-            AssignmentSubmission.question_id == submission.question_id,
-            AssignmentSubmission.id != submission.id,
-            AssignmentSubmission.submitted_at <= submission.submitted_at,
-        )
-        .order_by(AssignmentSubmission.submitted_at.desc(), AssignmentSubmission.id.desc())
-        .first()
-    )
-
-
 def _resolve_submission_started_at(
     client_started_at: datetime | None,
     previous_submission: AssignmentSubmission | None,
@@ -1648,30 +1618,6 @@ def _resolve_submission_started_at(
     if previous_submission:
         return _to_naive_local(previous_submission.submitted_at)
     return _to_naive_local(client_started_at)
-
-
-def _resolve_submission_trust(status_value: str, duration_seconds: int | None, code: str = "", previous_code: str = "") -> tuple[str, float]:
-    if status_value != "accepted":
-        return "normal", 1.0
-    flags: list[str] = []
-    trust = 1.0
-
-    if duration_seconds is not None and duration_seconds <= FAST_PASS_THRESHOLD_SECONDS:
-        flags.append("fast_submit")
-        trust -= 0.4
-
-    if previous_code and code == previous_code:
-        flags.append("identical_code")
-        trust -= 0.6
-
-    if code and len(code.strip().splitlines()) < 3:
-        flags.append("minimal_code")
-        trust -= 0.3
-
-    if flags:
-        label = "suspicious_" + "_".join(flags)
-        return label, max(0.0, trust)
-    return "normal", 1.0
 
 
 def _mark_wrong_submission_bound_nodes_weak(

@@ -17,6 +17,7 @@ def ensure_schema_and_seed(engine: Engine) -> None:
     _ensure_assignment_type_and_bank_columns(engine)
     _ensure_assignment_availability_columns(engine)
     _ensure_assignment_graph_linkage(engine)
+    _drop_assignment_submission_trust_columns(engine)
     _drop_assignment_description_column(engine)
     _ensure_chat_knowledge_events_table(engine)
     _ensure_teacher_seed(engine)
@@ -200,7 +201,6 @@ def _ensure_assignment_graph_linkage(engine: Engine) -> None:
     inspector = inspect(engine)
     try:
         table_names = set(inspector.get_table_names())
-        submission_columns = {column["name"] for column in inspector.get_columns("assignment_submissions")} if "assignment_submissions" in table_names else set()
     except Exception:
         return
 
@@ -222,12 +222,6 @@ def _ensure_assignment_graph_linkage(engine: Engine) -> None:
             connection.execute(text("CREATE INDEX ix_assignment_question_knowledge_nodes_question_id ON assignment_question_knowledge_nodes (question_id)"))
             connection.execute(text("CREATE INDEX ix_assignment_question_knowledge_nodes_knowledge_node_id ON assignment_question_knowledge_nodes (knowledge_node_id)"))
 
-        if "assignment_submissions" in table_names:
-            if "trust_label" not in submission_columns:
-                connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_label VARCHAR(64) NULL"))
-            if "trust_score" not in submission_columns:
-                connection.execute(text("ALTER TABLE assignment_submissions ADD COLUMN trust_score FLOAT NULL"))
-
 
 def _drop_assignment_description_column(engine: Engine) -> None:
     if engine.dialect.name != "mysql":
@@ -246,6 +240,27 @@ def _drop_assignment_description_column(engine: Engine) -> None:
 
     with engine.begin() as connection:
         connection.execute(text("ALTER TABLE assignments DROP COLUMN description"))
+
+
+def _drop_assignment_submission_trust_columns(engine: Engine) -> None:
+    if engine.dialect.name != "mysql":
+        return
+    inspector = inspect(engine)
+    try:
+        table_names = set(inspector.get_table_names())
+        if "assignment_submissions" not in table_names:
+            return
+        columns = {column["name"] for column in inspector.get_columns("assignment_submissions")}
+    except Exception:
+        return
+
+    legacy_columns = [column for column in ("trust_label", "trust_score") if column in columns]
+    if not legacy_columns:
+        return
+
+    with engine.begin() as connection:
+        for column in legacy_columns:
+            connection.execute(text(f"ALTER TABLE assignment_submissions DROP COLUMN {column}"))
 
 
 def _ensure_chat_knowledge_events_table(engine: Engine) -> None:

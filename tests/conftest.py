@@ -35,6 +35,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    config._has_integration_tests = any(item.get_closest_marker("integration") for item in items)
+
+
+def _has_selected_integration_tests(pytestconfig: pytest.Config) -> bool:
+    return bool(getattr(pytestconfig, "_has_integration_tests", False))
+
+
 @pytest.fixture(scope="session")
 def auto_test_prefix() -> str:
     return os.getenv("AUTO_TEST_PREFIX", "AUTO_TEST_")
@@ -66,14 +74,19 @@ def client(backend_base_url: str) -> Iterator[httpx.Client]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def clean_auto_test_data(auto_test_prefix: str) -> Iterator[None]:
+def clean_auto_test_data(pytestconfig: pytest.Config, auto_test_prefix: str) -> Iterator[None]:
+    if not _has_selected_integration_tests(pytestconfig):
+        yield
+        return
     cleanup_auto_test_data(auto_test_prefix)
     yield
     cleanup_auto_test_data(auto_test_prefix)
 
 
 @pytest.fixture(scope="session", autouse=True)
-def backend_ready(client: httpx.Client) -> None:
+def backend_ready(pytestconfig: pytest.Config, client: httpx.Client) -> None:
+    if not _has_selected_integration_tests(pytestconfig):
+        return
     try:
         response = client.get("/api/health", timeout=5.0)
     except httpx.RequestError as error:
