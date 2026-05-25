@@ -34,10 +34,14 @@
 
           <div v-if="sampleCases.length" class="sample-list">
             <article v-for="item in sampleCases" :key="item.id" class="sample-card">
-              <strong>示例输入</strong>
-              <pre>{{ item.input_data || "(空)" }}</pre>
-              <strong>示例输出</strong>
-              <pre>{{ item.expected_output || "(空)" }}</pre>
+              <div class="sample-field">
+                <span>示例输入</span>
+                <ReadonlyCodeBlock :code="item.input_data || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+              </div>
+              <div class="sample-field">
+                <span>示例输出</span>
+                <ReadonlyCodeBlock :code="item.expected_output || '(空)'" :show-line-numbers="false" compact background="#f7f7f8" />
+              </div>
             </article>
           </div>
         </section>
@@ -875,8 +879,10 @@ function handleApiError(error, fallbackMessage) {
 
 .back-link {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  min-width: 88px;
   min-height: var(--compact-control-height);
   margin-bottom: 10px;
   padding: 0 12px;
@@ -884,6 +890,7 @@ function handleApiError(error, fallbackMessage) {
   border-radius: 8px;
   color: #31445f;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .resize-handle {
@@ -976,7 +983,6 @@ button:disabled {
   gap: 8px;
 }
 
-.sample-card,
 .result-item,
 .ai-answer,
 .ai-state,
@@ -986,13 +992,24 @@ button:disabled {
   background: #ffffff;
 }
 
-pre {
-  overflow: auto;
-  margin: 6px 0 10px;
-  padding: 10px;
+.sample-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5eef7;
   border-radius: 8px;
-  background: #15263b;
-  color: #fff;
+  background: #ffffff;
+  color: #243447;
+}
+
+.sample-field {
+  display: grid;
+  gap: 8px;
+}
+
+.sample-field > span {
+  color: #8a919b;
+  font-size: 13px;
 }
 
 .editor-pane {

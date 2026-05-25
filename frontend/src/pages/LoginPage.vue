@@ -2,7 +2,7 @@
   <div class="page-shell auth-page">
     <section class="auth-hero">
       <div class="hero-card">
-        <h1>Java 智能编程导师</h1>
+        <h1>智能助学系统</h1>
         <p class="hero-copy">统一连接教师工作台、学生学习空间与知识图谱助教的课程控制台。</p>
         <div class="hero-stats">
           <article>
