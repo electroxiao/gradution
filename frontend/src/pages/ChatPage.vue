@@ -24,7 +24,7 @@
         </div>
       </header>
 
-      <section ref="messageScroller" class="message-stream">
+      <section ref="messageScroller" class="message-stream" @scroll="handleMessageScroll">
         <div v-if="messages.length === 0" class="empty-state">
           <p class="empty-title">有什么我能帮你的吗</p>
           <p class="empty-subtitle">我可以帮你解答问题、讲解知识点、分析代码等</p>
@@ -32,20 +32,20 @@
 
         <article
           v-for="message in messages"
-          :key="message.id ?? message.tempId"
+          :key="message.renderKey ?? message.id ?? message.tempId"
           :data-message-key="message.id ?? message.tempId"
           class="message-row"
           :class="message.role === 'user' ? 'user-row' : message.role === 'system' ? 'system-row' : 'assistant-row'"
         >
           <div class="message-stack" :class="message.role === 'user' ? 'user-stack' : message.role === 'system' ? 'system-stack' : 'assistant-stack'">
-            <div v-if="message.role === 'system' || (message.role === 'assistant' && message.streaming)" class="message-meta" :class="{ 'assistant-meta': message.role === 'assistant' }">
-              <strong v-if="message.role === 'system'">系统提示</strong>
-              <span v-if="message.streaming" class="streaming-flag">正在生成</span>
+            <div v-if="message.role === 'system'" class="message-meta">
+              <strong>系统提示</strong>
             </div>
 
             <div class="message-body" :class="message.role === 'user' ? 'user-body' : message.role === 'system' ? 'system-body' : 'assistant-body'">
-              <MarkdownContent v-if="message.role === 'assistant'" :content="message.content" />
-              <p v-else class="plain-text">{{ message.content }}</p>
+              <MarkdownContent v-if="message.role === 'assistant' && message.content" :content="message.content" :animate-updates="message.streaming" />
+              <span v-else-if="message.role === 'assistant'" class="assistant-placeholder" aria-hidden="true" />
+              <p v-if="message.role !== 'assistant'" class="plain-text">{{ message.content }}</p>
             </div>
           </div>
         </article>
@@ -122,6 +122,9 @@ const sending = ref(false);
 const messageScroller = ref(null);
 const composerInput = ref(null);
 const currentStreamController = ref(null);
+const shouldFollowScroll = ref(true);
+
+const AUTO_SCROLL_BOTTOM_THRESHOLD = 40;
 
 const activeSessionTitle = computed(() => {
   return sessions.value.find((session) => session.id === activeSessionId.value)?.title || "新对话";
@@ -186,9 +189,10 @@ async function deleteSession(sessionId) {
 
 async function selectSession(sessionId) {
   activeSessionId.value = sessionId;
+  shouldFollowScroll.value = true;
   const { data } = await listMessagesApi(sessionId);
   messages.value = data.map((message) => ({ ...message, streaming: false }));
-  await scrollToBottom();
+  await scrollToBottom({ force: true });
 }
 
 function syncComposerHeight() {
@@ -215,23 +219,26 @@ async function sendMessage() {
   const tempAssistantId = `assistant-${Date.now()}`;
   let streamedUserMessageId = null;
   const tempUser = {
+    renderKey: tempUserId,
     tempId: tempUserId,
     role: "user",
     content: draftContent,
     streaming: false,
   };
   const tempAssistant = {
+    renderKey: tempAssistantId,
     tempId: tempAssistantId,
     role: "assistant",
     content: "",
     streaming: true,
   };
   content.value = "";
+  shouldFollowScroll.value = true;
   messages.value.push(tempUser);
   messages.value.push(tempAssistant);
   await nextTick();
   syncComposerHeight();
-  await scrollMessageToTop(tempUserId);
+  await scrollToBottom({ force: true });
 
   try {
     await streamMessageApi(
@@ -244,29 +251,32 @@ async function sendMessage() {
           streamedUserMessageId = data.id;
           const userIndex = messages.value.findIndex((item) => item.tempId === tempUserId);
           if (userIndex >= 0) {
-            messages.value.splice(userIndex, 1, { ...data, streaming: false });
+            messages.value.splice(userIndex, 1, { ...data, renderKey: tempUserId, streaming: false });
           } else {
             messages.value.push({ ...data, streaming: false });
           }
-          await scrollMessageToTop(data.id);
+          await scrollToBottomIfFollowing();
         },
         async onAssistantDelta(data) {
           const index = messages.value.findIndex((item) => item.tempId === tempAssistantId);
           if (index >= 0) {
+            const currentMessage = messages.value[index];
             messages.value[index] = {
-              ...messages.value[index],
-              content: `${messages.value[index].content || ""}${data.content || ""}`,
+              ...currentMessage,
+              content: `${currentMessage.content || ""}${data.content || ""}`,
             };
           }
+          await scrollToBottomIfFollowing();
         },
         async onAssistantDone(data) {
           const index = messages.value.findIndex((item) => item.tempId === tempAssistantId);
-          const assistantMessage = { ...data.assistant_message, streaming: false };
+          const assistantMessage = { ...data.assistant_message, renderKey: tempAssistantId, streaming: false };
           if (index >= 0) {
             messages.value.splice(index, 1, assistantMessage);
           } else {
             messages.value.push(assistantMessage);
           }
+          await scrollToBottomIfFollowing();
           await loadSessions();
         },
       },
@@ -332,25 +342,28 @@ function logout() {
   router.push("/login");
 }
 
-async function scrollToBottom() {
-  await nextTick();
-  if (!messageScroller.value) return;
-  messageScroller.value.scrollTop = messageScroller.value.scrollHeight;
+function handleMessageScroll() {
+  const scroller = messageScroller.value;
+  if (!scroller) return;
+  shouldFollowScroll.value = isScrolledToBottom(scroller);
 }
 
-async function scrollMessageToTop(messageKey) {
+function isScrolledToBottom(scroller) {
+  const distanceToBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+  return distanceToBottom <= AUTO_SCROLL_BOTTOM_THRESHOLD;
+}
+
+async function scrollToBottomIfFollowing() {
+  await scrollToBottom();
+}
+
+async function scrollToBottom({ force = false } = {}) {
   await nextTick();
   const scroller = messageScroller.value;
   if (!scroller) return;
-
-  const target = Array.from(scroller.querySelectorAll("[data-message-key]")).find((element) => {
-    return element.dataset.messageKey === String(messageKey);
-  });
-  if (!target) return;
-
-  const scrollerRect = scroller.getBoundingClientRect();
-  const targetRect = target.getBoundingClientRect();
-  scroller.scrollTop += targetRect.top - scrollerRect.top;
+  if (!force && !shouldFollowScroll.value) return;
+  scroller.scrollTop = scroller.scrollHeight;
+  shouldFollowScroll.value = true;
 }
 </script>
 
@@ -587,6 +600,11 @@ async function scrollMessageToTop(messageKey) {
   box-shadow: none;
   color: #111111;
   line-height: 1.7;
+}
+
+.assistant-placeholder {
+  display: block;
+  min-height: 1.7em;
 }
 
 .user-body {

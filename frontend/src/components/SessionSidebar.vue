@@ -28,9 +28,10 @@
         </button>
 
         <button
-          v-if="hoveredSessionId === session.id || menuSessionId === session.id"
           class="menu-trigger"
+          :class="{ visible: hoveredSessionId === session.id || menuSessionId === session.id }"
           aria-label="打开对话菜单"
+          :tabindex="hoveredSessionId === session.id || menuSessionId === session.id ? 0 : -1"
           @click.stop="toggleMenu(session.id)"
         >
           <MoreHorizontal :size="16" aria-hidden="true" />
@@ -203,7 +204,7 @@ function confirmDelete() {
   gap: 5px;
   overflow: auto;
   overflow-x: hidden;
-  padding-right: 4px;
+  padding-right: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -227,7 +228,9 @@ function confirmDelete() {
 
 .session-main {
   flex: 1;
-  padding: 9px 34px 9px 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 35px 9px 6px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -248,13 +251,26 @@ function confirmDelete() {
   right: 8px;
   display: grid;
   place-items: center;
-  width: 24px;
+  width: 22px;
   height: 24px;
   border: none;
   border-radius: 6px;
-  background: #ffffff;
+  background: transparent;
   color: var(--app-text-muted);
   cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease, background-color 0.14s ease;
+}
+
+.menu-trigger.visible,
+.menu-trigger:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menu-trigger:hover {
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .menu-panel {

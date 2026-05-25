@@ -107,7 +107,7 @@ def _fallback_session_title(user_input: str) -> str:
     trimmed = " ".join((user_input or "").split())
     if not trimmed:
         return "新对话"
-    return trimmed[:18] + "..." if len(trimmed) > 18 else trimmed
+    return trimmed[:10]
 
 
 def _generate_session_title(client: OpenAI, user_input: str, assistant_output: str) -> str:
@@ -116,7 +116,7 @@ def _generate_session_title(client: OpenAI, user_input: str, assistant_output: s
 
 要求：
 1. 只输出标题，不要解释。
-2. 标题控制在 8 到 18 个中文字符以内。
+2. 标题控制在 10 个中文字符以内。
 3. 尽量概括知识点或问题核心，不要使用“关于”“请问”等空泛表达。
 4. 不要加引号、书名号、句号。
 
@@ -136,7 +136,7 @@ def _generate_session_title(client: OpenAI, user_input: str, assistant_output: s
         title = (response.choices[0].message.content or "").strip()
         title = title.replace("\n", " ").strip("“”\"'。；;：:，, ")
         print(f"[chat_timing] title={perf_counter() - started_at:.2f}s")
-        return title[:30] if title else _fallback_session_title(user_input)
+        return title[:10] if title else _fallback_session_title(user_input)
     except Exception as error:
         print(f"[chat_title] 自动生成标题失败: {error}")
         return _fallback_session_title(user_input)

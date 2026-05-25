@@ -1,131 +1,66 @@
 <template>
-  <div class="markdown-body" v-html="html"></div>
+  <MarkdownRender
+    class="markdown-body"
+    custom-id="chat"
+    :content="content"
+    :final="!animateUpdates"
+    :smooth-streaming="false"
+    :fade="animateUpdates"
+    :typewriter="false"
+    :render-code-blocks-as-pre="true"
+    :code-block-stream="true"
+    :show-tooltips="false"
+  />
 </template>
 
 <script setup>
-import DOMPurify from "dompurify";
-import hljs from "highlight.js/lib/core";
-import bash from "highlight.js/lib/languages/bash";
-import cpp from "highlight.js/lib/languages/cpp";
-import css from "highlight.js/lib/languages/css";
-import java from "highlight.js/lib/languages/java";
-import javascript from "highlight.js/lib/languages/javascript";
-import json from "highlight.js/lib/languages/json";
-import markdown from "highlight.js/lib/languages/markdown";
-import plaintext from "highlight.js/lib/languages/plaintext";
-import python from "highlight.js/lib/languages/python";
-import sql from "highlight.js/lib/languages/sql";
-import typescript from "highlight.js/lib/languages/typescript";
-import xml from "highlight.js/lib/languages/xml";
-import MarkdownIt from "markdown-it";
-import { computed } from "vue";
-import "highlight.js/styles/github.css";
+import MarkdownRender from "markstream-vue";
+import "markstream-vue/index.css";
 
-hljs.registerLanguage("bash", bash);
-hljs.registerLanguage("sh", bash);
-hljs.registerLanguage("shell", bash);
-hljs.registerLanguage("cpp", cpp);
-hljs.registerLanguage("c++", cpp);
-hljs.registerLanguage("css", css);
-hljs.registerLanguage("html", xml);
-hljs.registerLanguage("java", java);
-hljs.registerLanguage("javascript", javascript);
-hljs.registerLanguage("js", javascript);
-hljs.registerLanguage("json", json);
-hljs.registerLanguage("markdown", markdown);
-hljs.registerLanguage("md", markdown);
-hljs.registerLanguage("plaintext", plaintext);
-hljs.registerLanguage("text", plaintext);
-hljs.registerLanguage("python", python);
-hljs.registerLanguage("py", python);
-hljs.registerLanguage("sql", sql);
-hljs.registerLanguage("typescript", typescript);
-hljs.registerLanguage("ts", typescript);
-hljs.registerLanguage("vue", xml);
-hljs.registerLanguage("xml", xml);
-
-const props = defineProps({
+defineProps({
   content: {
     type: String,
     default: "",
   },
-});
-
-const markdownRenderer = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-  typographer: true,
-  highlight(code, language) {
-    const normalizedLanguage = normalizeLanguage(language);
-    const escapedLanguage = markdownRenderer.utils.escapeHtml(normalizedLanguage || "text");
-
-    if (normalizedLanguage && hljs.getLanguage(normalizedLanguage)) {
-      const highlighted = hljs.highlight(code, {
-        language: normalizedLanguage,
-        ignoreIllegals: true,
-      }).value;
-      return `<pre class="code-block"><span class="code-language">${escapedLanguage}</span><code class="hljs language-${escapedLanguage}">${highlighted}</code></pre>`;
-    }
-
-    const escapedCode = markdownRenderer.utils.escapeHtml(code);
-    return `<pre class="code-block"><span class="code-language">text</span><code class="hljs language-text">${escapedCode}</code></pre>`;
+  animateUpdates: {
+    type: Boolean,
+    default: false,
   },
 });
-
-markdownRenderer.renderer.rules.link_open = (tokens, index, options, env, self) => {
-  const token = tokens[index];
-  const targetIndex = token.attrIndex("target");
-  const relIndex = token.attrIndex("rel");
-
-  if (targetIndex < 0) {
-    token.attrPush(["target", "_blank"]);
-  } else {
-    token.attrs[targetIndex][1] = "_blank";
-  }
-
-  if (relIndex < 0) {
-    token.attrPush(["rel", "noopener noreferrer"]);
-  } else {
-    token.attrs[relIndex][1] = "noopener noreferrer";
-  }
-
-  return self.renderToken(tokens, index, options);
-};
-
-const html = computed(() => {
-  if (!props.content) return "";
-  return DOMPurify.sanitize(markdownRenderer.render(props.content), {
-    ADD_ATTR: ["target"],
-  });
-});
-
-function normalizeLanguage(language = "") {
-  const trimmed = language.trim().toLowerCase();
-  if (!trimmed) return "";
-
-  const aliases = {
-    cxx: "cpp",
-    "c++": "cpp",
-    cmd: "bash",
-    console: "bash",
-    html: "xml",
-    js: "javascript",
-    md: "markdown",
-    py: "python",
-    shell: "bash",
-    text: "plaintext",
-    ts: "typescript",
-    vue: "xml",
-  };
-
-  return aliases[trimmed] || trimmed;
-}
 </script>
 
 <style scoped>
 .markdown-body {
+  --fade-duration: 0.4s;
+  --stream-update-fade-duration: 0.4s;
+  --ms-text-body: 1em;
+  --ms-leading-body: 1.75;
+  --ms-text-h1: 1em;
+  --ms-text-h2: 1em;
+  --ms-text-h3: 1em;
+  --ms-text-h4: 1em;
+  --ms-text-h5: 1em;
+  --ms-text-h6: 1em;
+  --ms-weight-h1: 650;
+  --ms-weight-h2: 650;
+  --ms-weight-h3: 650;
+  --ms-weight-h4: 650;
+  --ms-flow-paragraph-y: 0 0 12px;
+  --ms-flow-heading-1-mt: 18px;
+  --ms-flow-heading-1-mb: 10px;
+  --ms-flow-heading-2-mt: 18px;
+  --ms-flow-heading-2-mb: 10px;
+  --ms-flow-heading-3-mt: 18px;
+  --ms-flow-heading-3-mb: 10px;
+  --ms-flow-heading-4-mt: 18px;
+  --ms-flow-heading-4-mb: 10px;
+  --ms-flow-list-y: 0 0 12px;
+  --ms-flow-list-indent: 22px;
+  --ms-flow-blockquote-y: 14px;
+  --ms-flow-blockquote-indent: 14px;
+  --ms-font-mono: Consolas, "Courier New", monospace;
   color: #111111;
+  font-size: inherit;
   line-height: 1.75;
   overflow-wrap: anywhere;
 }
@@ -134,80 +69,71 @@ function normalizeLanguage(language = "") {
   box-sizing: border-box;
 }
 
-.markdown-body :deep(h1),
-.markdown-body :deep(h2),
-.markdown-body :deep(h3),
-.markdown-body :deep(h4) {
-  margin: 18px 0 10px;
+.markdown-body :deep(.heading-node) {
   color: #111111;
+  font-size: 1em !important;
   line-height: 1.35;
   font-weight: 650;
 }
 
-.markdown-body :deep(h1:first-child),
-.markdown-body :deep(h2:first-child),
-.markdown-body :deep(h3:first-child),
-.markdown-body :deep(h4:first-child),
-.markdown-body :deep(p:first-child),
-.markdown-body :deep(ul:first-child),
-.markdown-body :deep(ol:first-child),
-.markdown-body :deep(pre:first-child),
-.markdown-body :deep(blockquote:first-child),
+.markdown-body :deep(.markdown-renderer),
+.markdown-body :deep(.node-slot),
+.markdown-body :deep(.node-content),
+.markdown-body :deep(.text-node),
+.markdown-body :deep(.strong-node),
+.markdown-body :deep(.emphasis-node),
+.markdown-body :deep(.paragraph-node),
+.markdown-body :deep(.list-node),
+.markdown-body :deep(.list-item),
+.markdown-body :deep(.blockquote),
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  font-size: inherit !important;
+}
+
+.markdown-body :deep(.list-item::marker) {
+  font-size: 1em;
+}
+
+.markdown-body :deep(.heading-node:first-child),
+.markdown-body :deep(.paragraph-node:first-child),
+.markdown-body :deep(.list-node:first-child),
+.markdown-body :deep(.code-block:first-child),
+.markdown-body :deep(.blockquote:first-child),
 .markdown-body :deep(table:first-child) {
   margin-top: 0;
 }
 
-.markdown-body :deep(h1) {
-  font-size: 22px;
-}
-
-.markdown-body :deep(h2) {
-  font-size: 19px;
-}
-
-.markdown-body :deep(h3) {
-  font-size: 16px;
-}
-
-.markdown-body :deep(h4) {
-  font-size: 14px;
-}
-
-.markdown-body :deep(p) {
+.markdown-body :deep(.paragraph-node) {
   margin: 0 0 12px;
 }
 
-.markdown-body :deep(a) {
+.markdown-body :deep(.link-node) {
   color: #111111;
   text-decoration: none;
   border-bottom: 1px solid #bdbdbd;
 }
 
-.markdown-body :deep(a:hover) {
+.markdown-body :deep(.link-node:hover) {
   border-bottom-color: currentColor;
 }
 
-.markdown-body :deep(strong) {
+.markdown-body :deep(.strong-node) {
   color: #000000;
   font-weight: 700;
 }
 
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
+.markdown-body :deep(.list-node) {
   margin: 0 0 12px 22px;
   padding: 0;
 }
 
-.markdown-body :deep(li) {
+.markdown-body :deep(.list-item) {
   margin: 4px 0;
   padding-left: 2px;
 }
 
-.markdown-body :deep(li > p) {
-  margin: 6px 0;
-}
-
-.markdown-body :deep(blockquote) {
+.markdown-body :deep(.blockquote) {
   margin: 14px 0;
   padding: 9px 14px;
   border-left: 3px solid #bdbdbd;
@@ -215,11 +141,7 @@ function normalizeLanguage(language = "") {
   color: #333333;
 }
 
-.markdown-body :deep(blockquote > :last-child) {
-  margin-bottom: 0;
-}
-
-.markdown-body :deep(code) {
+.markdown-body :deep(.inline-code) {
   padding: 2px 6px;
   border-radius: 6px;
   background: #f4f4f4;
@@ -228,35 +150,33 @@ function normalizeLanguage(language = "") {
   font-size: 0.92em;
 }
 
-.markdown-body :deep(.code-block) {
-  position: relative;
+.markdown-body :deep(pre) {
   margin: 14px 0;
-  padding: 36px 0 0;
-  overflow: hidden;
+  padding: 14px;
+  overflow-x: auto;
   border: 1px solid #dedede;
   border-radius: 8px;
   background: #fafafa;
-}
-
-.markdown-body :deep(.code-language) {
-  position: absolute;
-  top: 9px;
-  right: 12px;
-  color: #666666;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.markdown-body :deep(pre code) {
-  display: block;
-  min-width: 100%;
-  padding: 0 14px 14px;
-  overflow-x: auto;
-  background: transparent;
   color: #111111;
   font-size: 13px;
   line-height: 1.65;
+}
+
+.markdown-body :deep(pre:focus),
+.markdown-body :deep(pre:focus-visible),
+.markdown-body :deep(pre[class^="language-"]:focus),
+.markdown-body :deep(pre[class*=" language-"]:focus),
+.markdown-body :deep(.code-block-container:focus),
+.markdown-body :deep(.code-block-container:focus-visible) {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+.markdown-body :deep(pre code) {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-family: Consolas, "Courier New", monospace;
   white-space: pre;
 }
 
@@ -286,10 +206,6 @@ function normalizeLanguage(language = "") {
   margin: 18px 0;
   border: 0;
   border-top: 1px solid #dedede;
-}
-
-.markdown-body :deep(.hljs) {
-  background: transparent;
 }
 
 .markdown-body :deep(:last-child) {
