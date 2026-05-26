@@ -1,5 +1,5 @@
 <template>
-  <section class="app-page dashboard-page" :class="{ 'content-ready': shouldAnimateReady }">
+  <section class="app-page dashboard-page">
     <PageHeader title="学习工作台">
     </PageHeader>
 
@@ -139,7 +139,6 @@ import { listStudentAssignmentsApi } from "../api/assignments";
 import PageHeader from "../components/PageHeader.vue";
 import { listWeakPointsApi } from "../api/weakPoints";
 import { clearAuthSession } from "../utils/authStorage";
-import { useDelayedReadyAnimation } from "../utils/useDelayedReadyAnimation";
 
 const router = useRouter();
 const assignments = ref([]);
@@ -150,8 +149,6 @@ const assignmentsLoaded = ref(false);
 const weakPointsLoaded = ref(false);
 const isAssignmentsLoading = ref(true);
 const isWeakPointsLoading = ref(true);
-const isInitialLoading = computed(() => !assignmentsLoaded.value || !weakPointsLoaded.value);
-const shouldAnimateReady = useDelayedReadyAnimation(isInitialLoading);
 
 const pendingAssignments = computed(() => {
   return assignments.value.filter((item) => (item.accepted_count || 0) < (item.question_count || 0));

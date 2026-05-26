@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isInitialLoading" class="progress-page" :class="{ 'content-ready': shouldAnimateReady }">
+  <section class="progress-page">
     <PageHeader :title="progress?.title || '作业完成情况'" title-tag="h2">
       <template #actions>
         <router-link class="secondary-link" :to="`/teacher/assignments/${assignmentId}`">编辑作业</router-link>
@@ -314,7 +314,6 @@ import {
 import PageHeader from "../components/PageHeader.vue";
 import ReadonlyCodeBlock from "../components/ReadonlyCodeBlock.vue";
 import { clearAuthSession } from "../utils/authStorage";
-import { useDelayedReadyAnimation } from "../utils/useDelayedReadyAnimation";
 
 const route = useRoute();
 const router = useRouter();
@@ -328,7 +327,6 @@ const selectedSubmissions = ref([]);
 const errorMessage = ref("");
 const hasLoaded = ref(false);
 const isInitialLoading = ref(true);
-const shouldAnimateReady = useDelayedReadyAnimation(isInitialLoading);
 const isDetailDialogReady = ref(false);
 const reviewNote = ref("");
 const reviewing = ref(false);

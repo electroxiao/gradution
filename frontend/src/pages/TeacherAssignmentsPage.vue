@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isInitialLoading" class="assignment-page" :class="{ 'content-ready': shouldAnimateReady }">
+  <section class="assignment-page">
     <PageHeader title="作业管理" title-tag="h2">
       <template #actions>
         <router-link class="primary-link create-link" to="/teacher/assignments/new">新建作业</router-link>
@@ -134,7 +134,6 @@ import { useRouter } from "vue-router";
 
 import { deleteTeacherAssignmentApi, listTeacherAssignmentsApi } from "../api/assignments";
 import PageHeader from "../components/PageHeader.vue";
-import { useDelayedReadyAnimation } from "../utils/useDelayedReadyAnimation";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
@@ -142,7 +141,6 @@ const assignments = ref([]);
 const errorMessage = ref("");
 const hasLoaded = ref(false);
 const isInitialLoading = ref(true);
-const shouldAnimateReady = useDelayedReadyAnimation(isInitialLoading);
 const deleteTarget = ref(null);
 const deletingAssignmentId = ref(null);
 const activeFilter = ref("all");
