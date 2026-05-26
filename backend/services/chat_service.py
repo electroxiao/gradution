@@ -107,7 +107,7 @@ def _fallback_session_title(user_input: str) -> str:
     trimmed = " ".join((user_input or "").split())
     if not trimmed:
         return "新对话"
-    return trimmed[:10]
+    return trimmed[:18] + "..." if len(trimmed) > 18 else trimmed
 
 
 def _generate_session_title(client: OpenAI, user_input: str, assistant_output: str) -> str:
@@ -136,7 +136,7 @@ def _generate_session_title(client: OpenAI, user_input: str, assistant_output: s
         title = (response.choices[0].message.content or "").strip()
         title = title.replace("\n", " ").strip("“”\"'。；;：:，, ")
         print(f"[chat_timing] title={perf_counter() - started_at:.2f}s")
-        return title[:10] if title else _fallback_session_title(user_input)
+        return title if title else _fallback_session_title(user_input)
     except Exception as error:
         print(f"[chat_title] 自动生成标题失败: {error}")
         return _fallback_session_title(user_input)

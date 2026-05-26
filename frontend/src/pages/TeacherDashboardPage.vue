@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isInitialLoading" class="app-page dashboard-page content-ready">
+  <section v-if="!isInitialLoading" class="app-page dashboard-page" :class="{ 'content-ready': shouldAnimateReady }">
     <PageHeader title="数据看板" title-tag="h2">
       <template #actions>
         <button class="app-button-ghost" @click="loadDashboard">刷新数据</button>
@@ -95,6 +95,7 @@ import { useRouter } from "vue-router";
 
 import { getTeacherDashboardApi, listTeacherConsultationHotspotsApi } from "../api/teacher";
 import PageHeader from "../components/PageHeader.vue";
+import { useDelayedReadyAnimation } from "../utils/useDelayedReadyAnimation";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
@@ -103,6 +104,7 @@ const consultationHotspots = ref([]);
 const errorMessage = ref("");
 const hasLoaded = ref(false);
 const isInitialLoading = ref(true);
+const shouldAnimateReady = useDelayedReadyAnimation(isInitialLoading);
 
 const latestAssignmentUnsubmittedText = computed(() => {
   const value = dashboard.value?.latest_assignment_unsubmitted_students;

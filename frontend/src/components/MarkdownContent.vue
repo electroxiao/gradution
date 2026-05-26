@@ -188,16 +188,54 @@ defineProps({
   border-collapse: collapse;
 }
 
+.markdown-body :deep(.table-node-wrapper) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.markdown-body :deep(.table-node) {
+  display: table;
+  width: max-content !important;
+  max-width: none;
+  table-layout: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid #e6e6e6 !important;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: none !important;
+  background: #ffffff;
+}
+
+.markdown-body :deep(.table-node tbody tr:nth-child(2n)),
+.markdown-body :deep(.table-node tbody tr:hover) {
+  background: transparent !important;
+}
+
 .markdown-body :deep(th),
 .markdown-body :deep(td) {
   padding: 8px 10px;
-  border: 1px solid #dedede;
+  border: 0;
+  border-right: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
   text-align: left;
   vertical-align: top;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+.markdown-body :deep(th:last-child),
+.markdown-body :deep(td:last-child) {
+  border-right: 0;
+}
+
+.markdown-body :deep(tbody tr:last-child td) {
+  border-bottom: 0;
 }
 
 .markdown-body :deep(th) {
-  background: #f5f5f5;
+  background: #f7f7f8;
   color: #111111;
   font-weight: 650;
 }

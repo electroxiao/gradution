@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isInitialGraphLoading" class="graph-page content-ready">
+  <section v-if="!isInitialGraphLoading" class="graph-page" :class="{ 'content-ready': shouldAnimateReady }">
     <PageHeader title="知识图谱管理" title-tag="h2" />
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
@@ -368,6 +368,7 @@ import PageHeader from "../components/PageHeader.vue";
 import KnowledgeGraphCanvas from "../components/KnowledgeGraphCanvas.vue";
 import { FULL_GRAPH_LIMIT, fetchFullGraph, getCachedFullGraph, getStaleFullGraph } from "../features/teacher-graph/graphCache";
 import { clearAuthSession } from "../utils/authStorage";
+import { useDelayedReadyAnimation } from "../utils/useDelayedReadyAnimation";
 
 defineOptions({ name: "TeacherGraphPage" });
 
@@ -376,6 +377,7 @@ const keyword = ref("");
 const errorMessage = ref("");
 const isGraphLoading = ref(true);
 const isInitialGraphLoading = ref(true);
+const shouldAnimateReady = useDelayedReadyAnimation(isInitialGraphLoading);
 const hasGraphLoaded = ref(false);
 const isGraphSuggesting = ref(false);
 const fullGraph = ref({ nodes: [], edges: [] });

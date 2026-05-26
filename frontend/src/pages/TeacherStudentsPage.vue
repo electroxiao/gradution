@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isInitialLoading" class="students-page content-ready">
+  <section v-if="!isInitialLoading" class="students-page" :class="{ 'content-ready': shouldAnimateReady }">
     <PageHeader title="学生薄弱点" title-tag="h2" />
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
@@ -204,6 +204,7 @@ import {
 } from "../api/teacher";
 import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
+import { useDelayedReadyAnimation } from "../utils/useDelayedReadyAnimation";
 
 const router = useRouter();
 const pageSize = 10;
@@ -217,6 +218,7 @@ const sortMode = ref("weak-desc");
 const currentPage = ref(1);
 const errorMessage = ref("");
 const isInitialLoading = ref(true);
+const shouldAnimateReady = useDelayedReadyAnimation(isInitialLoading);
 const isStudentsLoading = ref(true);
 const hasStudentsLoaded = ref(false);
 const isWeakPointsLoading = ref(false);

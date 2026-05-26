@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isInitialLoading" class="student-page content-ready">
+  <section v-if="!isInitialLoading" class="student-page" :class="{ 'content-ready': shouldAnimateReady }">
     <PageHeader title="我的作业" />
 
     <section v-if="!isInitialLoading" class="summary-row">
@@ -98,6 +98,7 @@ import { useRouter } from "vue-router";
 
 import { listStudentAssignmentsApi } from "../api/assignments";
 import PageHeader from "../components/PageHeader.vue";
+import { useDelayedReadyAnimation } from "../utils/useDelayedReadyAnimation";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
@@ -106,6 +107,7 @@ const errorMessage = ref("");
 const hasLoaded = ref(false);
 const isInitialLoading = ref(true);
 const currentPage = ref(1);
+const shouldAnimateReady = useDelayedReadyAnimation(isInitialLoading);
 const pageSize = 10;
 const pendingCount = computed(() => {
   return assignments.value.filter((item) => (item.accepted_count || 0) < (item.question_count || 0)).length;
