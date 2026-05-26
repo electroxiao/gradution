@@ -23,7 +23,11 @@ export const listTeacherConsultationHotspotsApi = (params = {}) =>
   http.get("/api/teacher/consultations/hotspots", { params });
 export const listTeacherStudentWeakPointsApi = (studentId) =>
   http.get(`/api/teacher/students/${studentId}/weak-points`);
+export const listTeacherStudentAssignmentsApi = (studentId) =>
+  http.get(`/api/teacher/students/${studentId}/assignments`);
 export const listTeacherStudentConsultationsApi = (studentId, limit = 20) =>
   http.get(`/api/teacher/students/${studentId}/consultations`, { params: { limit } });
+export const listTeacherStudentConsultationTurnsApi = (studentId, knowledgeNodeId, limit = 20) =>
+  http.get(`/api/teacher/students/${studentId}/consultations/${knowledgeNodeId}/turns`, { params: { limit } });
 
 export const getTeacherDashboardApi = () => http.get("/api/teacher/dashboard/weak-points");

@@ -11,8 +11,11 @@ from backend.schemas.teacher import (
     GraphNodeCreateRequest,
     GraphNodeUpdateRequest,
     TeacherConsultationSummaryResponse,
+    TeacherStudentAssignmentResponse,
+    TeacherStudentConsultationTurnResponse,
 )
 from backend.services.chat_knowledge_event_service import (
+    list_student_consultation_turns,
     list_student_consultations,
     list_teacher_consultation_hotspots,
 )
@@ -25,6 +28,7 @@ from backend.services.teacher_service import (
     get_graph,
     get_weak_point_dashboard,
     list_knowledge_node_refs,
+    list_student_assignments,
     list_student_weak_points,
     list_students_with_weak_points,
     update_graph_edge,
@@ -43,6 +47,26 @@ def _consultation_summary_response(row) -> TeacherConsultationSummaryResponse:
         student_count=row.student_count,
         last_seen_at=row.last_seen_at,
     )
+
+
+def _consultation_turn_response(row) -> TeacherStudentConsultationTurnResponse:
+    return TeacherStudentConsultationTurnResponse(
+        event_id=row.event_id,
+        session_id=row.session_id,
+        session_title=row.session_title,
+        user_message_id=row.user_message_id,
+        assistant_message_id=row.assistant_message_id,
+        asked_at=row.asked_at,
+        user_content=row.user_content,
+        assistant_content=row.assistant_content,
+    )
+
+
+def _ensure_student(db: Session, student_id: int) -> User:
+    student = db.query(User).filter(User.id == student_id, User.role == "student").first()
+    if not student:
+        raise HTTPException(status_code=404, detail="学生不存在")
+    return student
 
 
 @router.get("/graph")
@@ -158,6 +182,16 @@ def get_student_weak_points(
     return list_student_weak_points(db, student_id)
 
 
+@router.get("/students/{student_id}/assignments", response_model=list[TeacherStudentAssignmentResponse])
+def get_student_assignments(
+    student_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    _ensure_student(db, student_id)
+    return list_student_assignments(db, student_id)
+
+
 @router.get("/consultations/hotspots", response_model=list[TeacherConsultationSummaryResponse])
 def get_consultation_hotspots(
     class_name: str | None = None,
@@ -176,11 +210,25 @@ def get_student_consultations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_teacher),
 ):
-    student = db.query(User).filter(User.id == student_id, User.role == "student").first()
-    if not student:
-        raise HTTPException(status_code=404, detail="学生不存在")
+    _ensure_student(db, student_id)
     rows = list_student_consultations(db, student_id, limit=limit)
     return [_consultation_summary_response(row) for row in rows]
+
+
+@router.get(
+    "/students/{student_id}/consultations/{knowledge_node_id}/turns",
+    response_model=list[TeacherStudentConsultationTurnResponse],
+)
+def get_student_consultation_turns(
+    student_id: int,
+    knowledge_node_id: int,
+    limit: int = Query(default=20, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_teacher),
+):
+    _ensure_student(db, student_id)
+    rows = list_student_consultation_turns(db, student_id, knowledge_node_id, limit=limit)
+    return [_consultation_turn_response(row) for row in rows]
 
 
 @router.get("/dashboard/weak-points")

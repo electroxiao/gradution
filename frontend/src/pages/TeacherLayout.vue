@@ -17,7 +17,7 @@
           </router-link>
           <router-link to="/teacher/students">
             <span class="nav-icon"><Users :size="18" aria-hidden="true" /></span>
-            <span class="nav-copy"><strong>学生薄弱点</strong></span>
+            <span class="nav-copy"><strong>学生画像</strong></span>
           </router-link>
           <router-link to="/teacher/assignments">
             <span class="nav-icon"><ClipboardList :size="18" aria-hidden="true" /></span>

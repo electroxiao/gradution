@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from backend.core.config import settings
 from backend.models.chat import ChatKnowledgeEvent, ChatMessage, ChatSession
@@ -35,6 +35,18 @@ class ConsultationSummary:
     mention_count: int
     student_count: int
     last_seen_at: datetime
+
+
+@dataclass(frozen=True)
+class ConsultationTurn:
+    event_id: int
+    session_id: int
+    session_title: str
+    user_message_id: int
+    assistant_message_id: int
+    asked_at: datetime
+    user_content: str
+    assistant_content: str
 
 
 def extract_candidates_from_turn(
@@ -350,6 +362,42 @@ def list_student_consultations(
             last_seen_at=row.last_seen_at,
         )
         for row in rows
+    ]
+
+
+def list_student_consultation_turns(
+    db: Session,
+    student_id: int,
+    knowledge_node_id: int,
+    limit: int = 20,
+) -> list[ConsultationTurn]:
+    user_message = aliased(ChatMessage)
+    assistant_message = aliased(ChatMessage)
+    rows = (
+        db.query(ChatKnowledgeEvent, ChatSession, user_message, assistant_message)
+        .join(ChatSession, ChatKnowledgeEvent.session_id == ChatSession.id)
+        .join(user_message, ChatKnowledgeEvent.user_message_id == user_message.id)
+        .join(assistant_message, ChatKnowledgeEvent.assistant_message_id == assistant_message.id)
+        .filter(
+            ChatKnowledgeEvent.user_id == student_id,
+            ChatKnowledgeEvent.knowledge_node_id == knowledge_node_id,
+        )
+        .order_by(ChatKnowledgeEvent.created_at.desc(), ChatKnowledgeEvent.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        ConsultationTurn(
+            event_id=event.id,
+            session_id=session.id,
+            session_title=session.title,
+            user_message_id=question.id,
+            assistant_message_id=answer.id,
+            asked_at=event.created_at,
+            user_content=question.content,
+            assistant_content=answer.content,
+        )
+        for event, session, question, answer in rows
     ]
 
 

@@ -27,6 +27,28 @@ class TeacherStudentWeakPointResponse(BaseModel):
     last_seen_at: datetime
 
 
+class TeacherStudentAssignmentResponse(BaseModel):
+    assignment_id: int
+    title: str
+    due_at: datetime | None = None
+    status: str
+    question_count: int
+    submitted_question_count: int
+    accepted_question_count: int
+    latest_submitted_at: datetime | None = None
+
+
+class TeacherStudentConsultationTurnResponse(BaseModel):
+    event_id: int
+    session_id: int
+    session_title: str
+    user_message_id: int
+    assistant_message_id: int
+    asked_at: datetime
+    user_content: str
+    assistant_content: str
+
+
 class GraphNodeResponse(BaseModel):
     id: str
     label: str

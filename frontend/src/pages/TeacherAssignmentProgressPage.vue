@@ -424,12 +424,22 @@ async function loadProgress() {
   try {
     const { data } = await getTeacherAssignmentProgressApi(assignmentId);
     progress.value = data;
+    focusStudentFromQuery();
   } catch (error) {
     handleApiError(error, "加载完成情况失败。");
   } finally {
     hasLoaded.value = true;
     isInitialLoading.value = false;
   }
+}
+
+function focusStudentFromQuery() {
+  const targetStudentId = Number(route.query.studentId);
+  if (!targetStudentId || !progress.value?.students?.length) return;
+  const targetIndex = studentRows.value.findIndex((row) => row.student.id === targetStudentId);
+  if (targetIndex < 0) return;
+  matrixFilter.value = "all";
+  currentPage.value = Math.floor(targetIndex / pageSize) + 1;
 }
 
 function cellFor(studentId, questionId) {

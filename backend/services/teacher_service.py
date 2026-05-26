@@ -17,6 +17,7 @@ from backend.schemas.teacher import (
     GraphNodeUpdateRequest,
     GraphQueryResponse,
     TeacherKnowledgeNodeRefResponse,
+    TeacherStudentAssignmentResponse,
     TeacherStudentResponse,
     TeacherStudentWeakPointResponse,
 )
@@ -88,6 +89,87 @@ def _count_unfinished_assignments_by_student(db: Session) -> dict[int, int]:
         if int(row.submitted_question_count or 0) < int(row.question_count or 0):
             counts[row.student_id] = counts.get(row.student_id, 0) + 1
     return counts
+
+
+def list_student_assignments(db: Session, student_id: int) -> list[TeacherStudentAssignmentResponse]:
+    student = db.query(User).filter(User.id == student_id, User.role == "student").first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="学生不存在")
+
+    assignments = (
+        db.query(Assignment)
+        .join(AssignmentAssignee, AssignmentAssignee.assignment_id == Assignment.id)
+        .filter(
+            AssignmentAssignee.student_id == student_id,
+            Assignment.status != "draft",
+        )
+        .order_by(Assignment.due_at.is_(None).asc(), Assignment.due_at.asc(), Assignment.created_at.desc(), Assignment.id.desc())
+        .all()
+    )
+    assignment_ids = [assignment.id for assignment in assignments]
+    if not assignment_ids:
+        return []
+
+    submissions = (
+        db.query(AssignmentSubmission)
+        .filter(
+            AssignmentSubmission.assignment_id.in_(assignment_ids),
+            AssignmentSubmission.student_id == student_id,
+        )
+        .order_by(AssignmentSubmission.submitted_at.asc(), AssignmentSubmission.id.asc())
+        .all()
+    )
+    grouped: dict[int, dict[int, AssignmentSubmission]] = {}
+    latest_by_assignment: dict[int, AssignmentSubmission] = {}
+    for submission in submissions:
+        latest_by_question = grouped.setdefault(submission.assignment_id, {})
+        latest_question_submission = latest_by_question.get(submission.question_id)
+        if (
+            latest_question_submission is None
+            or (submission.submitted_at, submission.id)
+            >= (latest_question_submission.submitted_at, latest_question_submission.id)
+        ):
+            latest_by_question[submission.question_id] = submission
+        latest_assignment_submission = latest_by_assignment.get(submission.assignment_id)
+        if (
+            latest_assignment_submission is None
+            or (submission.submitted_at, submission.id)
+            >= (latest_assignment_submission.submitted_at, latest_assignment_submission.id)
+        ):
+            latest_by_assignment[submission.assignment_id] = submission
+
+    responses: list[TeacherStudentAssignmentResponse] = []
+    for assignment in assignments:
+        questions = list(assignment.questions)
+        question_count = len(questions)
+        latest_by_question = grouped.get(assignment.id, {})
+        submitted_question_count = len(latest_by_question)
+        accepted_question_count = sum(
+            1 for submission in latest_by_question.values() if submission.status == "accepted"
+        )
+        if question_count == 0 or submitted_question_count == 0:
+            portrait_status = "not_submitted"
+        elif accepted_question_count >= question_count:
+            portrait_status = "completed"
+        elif submitted_question_count >= question_count:
+            portrait_status = "submitted"
+        else:
+            portrait_status = "partial"
+
+        latest_submission = latest_by_assignment.get(assignment.id)
+        responses.append(
+            TeacherStudentAssignmentResponse(
+                assignment_id=assignment.id,
+                title=assignment.title,
+                due_at=assignment.due_at,
+                status=portrait_status,
+                question_count=question_count,
+                submitted_question_count=submitted_question_count,
+                accepted_question_count=accepted_question_count,
+                latest_submitted_at=latest_submission.submitted_at if latest_submission else None,
+            )
+        )
+    return responses
 
 
 def _split_search_terms(keyword: str) -> list[str]:
