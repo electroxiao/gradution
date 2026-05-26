@@ -19,8 +19,9 @@ from backend.schemas.chat import (
     SessionResponse,
     SessionUpdateRequest,
 )
+from backend.services import rag_engine
 from backend.services.chat_knowledge_event_service import record_turn_knowledge_events
-from backend.services.neo4j_service import close_neo4j_driver
+from backend.services.neo4j_service import close_neo4j_driver, get_neo4j_driver
 
 logger = logging.getLogger(__name__)
 
@@ -187,10 +188,47 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
 
     yield _sse_event("user_message", _message_to_schema(user_message).model_dump(mode="json"))
 
+    reasoning_trace: list = []
+    retrieval_trace: list = []
+    facts: list = []
+    keyword_elapsed = 0.0
+    graph_elapsed = 0.0
+
+    try:
+        driver = get_neo4j_driver()
+        keyword_started_at = perf_counter()
+        keywords = rag_engine.extract_keywords_with_llm(
+            client,
+            payload.content,
+            history=history,
+            trace=reasoning_trace,
+        )
+        keyword_elapsed = perf_counter() - keyword_started_at
+
+        graph_started_at = perf_counter()
+        facts = rag_engine.query_graph_with_reasoning(
+            driver,
+            client,
+            payload.content,
+            keywords=keywords,
+            max_depth=2,
+            width=3,
+            reasoning_trace=reasoning_trace,
+            retrieval_trace=retrieval_trace,
+        )
+        graph_elapsed = perf_counter() - graph_started_at
+    except Exception:
+        logger.exception("聊天图谱检索失败，回退为直接大模型回答: session=%s user=%s", session_id, user.id)
+
     answer_started_at = perf_counter()
     chunks: list[str] = []
     try:
-        for chunk in _stream_direct_tutor_answer(client, payload.content, history):
+        answer_stream = (
+            rag_engine.ask_deepseek_stream(client, payload.content, facts, history=history)
+            if facts
+            else _stream_direct_tutor_answer(client, payload.content, history)
+        )
+        for chunk in answer_stream:
             chunks.append(chunk)
             yield _sse_event("assistant_delta", {"content": chunk})
         answer = "".join(chunks)
@@ -220,6 +258,8 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     print(
         "[chat_timing] "
         f"session={session.id} "
+        f"keyword={keyword_elapsed:.2f}s "
+        f"graph={graph_elapsed:.2f}s "
         f"answer={answer_elapsed:.2f}s "
         f"total={perf_counter() - request_started_at:.2f}s"
     )

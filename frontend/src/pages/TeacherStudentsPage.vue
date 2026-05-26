@@ -13,16 +13,14 @@
 
         <div class="list-controls">
           <label class="search-field">
-            <span>搜索</span>
-            <input v-model.trim="searchQuery" type="search" placeholder="搜索学生姓名" />
+            <input v-model.trim="searchQuery" type="search" placeholder="搜索学生姓名" aria-label="搜索学生姓名" />
           </label>
 
           <div class="select-row">
             <label>
-              <span>分类</span>
               <Listbox v-model="classFilter" as="div" class="animated-select">
                 <div class="animated-select-wrap">
-                  <ListboxButton class="animated-select-button">
+                  <ListboxButton class="animated-select-button" aria-label="筛选班级">
                     <span>{{ classFilter || "全部班级" }}</span>
                     <ChevronDown :size="16" aria-hidden="true" />
                   </ListboxButton>
@@ -47,10 +45,9 @@
             </label>
 
             <label>
-              <span>排序</span>
               <Listbox v-model="sortMode" as="div" class="animated-select">
                 <div class="animated-select-wrap">
-                  <ListboxButton class="animated-select-button">
+                  <ListboxButton class="animated-select-button" aria-label="排序学生">
                     <span>{{ sortLabel }}</span>
                     <ChevronDown :size="16" aria-hidden="true" />
                   </ListboxButton>
@@ -82,15 +79,11 @@
             :class="{ active: student.id === activeStudentId }"
             @click="selectStudent(student.id)"
           >
-            <span class="student-avatar">{{ studentInitial(student.username) }}</span>
             <span class="student-main">
               <strong>{{ student.username }}</strong>
               <small>{{ student.class_name || "未分班" }}</small>
             </span>
-            <span class="student-status">
-              <i :class="studentStatusClass(student)" aria-hidden="true"></i>
-              <span class="weak-badge">{{ student.weak_point_count || 0 }}</span>
-            </span>
+            <span class="weak-badge">{{ student.weak_point_count || 0 }}</span>
           </button>
         </div>
         <div v-else-if="hasStudentsLoaded" class="list-empty">暂无匹配学生。</div>
@@ -577,17 +570,6 @@ function summarizeText(value, limit = 72) {
   return normalized.length > limit ? `${normalized.slice(0, limit)}...` : normalized;
 }
 
-function studentInitial(name) {
-  const normalized = String(name || "").trim();
-  return normalized ? normalized.slice(0, 1).toUpperCase() : "?";
-}
-
-function studentStatusClass(student) {
-  if ((student.unfinished_assignment_count || 0) > 0) return "warn";
-  if ((student.weak_point_count || 0) > 0) return "active";
-  return "quiet";
-}
-
 function handleApiError(error, fallbackMessage) {
   const status = error?.response?.status;
   if (status === 401 || status === 403) {
@@ -624,12 +606,15 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .student-list-panel {
+  max-height: calc(100vh - 132px);
   padding: 14px 12px 12px;
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
   align-self: start;
   border-radius: 8px;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
 }
 
 .list-head {
@@ -660,17 +645,9 @@ function handleApiError(error, fallbackMessage) {
   gap: 8px;
 }
 
-.search-field,
-.select-row label {
-  display: grid;
-  gap: 6px;
+.search-field {
+  display: block;
   min-width: 0;
-}
-
-.search-field span,
-.select-row span {
-  color: var(--app-text-muted);
-  font-size: 12px;
 }
 
 .search-field input,
@@ -790,20 +767,18 @@ function handleApiError(error, fallbackMessage) {
 .student-items {
   display: grid;
   gap: 2px;
-  min-height: 500px;
-  max-height: calc(100vh - 360px);
-  overflow-y: auto;
-  padding-right: 2px;
+  min-height: 0;
   align-content: start;
+  overflow: hidden;
 }
 
 .student-item {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
-  gap: 9px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
-  min-height: 54px;
-  padding: 7px 8px;
+  min-height: 50px;
+  padding: 7px 8px 7px 10px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -819,19 +794,6 @@ function handleApiError(error, fallbackMessage) {
   background: #f8fbff;
   border-color: #3f73ff;
   box-shadow: 0 0 0 2px rgba(47, 103, 246, 0.08);
-}
-
-.student-avatar {
-  width: 34px;
-  height: 34px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e8f0ff, #cfdcff);
-  color: var(--app-primary);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0;
 }
 
 .student-main {
@@ -852,27 +814,6 @@ function handleApiError(error, fallbackMessage) {
 .student-main small {
   color: var(--app-text-muted);
   font-size: 11px;
-}
-
-.student-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.student-status i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.student-status i.active {
-  background: #39c980;
-}
-
-.student-status i.warn {
-  background: #f5b83d;
 }
 
 .weak-badge {
