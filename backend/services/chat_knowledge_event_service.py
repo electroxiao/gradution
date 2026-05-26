@@ -56,11 +56,20 @@ def extract_candidates_from_turn(
     assistant_content: str,
     previous_context: str | None = None,
     formal_nodes: list[dict] | None = None,
+    rag_nodes: list[dict] | None = None,
 ) -> list[dict]:
     formal_node_options = "[]"
     if formal_nodes:
         formal_node_options = json.dumps(
             [{"id": int(node["id"]), "name": str(node["name"])} for node in formal_nodes],
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+
+    rag_node_options = "[]"
+    if rag_nodes:
+        rag_node_options = json.dumps(
+            [{"id": int(node["id"]), "name": str(node["name"])} for node in rag_nodes],
             ensure_ascii=False,
             separators=(",", ":"),
         )
@@ -83,6 +92,12 @@ def extract_candidates_from_turn(
 旧格式兼容要求：
 如果无法输出 node_id，才输出 name。
 name 应是简短、可匹配知识图谱节点的中文知识点名称。
+
+本轮图谱检索命中的候选节点：
+{rag_node_options}
+
+使用方式：
+这些节点只作为优先参考。只有当学生提问或助教回答确实围绕该知识点展开时，才可以输出它；不要因为检索命中就直接记录。
 
 上一轮上下文：
 {previous_context or "无"}
@@ -200,6 +215,54 @@ def _formal_nodes_for_prompt(db: Session) -> list[dict]:
     ]
 
 
+_RAG_NODE_NAME_KEYS = {
+    "keyword",
+    "name",
+    "node_name",
+    "seed",
+    "source",
+    "target",
+}
+
+
+def _extract_rag_fact_names(value: Any) -> list[str]:
+    names: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in _RAG_NODE_NAME_KEYS and isinstance(item, str) and item.strip():
+                names.append(item.strip())
+            elif isinstance(item, (dict, list)):
+                names.extend(_extract_rag_fact_names(item))
+    elif isinstance(value, list):
+        for item in value:
+            names.extend(_extract_rag_fact_names(item))
+    return names
+
+
+def _rag_nodes_for_prompt(db: Session, rag_facts: list | dict | None) -> list[dict]:
+    candidate_names = _extract_rag_fact_names(rag_facts)
+    if not candidate_names:
+        return []
+
+    all_nodes = db.query(KnowledgeNode).order_by(KnowledgeNode.id).all()
+    alias_to_node: dict[str, KnowledgeNode] = {}
+    for node in all_nodes:
+        for alias in _formal_node_aliases(node.node_name):
+            alias_to_node.setdefault(alias, node)
+
+    nodes: list[dict] = []
+    seen_node_ids: set[int] = set()
+    for name in candidate_names:
+        node = alias_to_node.get(name)
+        if node is None or node.id in seen_node_ids:
+            continue
+        seen_node_ids.add(node.id)
+        nodes.append({"id": node.id, "name": node.node_name})
+        if len(nodes) >= 10:
+            break
+    return nodes
+
+
 def _resolve_candidate_node_ids(db: Session, candidates: list[dict]) -> list[tuple[KnowledgeNode, dict]]:
     node_ids = []
     candidate_by_id: dict[int, dict] = {}
@@ -239,6 +302,7 @@ def record_turn_knowledge_events(
     user_message: ChatMessage,
     assistant_message: ChatMessage,
     previous_context: str | None = None,
+    rag_facts: list | dict | None = None,
 ) -> list[str]:
     candidates = extract_candidates_from_turn(
         client,
@@ -246,6 +310,7 @@ def record_turn_knowledge_events(
         assistant_content=assistant_message.content,
         previous_context=previous_context,
         formal_nodes=_formal_nodes_for_prompt(db),
+        rag_nodes=_rag_nodes_for_prompt(db, rag_facts),
     )
     resolved_nodes = _resolve_candidate_node_ids(db, candidates)
     if not resolved_nodes:

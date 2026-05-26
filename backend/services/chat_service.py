@@ -194,31 +194,41 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     keyword_elapsed = 0.0
     graph_elapsed = 0.0
 
-    try:
-        driver = get_neo4j_driver()
-        keyword_started_at = perf_counter()
-        keywords = rag_engine.extract_keywords_with_llm(
-            client,
-            payload.content,
-            history=history,
-            trace=reasoning_trace,
-        )
-        keyword_elapsed = perf_counter() - keyword_started_at
+    if payload.use_knowledge_graph:
+        try:
+            driver = get_neo4j_driver()
+            keyword_started_at = perf_counter()
+            keywords = rag_engine.extract_keywords_with_llm(
+                client,
+                payload.content,
+                history=history,
+                trace=reasoning_trace,
+            )
+            keyword_elapsed = perf_counter() - keyword_started_at
 
-        graph_started_at = perf_counter()
-        facts = rag_engine.query_graph_with_reasoning(
-            driver,
-            client,
-            payload.content,
-            keywords=keywords,
-            max_depth=2,
-            width=3,
-            reasoning_trace=reasoning_trace,
-            retrieval_trace=retrieval_trace,
+            graph_started_at = perf_counter()
+            facts = rag_engine.query_graph_with_reasoning(
+                driver,
+                client,
+                payload.content,
+                keywords=keywords,
+                max_depth=2,
+                width=3,
+                reasoning_trace=reasoning_trace,
+                retrieval_trace=retrieval_trace,
+            )
+            graph_elapsed = perf_counter() - graph_started_at
+        except Exception:
+            logger.exception("聊天图谱检索失败，回退为直接大模型回答: session=%s user=%s", session_id, user.id)
+
+        yield _sse_event(
+            "graph_trace",
+            {
+                "facts": facts,
+                "reasoning_trace": reasoning_trace,
+                "retrieval_trace": retrieval_trace,
+            },
         )
-        graph_elapsed = perf_counter() - graph_started_at
-    except Exception:
-        logger.exception("聊天图谱检索失败，回退为直接大模型回答: session=%s user=%s", session_id, user.id)
 
     answer_started_at = perf_counter()
     chunks: list[str] = []
@@ -243,6 +253,9 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
         session_id=session.id,
         role="assistant",
         content=answer,
+        facts_json=facts,
+        reasoning_trace_json=reasoning_trace,
+        retrieval_trace_json=retrieval_trace,
     )
     db.add(assistant_message)
 
@@ -253,7 +266,14 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
     db.refresh(user_message)
     db.refresh(assistant_message)
 
-    assistant_schema = _message_to_schema(assistant_message)
+    assistant_payload = _message_to_schema(assistant_message).model_dump(mode="json")
+    assistant_payload.update(
+        {
+            "facts": facts,
+            "reasoning_trace": reasoning_trace,
+            "retrieval_trace": retrieval_trace,
+        }
+    )
 
     print(
         "[chat_timing] "
@@ -270,11 +290,12 @@ def stream_message(db: Session, user: User, session_id: int, payload: MessageCre
         user_message_id=user_message.id,
         assistant_message_id=assistant_message.id,
         previous_context=history[-2:],
+        rag_facts=facts,
     )
     yield _sse_event(
         "assistant_done",
         {
-            "assistant_message": assistant_schema.model_dump(mode="json"),
+            "assistant_message": assistant_payload,
             "weak_points_added": [],
         },
     )
@@ -287,6 +308,7 @@ def _schedule_turn_knowledge_extraction(
     user_message_id: int,
     assistant_message_id: int,
     previous_context: list[dict] | None = None,
+    rag_facts: list | dict | None = None,
 ) -> None:
     thread = Thread(
         target=_run_turn_knowledge_extraction,
@@ -296,6 +318,7 @@ def _schedule_turn_knowledge_extraction(
             "user_message_id": user_message_id,
             "assistant_message_id": assistant_message_id,
             "previous_context": previous_context,
+            "rag_facts": rag_facts,
         },
         daemon=True,
     )
@@ -309,6 +332,7 @@ def _run_turn_knowledge_extraction(
     user_message_id: int,
     assistant_message_id: int,
     previous_context: list[dict] | None = None,
+    rag_facts: list | dict | None = None,
 ) -> None:
     task_db = SessionLocal()
     try:
@@ -337,6 +361,7 @@ def _run_turn_knowledge_extraction(
             user_message,
             assistant_message,
             previous_context=context_text,
+            rag_facts=rag_facts,
         )
         task_db.commit()
         logger.info(
@@ -388,6 +413,9 @@ def _message_to_schema(message: ChatMessage) -> MessageResponse:
         id=message.id,
         role=message.role,
         content=message.content,
+        facts=message.facts_json or [],
+        reasoning_trace=message.reasoning_trace_json or [],
+        retrieval_trace=message.retrieval_trace_json or [],
         created_at=message.created_at,
     )
 

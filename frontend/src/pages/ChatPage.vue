@@ -42,6 +42,36 @@
               <strong>系统提示</strong>
             </div>
 
+            <div v-if="message.role === 'assistant' && hasGraphTrace(message)" class="graph-status-box">
+              <span class="graph-status-dot" :class="{ active: message.facts?.length }" />
+              <span>{{ graphStatusText(message) }}</span>
+            </div>
+
+            <SelectedPathGraph v-if="message.role === 'assistant'" :facts="message.facts || []" />
+
+            <details
+              v-if="message.role === 'assistant' && (message.reasoning_trace?.length || message.retrieval_trace?.length)"
+              class="trace-box"
+            >
+              <summary>查看检索过程</summary>
+              <div v-if="message.reasoning_trace?.length" class="trace-group">
+                <strong>推理轨迹</strong>
+                <ul>
+                  <li v-for="(item, index) in message.reasoning_trace" :key="`reason-${index}`">
+                    {{ item.title }}：{{ item.summary }}
+                  </li>
+                </ul>
+              </div>
+              <div v-if="message.retrieval_trace?.length" class="trace-group">
+                <strong>检索轨迹</strong>
+                <ul>
+                  <li v-for="(item, index) in message.retrieval_trace" :key="`retrieval-${index}`">
+                    {{ item.title }}：{{ item.summary }}
+                  </li>
+                </ul>
+              </div>
+            </details>
+
             <div class="message-body" :class="message.role === 'user' ? 'user-body' : message.role === 'system' ? 'system-body' : 'assistant-body'">
               <MarkdownContent v-if="message.role === 'assistant' && message.content" :content="message.content" :animate-updates="message.streaming" />
               <span v-else-if="message.role === 'assistant'" class="assistant-placeholder" aria-hidden="true" />
@@ -64,7 +94,13 @@
               @keydown="handleComposerKeydown"
             />
             <div class="composer-actions">
-              <span />
+              <label class="graph-toggle" :class="{ active: useKnowledgeGraph }">
+                <input v-model="useKnowledgeGraph" type="checkbox" :disabled="sending" />
+                <span class="toggle-track" aria-hidden="true">
+                  <span class="toggle-thumb" />
+                </span>
+                <span class="toggle-label">知识图谱检索</span>
+              </label>
               <button
                 :type="sending ? 'button' : 'submit'"
                 class="composer-submit"
@@ -100,6 +136,7 @@ import {
 } from "../api/chat";
 import AnimatedTitle from "../components/AnimatedTitle.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
+import SelectedPathGraph from "../components/SelectedPathGraph.vue";
 import SessionSidebar from "../components/SessionSidebar.vue";
 import { useAuthStore } from "../stores/auth";
 
@@ -119,6 +156,7 @@ const activeSessionId = ref(null);
 const content = ref("");
 const errorMessage = ref("");
 const sending = ref(false);
+const useKnowledgeGraph = ref(true);
 const messageScroller = ref(null);
 const composerInput = ref(null);
 const currentStreamController = ref(null);
@@ -129,6 +167,25 @@ const AUTO_SCROLL_BOTTOM_THRESHOLD = 40;
 const activeSessionTitle = computed(() => {
   return sessions.value.find((session) => session.id === activeSessionId.value)?.title || "新对话";
 });
+
+function hasGraphTrace(message) {
+  return Boolean(
+    message?.graphTraceReady
+      || message?.facts?.length
+      || message?.reasoning_trace?.length
+      || message?.retrieval_trace?.length,
+  );
+}
+
+function graphStatusText(message) {
+  if (message?.facts?.length) {
+    return "知识图谱检索完成，已生成相关路径";
+  }
+  if (message?.retrieval_trace?.some((item) => item?.title === "种子召回")) {
+    return "知识图谱检索完成，但未召回到可用节点";
+  }
+  return "知识图谱检索完成，展开下方可查看检索过程";
+}
 
 onMounted(async () => {
   syncComposerHeight();
@@ -223,6 +280,9 @@ async function sendMessage() {
     tempId: tempUserId,
     role: "user",
     content: draftContent,
+    facts: [],
+    reasoning_trace: [],
+    retrieval_trace: [],
     streaming: false,
   };
   const tempAssistant = {
@@ -230,6 +290,10 @@ async function sendMessage() {
     tempId: tempAssistantId,
     role: "assistant",
     content: "",
+    facts: [],
+    reasoning_trace: [],
+    retrieval_trace: [],
+    graphTraceReady: false,
     streaming: true,
   };
   content.value = "";
@@ -245,6 +309,7 @@ async function sendMessage() {
       activeSessionId.value,
       {
         content: draftContent,
+        use_knowledge_graph: useKnowledgeGraph.value,
       },
       {
         async onUserMessage(data) {
@@ -264,6 +329,19 @@ async function sendMessage() {
             messages.value[index] = {
               ...currentMessage,
               content: `${currentMessage.content || ""}${data.content || ""}`,
+            };
+          }
+          await scrollToBottomIfFollowing();
+        },
+        async onGraphTrace(data) {
+          const index = messages.value.findIndex((item) => item.tempId === tempAssistantId);
+          if (index >= 0) {
+            messages.value[index] = {
+              ...messages.value[index],
+              facts: Array.isArray(data.facts) ? data.facts : [],
+              reasoning_trace: Array.isArray(data.reasoning_trace) ? data.reasoning_trace : [],
+              retrieval_trace: Array.isArray(data.retrieval_trace) ? data.retrieval_trace : [],
+              graphTraceReady: true,
             };
           }
           await scrollToBottomIfFollowing();
@@ -632,6 +710,64 @@ async function scrollToBottom({ force = false } = {}) {
   white-space: pre-wrap;
 }
 
+.graph-status-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #dbe7f3;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.3;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.graph-status-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.graph-status-dot.active {
+  background: #2563eb;
+}
+
+.trace-box {
+  width: 100%;
+  padding: 4px 2px 0;
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.trace-box summary {
+  cursor: pointer;
+}
+
+.trace-group {
+  margin-top: 10px;
+}
+
+.trace-group strong {
+  color: #334155;
+  font-weight: 600;
+}
+
+.trace-group ul {
+  margin: 8px 0 0 18px;
+  padding: 0;
+}
+
+.trace-group li {
+  margin-bottom: 6px;
+  line-height: 1.55;
+}
+
 .composer-shell {
   position: absolute;
   right: 0;
@@ -724,6 +860,71 @@ async function scrollToBottom({ force = false } = {}) {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.graph-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+.graph-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.graph-toggle input:disabled + .toggle-track {
+  opacity: 0.62;
+}
+
+.toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: #d8e2ee;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.2);
+  transition: transform 0.18s ease;
+}
+
+.graph-toggle.active {
+  color: #2753c7;
+}
+
+.graph-toggle.active .toggle-track {
+  background: #2f67f6;
+  box-shadow: 0 8px 18px rgba(47, 103, 246, 0.18);
+}
+
+.graph-toggle.active .toggle-thumb {
+  transform: translateX(14px);
+}
+
+.toggle-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .composer-submit {

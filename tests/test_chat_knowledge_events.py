@@ -534,6 +534,32 @@ def test_record_turn_knowledge_events_prefers_formal_node_ids_from_extractor(iso
     assert event.knowledge_node_id == node.id
 
 
+def test_record_turn_knowledge_events_includes_rag_nodes_in_extraction_prompt(isolated_db):
+    user = _student(isolated_db)
+    node = _node(isolated_db, "循环")
+    _node(isolated_db, "条件判断")
+    session, user_message, assistant_message = _turn(isolated_db, user)
+    client = CapturingClient(f'[{{"node_id": {node.id}, "node_name": "循环"}}]')
+
+    inserted = record_turn_knowledge_events(
+        isolated_db,
+        client,
+        user,
+        session,
+        user_message,
+        assistant_message,
+        rag_facts=[
+            {"type": "seed", "seed": "循环"},
+            {"type": "selected_path", "source": "循环", "target": "条件判断"},
+        ],
+    )
+
+    prompt = client.completions.calls[0]["messages"][0]["content"]
+    assert "本轮图谱检索命中的候选节点" in prompt
+    assert f'{{"id":{node.id},"name":"循环"}}' in prompt
+    assert inserted == ["循环"]
+
+
 def test_record_turn_knowledge_events_requires_python_exact_node_name_match(isolated_db):
     user = _student(isolated_db)
     _node(isolated_db, "arraylist")
@@ -608,7 +634,7 @@ def test_record_turn_knowledge_events_is_idempotent_for_same_turn_and_node(isola
     assert isolated_db.query(ChatKnowledgeEvent).count() == 1
 
 
-def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db, monkeypatch):
+def test_stream_message_answers_with_empty_trace_when_graph_retrieval_disabled(isolated_db, monkeypatch):
     user = _student(isolated_db)
     session = ChatSession(user_id=user.id, title="已有对话")
     isolated_db.add(session)
@@ -626,7 +652,7 @@ def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db
             isolated_db,
             user,
             session.id,
-            MessageCreateRequest(content="为什么会空指针？"),
+            MessageCreateRequest(content="为什么会空指针？", use_knowledge_graph=False),
         )
     )
 
@@ -634,9 +660,121 @@ def test_stream_message_answers_without_pre_response_graph_retrieval(isolated_db
     assert any(event.startswith("event: assistant_done") for event in events)
     user_payload = _event_payload(events, "user_message")
     assistant_payload = _event_payload(events, "assistant_done")["assistant_message"]
-    legacy_fields = {"keywords", "facts", "reasoning_trace", "retrieval_trace"}
-    assert legacy_fields.isdisjoint(user_payload)
-    assert legacy_fields.isdisjoint(assistant_payload)
+    assert user_payload["facts"] == []
+    assert user_payload["reasoning_trace"] == []
+    assert user_payload["retrieval_trace"] == []
+    assert assistant_payload["facts"] == []
+    assert assistant_payload["reasoning_trace"] == []
+    assert assistant_payload["retrieval_trace"] == []
+
+
+def test_message_create_request_can_disable_knowledge_graph_retrieval():
+    default_payload = MessageCreateRequest(content="为什么会空指针？")
+    disabled_payload = MessageCreateRequest(content="为什么会空指针？", use_knowledge_graph=False)
+
+    assert default_payload.use_knowledge_graph is True
+    assert disabled_payload.use_knowledge_graph is False
+
+
+def test_stream_message_returns_graph_trace_for_current_turn(isolated_db, monkeypatch):
+    user = _student(isolated_db)
+    session = ChatSession(user_id=user.id, title="已有对话")
+    isolated_db.add(session)
+    isolated_db.flush()
+
+    fact = {
+        "type": "selected_path",
+        "seed": "循环",
+        "hop": 1,
+        "source": "循环",
+        "relation": "DEPENDS_ON",
+        "direction": "out",
+        "target": "条件判断",
+        "target_desc": "判断条件是否成立",
+        "path_text": "循环 -> (DEPENDS_ON,out) -> 条件判断",
+        "reason": "用于解释循环退出条件。",
+    }
+
+    def fake_extract_keywords(client, user_input, history=None, trace=None):
+        trace.append({"title": "关键词提取", "summary": "识别到循环"}) if trace is not None else None
+        return ["循环"]
+
+    def fake_query_graph(driver, client, question, keywords=None, max_depth=2, width=3, reasoning_trace=None, retrieval_trace=None):
+        retrieval_trace.append({"title": "路径选择", "summary": "选中循环依赖路径"}) if retrieval_trace is not None else None
+        return [fact]
+
+    monkeypatch.setattr(chat_service, "get_openai_client", lambda: FakeStreamClient())
+    monkeypatch.setattr(chat_service, "get_neo4j_driver", lambda: object())
+    monkeypatch.setattr(chat_service.rag_engine, "extract_keywords_with_llm", fake_extract_keywords)
+    monkeypatch.setattr(chat_service.rag_engine, "query_graph_with_reasoning", fake_query_graph)
+    monkeypatch.setattr(chat_service.rag_engine, "ask_deepseek_stream", lambda *args, **kwargs: iter(["图谱回答"]))
+    monkeypatch.setattr(chat_service, "_schedule_turn_knowledge_extraction", lambda *args, **kwargs: None)
+
+    events = list(
+        chat_service.stream_message(
+            isolated_db,
+            user,
+            session.id,
+            MessageCreateRequest(content="循环为什么停不下来？", use_knowledge_graph=True),
+        )
+    )
+
+    graph_trace_payload = _event_payload(events, "graph_trace")
+    assistant_payload = _event_payload(events, "assistant_done")["assistant_message"]
+    assert graph_trace_payload["facts"] == [fact]
+    assert graph_trace_payload["reasoning_trace"] == [{"title": "关键词提取", "summary": "识别到循环"}]
+    assert graph_trace_payload["retrieval_trace"] == [{"title": "路径选择", "summary": "选中循环依赖路径"}]
+    assert assistant_payload["facts"] == [fact]
+    assert assistant_payload["reasoning_trace"] == [{"title": "关键词提取", "summary": "识别到循环"}]
+    assert assistant_payload["retrieval_trace"] == [{"title": "路径选择", "summary": "选中循环依赖路径"}]
+
+
+def test_stream_message_persists_graph_trace_for_message_history(isolated_db, monkeypatch):
+    user = _student(isolated_db)
+    session = ChatSession(user_id=user.id, title="已有对话")
+    isolated_db.add(session)
+    isolated_db.flush()
+
+    fact = {
+        "type": "seed",
+        "seed": "循环",
+        "keyword": "循环",
+        "desc": "重复执行代码块",
+        "score": 1.0,
+        "match_type": "exact_name",
+    }
+    reasoning = [{"title": "关键词提取", "summary": "识别到循环"}]
+    retrieval = [{"title": "种子召回", "summary": "召回循环"}]
+
+    monkeypatch.setattr(chat_service, "get_openai_client", lambda: FakeStreamClient())
+    monkeypatch.setattr(chat_service, "get_neo4j_driver", lambda: object())
+    monkeypatch.setattr(chat_service.rag_engine, "extract_keywords_with_llm", lambda *args, **kwargs: ["循环"])
+    monkeypatch.setattr(
+        chat_service.rag_engine,
+        "query_graph_with_reasoning",
+        lambda *args, reasoning_trace=None, retrieval_trace=None, **kwargs: (
+            reasoning_trace.extend(reasoning) if reasoning_trace is not None else None,
+            retrieval_trace.extend(retrieval) if retrieval_trace is not None else None,
+            [fact],
+        )[-1],
+    )
+    monkeypatch.setattr(chat_service.rag_engine, "ask_deepseek_stream", lambda *args, **kwargs: iter(["图谱回答"]))
+    monkeypatch.setattr(chat_service, "_schedule_turn_knowledge_extraction", lambda *args, **kwargs: None)
+
+    list(
+        chat_service.stream_message(
+            isolated_db,
+            user,
+            session.id,
+            MessageCreateRequest(content="循环为什么停不下来？", use_knowledge_graph=True),
+        )
+    )
+
+    messages = chat_service.list_messages(isolated_db, user, session.id)
+    assistant_message = next(message for message in messages if message.role == "assistant")
+    assert assistant_message.facts == [fact]
+    assert assistant_message.reasoning_trace == reasoning
+    assert assistant_message.retrieval_trace == retrieval
 
 
 def _event_payload(events: list[str], event_name: str) -> dict:
@@ -673,6 +811,37 @@ def test_stream_message_schedules_extraction_before_assistant_done(isolated_db, 
             sequence.append("assistant_done")
 
     assert sequence == ["scheduled", "assistant_done"]
+
+
+def test_stream_message_passes_rag_facts_to_background_extraction(isolated_db, monkeypatch):
+    user = _student(isolated_db)
+    session = ChatSession(user_id=user.id, title="已有对话")
+    isolated_db.add(session)
+    isolated_db.flush()
+    scheduled = []
+    fact = {"type": "seed", "seed": "循环", "keyword": "循环"}
+
+    monkeypatch.setattr(chat_service, "get_openai_client", lambda: FakeStreamClient())
+    monkeypatch.setattr(chat_service, "get_neo4j_driver", lambda: object())
+    monkeypatch.setattr(chat_service.rag_engine, "extract_keywords_with_llm", lambda *args, **kwargs: ["循环"])
+    monkeypatch.setattr(chat_service.rag_engine, "query_graph_with_reasoning", lambda *args, **kwargs: [fact])
+    monkeypatch.setattr(chat_service.rag_engine, "ask_deepseek_stream", lambda *args, **kwargs: iter(["图谱回答"]))
+    monkeypatch.setattr(
+        chat_service,
+        "_schedule_turn_knowledge_extraction",
+        lambda *args, **kwargs: scheduled.append(kwargs),
+    )
+
+    list(
+        chat_service.stream_message(
+            isolated_db,
+            user,
+            session.id,
+            MessageCreateRequest(content="循环为什么停不下来？", use_knowledge_graph=True),
+        )
+    )
+
+    assert scheduled[0]["rag_facts"] == [fact]
 
 
 def test_stream_message_rolls_back_and_yields_error_when_direct_stream_fails(isolated_db, monkeypatch):

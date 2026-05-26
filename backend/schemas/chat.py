@@ -23,12 +23,16 @@ class SessionResponse(BaseModel):
 
 class MessageCreateRequest(BaseModel):
     content: str = Field(min_length=1)
+    use_knowledge_graph: bool = True
 
 
 class MessageResponse(BaseModel):
     id: int
     role: str
     content: str
+    facts: list = Field(default_factory=list)
+    reasoning_trace: list = Field(default_factory=list)
+    retrieval_trace: list = Field(default_factory=list)
     created_at: datetime
 
 

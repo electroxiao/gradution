@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, JSON, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.db.session import Base
@@ -27,6 +27,9 @@ class ChatMessage(Base):
     session_id: Mapped[int] = mapped_column(ForeignKey("chat_sessions.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(Text)
     content: Mapped[str] = mapped_column(Text)
+    facts_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    reasoning_trace_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
+    retrieval_trace_json: Mapped[list | dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     session = relationship("ChatSession", back_populates="messages")

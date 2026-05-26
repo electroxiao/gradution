@@ -2,21 +2,24 @@
 
 ## Goal
 
-Chat answers stream directly from the LLM, while the knowledge graph provides a structured record of Java knowledge points mentioned in each completed turn.
+Chat answers can use a pre-response knowledge-graph RAG path, while a separate background extraction still records the Java knowledge points mentioned in each completed turn.
 
 The chat answer path is:
 
 1. Save the user message.
-2. Stream the LLM answer directly.
-3. Save the assistant message.
-4. Return `assistant_done`.
-5. Start background knowledge-point extraction for the completed turn.
+2. Build recent chat history.
+3. If `use_knowledge_graph` is enabled, extract graph keywords, query Neo4j, select a relevant path, and emit a `graph_trace` SSE event.
+4. Stream a graph-enhanced answer when facts are available; otherwise stream a direct tutoring answer.
+5. Save the assistant message, including RAG facts and traces for history replay.
+6. Return `assistant_done`.
+7. Start background knowledge-point extraction for the completed turn.
 
 The background extraction stores consultation events for student review and teacher analytics. Weak points and mastery state are maintained by assignment results and targeted practice.
 
 ## Boundaries
 
-- Chat answer generation uses recent conversation history and direct LLM tutoring.
+- Chat answer generation uses recent conversation history and can optionally use Neo4j RAG facts.
+- Chat RAG facts and traces are saved on `chat_messages`; they are not consultation-event rows.
 - Chat knowledge extraction matches only existing graph-backed `knowledge_nodes`.
 - Chat extraction records consultation events rather than weak points.
 - Weak-point recommendation uses the weak-point state maintained by assignments and practice.
@@ -24,15 +27,16 @@ The background extraction stores consultation events for student review and teac
 
 ## Product Model
 
-LLM chat and the knowledge graph have separate jobs:
+LLM chat, chat RAG, and consultation extraction have separate jobs:
 
 - The LLM handles immediate tutoring and natural-language conversation.
+- Chat RAG retrieves formal graph nodes and paths to ground the current answer.
 - The knowledge graph stores formal knowledge-point structure.
 - Assignment mistakes identify unmastered weak points through teacher-bound question knowledge nodes.
 - Targeted practice can mark a weak point as mastered after a correct answer.
 - Chat consultation events are learning traces for review and analytics.
 
-This keeps the student experience fast while preserving a meaningful graph-based record for teachers and students.
+This lets the student see graph-grounded answer context while preserving a separate graph-based consultation record for teachers and students.
 
 ## Turn Granularity
 
@@ -61,10 +65,14 @@ The chat stream flow:
 1. Validate the session and user.
 2. Save the user `ChatMessage`.
 3. Build recent chat history.
-4. Stream a direct LLM answer.
-5. Save the assistant `ChatMessage`.
-6. Commit and return `assistant_done`.
-7. Start a background extraction task for this turn.
+4. When `use_knowledge_graph` is true:
+   - call `rag_engine.extract_keywords_with_llm()`;
+   - call `rag_engine.query_graph_with_reasoning()`;
+   - emit `graph_trace` with `facts`, `reasoning_trace`, and `retrieval_trace`.
+5. Stream a graph-enhanced answer with `rag_engine.ask_deepseek_stream()` if facts were found; otherwise stream a direct LLM answer.
+6. Save the assistant `ChatMessage`, including graph facts and traces.
+7. Commit and return `assistant_done`.
+8. Start a background extraction task for this turn.
 
 The background task:
 
@@ -78,7 +86,17 @@ Extraction failure is logged and the chat response remains complete.
 
 ## Data Model
 
-`chat_knowledge_events` records the graph knowledge points mentioned in a chat turn:
+`chat_messages` stores answer content and optional RAG trace fields:
+
+```text
+facts_json
+reasoning_trace_json
+retrieval_trace_json
+```
+
+These fields drive ChatPage history replay and graph-trace display.
+
+`chat_knowledge_events` records the formal graph knowledge points mentioned in a completed chat turn:
 
 ```text
 id
@@ -120,8 +138,9 @@ Matching requirements:
 
 ChatPage:
 
-- Streams the direct tutoring answer.
-- Keeps the answer UI focused on the conversation.
+- Sends `use_knowledge_graph`, defaulting to enabled.
+- Handles `graph_trace` before or during answer streaming.
+- Shows graph retrieval status, selected path, related nodes, and expandable retrieval traces.
 - Records knowledge-point events in the background.
 
 Student view:
@@ -148,6 +167,7 @@ Student count is emphasized for class-level hotspots so one student's repeated q
 ## Error Handling
 
 - Extraction failures are logged.
+- RAG retrieval failures are logged and the answer falls back to direct tutoring.
 - Unmatched candidates are skipped.
 - Duplicate insertion keeps one event.
 - Delayed background tasks do not affect chat completion.
@@ -158,6 +178,9 @@ Student count is emphasized for class-level hotspots so one student's repeated q
 Backend checks:
 
 - Chat streaming returns promptly.
+- Graph-enabled chat can emit `graph_trace`.
+- Graph-disabled chat returns empty facts and traces.
+- RAG facts and traces persist on assistant messages for history replay.
 - `assistant_done` is not blocked by knowledge-point extraction.
 - A completed turn can produce chat knowledge events.
 - Duplicate events are not inserted twice.

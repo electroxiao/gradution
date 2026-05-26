@@ -54,6 +54,8 @@ export async function streamMessageApi(sessionId, payload, handlers = {}, option
 
       if (parsed.event === "user_message") {
         handlers.onUserMessage?.(parsed.data);
+      } else if (parsed.event === "graph_trace") {
+        handlers.onGraphTrace?.(parsed.data);
       } else if (parsed.event === "assistant_delta") {
         handlers.onAssistantDelta?.(parsed.data);
       } else if (parsed.event === "assistant_done") {

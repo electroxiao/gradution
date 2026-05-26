@@ -19,6 +19,7 @@ def ensure_schema_and_seed(engine: Engine) -> None:
     _ensure_assignment_graph_linkage(engine)
     _drop_assignment_submission_trust_columns(engine)
     _drop_assignment_description_column(engine)
+    _ensure_chat_message_graph_trace_columns(engine)
     _ensure_chat_knowledge_events_table(engine)
     _ensure_teacher_seed(engine)
     _ensure_student_class_seed(engine)
@@ -261,6 +262,25 @@ def _drop_assignment_submission_trust_columns(engine: Engine) -> None:
     with engine.begin() as connection:
         for column in legacy_columns:
             connection.execute(text(f"ALTER TABLE assignment_submissions DROP COLUMN {column}"))
+
+
+def _ensure_chat_message_graph_trace_columns(engine: Engine) -> None:
+    inspector = inspect(engine)
+    try:
+        table_names = set(inspector.get_table_names())
+        if "chat_messages" not in table_names:
+            return
+        columns = {column["name"] for column in inspector.get_columns("chat_messages")}
+    except Exception:
+        return
+
+    with engine.begin() as connection:
+        if "facts_json" not in columns:
+            connection.execute(text("ALTER TABLE chat_messages ADD COLUMN facts_json JSON NULL"))
+        if "reasoning_trace_json" not in columns:
+            connection.execute(text("ALTER TABLE chat_messages ADD COLUMN reasoning_trace_json JSON NULL"))
+        if "retrieval_trace_json" not in columns:
+            connection.execute(text("ALTER TABLE chat_messages ADD COLUMN retrieval_trace_json JSON NULL"))
 
 
 def _ensure_chat_knowledge_events_table(engine: Engine) -> None:
