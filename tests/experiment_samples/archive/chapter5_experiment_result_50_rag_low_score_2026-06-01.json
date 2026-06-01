@@ -1,0 +1,2954 @@
+{
+  "sample_file": "C:\\dev\\gradution\\tests\\experiment_samples\\chapter5_experiment_samples.json",
+  "grading": {
+    "rows": [
+      {
+        "sample_id": "FB-001-A",
+        "question_id": "FB-001",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了Java数组第一个元素下标为0。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-001-B",
+        "question_id": "FB-001",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，数组下标从0开始，学生回答1。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-002-A",
+        "question_id": "FB-002",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了数组长度表达式。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-002-B",
+        "question_id": "FB-002",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，应为 length 而非 size()。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-003-A",
+        "question_id": "FB-003",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了用于比较两个字符串内容是否相同的方法是equals。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-003-B",
+        "question_id": "FB-003",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案使用了 '==' 运算符，而标准答案为 equals 方法。'==' 比较的是字符串引用是否相同，而非内容是否相等。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-003-C",
+        "question_id": "FB-003",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "edge_correct",
+        "summary": "学生答案与标准答案语义一致，均指字符串内容比较的equals方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-003-D",
+        "question_id": "FB-003",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "学生答案认为'=='和'equals'都可以用于比较字符串内容，但'=='比较的是引用地址而非内容，因此不完全正确。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-004-A",
+        "question_id": "FB-004",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了String的不可变性。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-004-B",
+        "question_id": "FB-004",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案与标准答案相反，错误理解了String的不可变特性。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-004-C",
+        "question_id": "FB-004",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "edge_correct",
+        "summary": "学生答案与标准答案语义一致，均表达了String的不可变性。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-005-A",
+        "question_id": "FB-005",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案完全一致。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-005-B",
+        "question_id": "FB-005",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案与标准答案不符，标准答案为 get，学生答案为 put。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-006-A",
+        "question_id": "FB-006",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案完全一致。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-006-B",
+        "question_id": "FB-006",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，应为 keySet 而非 values。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-006-C",
+        "question_id": "FB-006",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "edge_correct",
+        "summary": "学生答案与标准答案语义一致，均指HashMap的keySet方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-006-D",
+        "question_id": "FB-006",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "学生答案与标准答案不符",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-007-A",
+        "question_id": "FB-007",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案完全一致。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-007-B",
+        "question_id": "FB-007",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案“final”与标准答案“finally”不符，缺少“ly”，语义不完整。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-008-A",
+        "question_id": "FB-008",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了需要调用者显式处理或声明抛出的异常类型。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-008-B",
+        "question_id": "FB-008",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，将Checked Exception误答为Runtime Exception。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-009-A",
+        "question_id": "FB-009",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案完全一致，正确回答了类实现接口时使用的关键字。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-009-B",
+        "question_id": "FB-009",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，类实现接口应使用 implements 关键字，而非 extends。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-010-A",
+        "question_id": "FB-010",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了方法重载的区分依据。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-010-B",
+        "question_id": "FB-010",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，方法重载依据的是参数列表，而非返回值。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-010-C",
+        "question_id": "FB-010",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "edge_correct",
+        "summary": "学生答案“参数列表”与标准答案“参数”在语义上一致，均指方法重载依据的参数列表。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-010-D",
+        "question_id": "FB-010",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "学生答案包含了多余信息，与标准答案不完全一致。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-011-A",
+        "question_id": "FB-011",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了泛型类型参数不能直接使用的基本类型。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-011-B",
+        "question_id": "FB-011",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，泛型类型参数不能直接使用基本类型，而非引用类型。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-012-A",
+        "question_id": "FB-012",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了LocalDate.now()方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-012-B",
+        "question_id": "FB-012",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案与标准答案不符，语义上不匹配。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-013-A",
+        "question_id": "FB-013",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案完全一致，正确回答了金额精确计算应优先使用的类。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-013-B",
+        "question_id": "FB-013",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，金额精确计算应使用BigDecimal类，而非double。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-014-A",
+        "question_id": "FB-014",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了Scanner读取整数的方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-014-B",
+        "question_id": "FB-014",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，题目要求填写读取整数的方法，学生填写了读取字符串的方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-014-C",
+        "question_id": "FB-014",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "edge_correct",
+        "summary": "学生答案与标准答案语义一致，均指代 nextInt() 方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-015-A",
+        "question_id": "FB-015",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案完全一致，正确回答了按字节读取文件应使用的InputStream类前缀。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-015-B",
+        "question_id": "FB-015",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，标准答案为File，学生答案为String，StringInputStream不存在且不用于按字节读取文件。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-016-A",
+        "question_id": "FB-016",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了启动线程应调用的方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-016-B",
+        "question_id": "FB-016",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，启动线程应调用 start() 方法，而非 run() 方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-016-C",
+        "question_id": "FB-016",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "edge_correct",
+        "summary": "学生答案与标准答案语义一致，均指Thread对象的start()方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-016-D",
+        "question_id": "FB-016",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "学生答案错误，启动线程应调用 start() 方法，而非 run() 方法。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-017-A",
+        "question_id": "FB-017",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了Runnable表示线程要执行的任务。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-017-B",
+        "question_id": "FB-017",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案“线程”与标准答案“任务”不符，Runnable 表示的是要执行的任务而非线程本身。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-018-A",
+        "question_id": "FB-018",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了HashSet不保存重复元素。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-018-B",
+        "question_id": "FB-018",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案与标准答案不符，且语义上不匹配。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-018-C",
+        "question_id": "FB-018",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "edge_correct",
+        "summary": "学生答案“值”与标准答案“元素”在集合上下文中语义等价，均指代集合中的成员。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-018-D",
+        "question_id": "FB-018",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "学生答案“键”与标准答案“元素”不符，HashSet存储的是元素而非键。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-019-A",
+        "question_id": "FB-019",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了switch分支中用于避免继续执行后续分支的语句。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-019-B",
+        "question_id": "FB-019",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案使用了 continue 而非 break，continue 用于循环而非 switch 分支控制。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-020-A",
+        "question_id": "FB-020",
+        "question_type": "fill_blank",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "学生答案与标准答案一致，正确回答了JUnit中标记测试方法的注解。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "FB-020-B",
+        "question_id": "FB-020",
+        "question_type": "fill_blank",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "wrong",
+        "summary": "学生答案错误，将 @Override 误认为 JUnit 中标记测试方法的注解。",
+        "decision_source": "ai_objective_review"
+      },
+      {
+        "sample_id": "PG-001-A",
+        "question_id": "PG-001",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确实现了从标准输入读取整数并求和的功能，通过了所有测试用例，满足题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2 3 4\n",
+            "expected_output": "10",
+            "actual_output": "10",
+            "stderr": "",
+            "elapsed_ms": 690
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "-2 5 7\n",
+            "expected_output": "10",
+            "actual_output": "10",
+            "stderr": "",
+            "elapsed_ms": 505
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-001-B",
+        "question_id": "PG-001",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "代码只读取了第一个整数并输出，未对后续整数进行累加，导致所有测试用例均输出第一个数而非总和，不满足题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "1 2 3 4\n",
+            "expected_output": "10",
+            "actual_output": "1",
+            "stderr": "",
+            "elapsed_ms": 693
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "-2 5 7\n",
+            "expected_output": "10",
+            "actual_output": "-2",
+            "stderr": "",
+            "elapsed_ms": 602
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-002-A",
+        "question_id": "PG-002",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确实现了统计一行字符串中元音字母（a、e、i、o、u）出现总次数的功能，通过了所有测试用例，无逻辑错误或边界问题。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "education\n",
+            "expected_output": "5",
+            "actual_output": "5",
+            "stderr": "",
+            "elapsed_ms": 699
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java\n",
+            "expected_output": "2",
+            "actual_output": "2",
+            "stderr": "",
+            "elapsed_ms": 597
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-002-B",
+        "question_id": "PG-002",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "代码仅统计了字母'a'的出现次数，未统计'e','i','o','u'，导致测试用例1（输入\"education\"）输出1而非5，不满足题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "education\n",
+            "expected_output": "5",
+            "actual_output": "1",
+            "stderr": "",
+            "elapsed_ms": 560
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java\n",
+            "expected_output": "2",
+            "actual_output": "2",
+            "stderr": "",
+            "elapsed_ms": 567
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-003-A",
+        "question_id": "PG-003",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确读取一行整数并输出最大值，通过了所有样例测试，无逻辑错误。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "-5 -2 -9\n",
+            "expected_output": "-2",
+            "actual_output": "-2",
+            "stderr": "",
+            "elapsed_ms": 563
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "3 8 1\n",
+            "expected_output": "8",
+            "actual_output": "8",
+            "stderr": "",
+            "elapsed_ms": 591
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-003-B",
+        "question_id": "PG-003",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "代码在输入全为负数时输出0，而非实际最大值，未正确处理边界情况。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "-5 -2 -9\n",
+            "expected_output": "-2",
+            "actual_output": "0",
+            "stderr": "",
+            "elapsed_ms": 459
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "3 8 1\n",
+            "expected_output": "8",
+            "actual_output": "8",
+            "stderr": "",
+            "elapsed_ms": 549
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-004-A",
+        "question_id": "PG-004",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确读取逗号分隔的整数并求和，通过了所有测试用例，满足题意。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1,2,3\n",
+            "expected_output": "6",
+            "actual_output": "6",
+            "stderr": "",
+            "elapsed_ms": 533
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "10,-5,7\n",
+            "expected_output": "12",
+            "actual_output": "12",
+            "stderr": "",
+            "elapsed_ms": 366
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-004-B",
+        "question_id": "PG-004",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "runtime_error",
+        "label": "wrong",
+        "summary": "代码在分割字符串时使用了空格作为分隔符，但题目要求使用英文逗号分隔，导致运行时抛出 NumberFormatException，所有测试用例均未通过。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "runtime_error",
+            "passed": false,
+            "input": "1,2,3\n",
+            "expected_output": "6",
+            "actual_output": "",
+            "stderr": "Exception in thread \"main\" java.lang.NumberFormatException: For input string: \"1,2,3\"\n\tat java.base/java.lang.NumberFormatException.forInputString(NumberFormatException.java:67)\n\tat java.base/java.lang.Integer.parseInt(Integer.java:668)\n\tat java.base/java.lang.Integer.parseInt(Integer.java:786)\n\tat Main.main(Main.java:7)\n",
+            "elapsed_ms": 352
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "runtime_error",
+            "passed": false,
+            "input": "10,-5,7\n",
+            "expected_output": "12",
+            "actual_output": "",
+            "stderr": "Exception in thread \"main\" java.lang.NumberFormatException: For input string: \"10,-5,7\"\n\tat java.base/java.lang.NumberFormatException.forInputString(NumberFormatException.java:67)\n\tat java.base/java.lang.Integer.parseInt(Integer.java:668)\n\tat java.base/java.lang.Integer.parseInt(Integer.java:786)\n\tat Main.main(Main.java:7)\n",
+            "elapsed_ms": 395
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-005-A",
+        "question_id": "PG-005",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确实现了读取一行英文单词并统计'java'出现次数的功能，通过了所有测试用例。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java python java\n",
+            "expected_output": "2",
+            "actual_output": "2",
+            "stderr": "",
+            "elapsed_ms": 418
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java java java\n",
+            "expected_output": "3",
+            "actual_output": "3",
+            "stderr": "",
+            "elapsed_ms": 419
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-005-B",
+        "question_id": "PG-005",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "学生代码未能正确统计单词 'java' 出现的次数，使用了 contains 方法而非逐词统计，导致所有测试用例均输出 1，与预期输出不符。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "java python java\n",
+            "expected_output": "2",
+            "actual_output": "1",
+            "stderr": "",
+            "elapsed_ms": 380
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "java java java\n",
+            "expected_output": "3",
+            "actual_output": "1",
+            "stderr": "",
+            "elapsed_ms": 418
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-006-A",
+        "question_id": "PG-006",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确读取一行整数，排序后按升序输出，格式符合要求，通过了所有测试用例。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "3 1 2\n",
+            "expected_output": "1 2 3",
+            "actual_output": "1 2 3",
+            "stderr": "",
+            "elapsed_ms": 671
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "5 -1 5\n",
+            "expected_output": "-1 5 5",
+            "actual_output": "-1 5 5",
+            "stderr": "",
+            "elapsed_ms": 427
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-006-B",
+        "question_id": "PG-006",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "代码未对输入数组进行排序，直接原样输出，导致所有测试用例均未通过。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "3 1 2\n",
+            "expected_output": "1 2 3",
+            "actual_output": "3 1 2",
+            "stderr": "",
+            "elapsed_ms": 670
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "5 -1 5\n",
+            "expected_output": "-1 5 5",
+            "actual_output": "5 -1 5",
+            "stderr": "",
+            "elapsed_ms": 430
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-007-A",
+        "question_id": "PG-007",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确读取一行整数，使用HashSet去重并输出不同整数的个数，通过所有测试用例，满足题意。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2 2 3\n",
+            "expected_output": "3",
+            "actual_output": "3",
+            "stderr": "",
+            "elapsed_ms": 403
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "5 5 5\n",
+            "expected_output": "1",
+            "actual_output": "1",
+            "stderr": "",
+            "elapsed_ms": 367
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-007-B",
+        "question_id": "PG-007",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "代码未正确实现去重计数功能，而是统计了所有输入整数的个数，导致测试用例全部失败。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "1 2 2 3\n",
+            "expected_output": "3",
+            "actual_output": "4",
+            "stderr": "",
+            "elapsed_ms": 402
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "5 5 5\n",
+            "expected_output": "1",
+            "actual_output": "3",
+            "stderr": "",
+            "elapsed_ms": 668
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-008-A",
+        "question_id": "PG-008",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确实现了题目要求：读取两个整数，当除数为0时输出ERROR，否则输出整数除法结果。所有测试用例通过，无逻辑错误或安全风险。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "8 2\n",
+            "expected_output": "4",
+            "actual_output": "4",
+            "stderr": "",
+            "elapsed_ms": 406
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "8 0\n",
+            "expected_output": "ERROR",
+            "actual_output": "ERROR",
+            "stderr": "",
+            "elapsed_ms": 378
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-008-B",
+        "question_id": "PG-008",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "runtime_error",
+        "label": "wrong",
+        "summary": "代码未处理除数为0的情况，导致运行时抛出ArithmeticException，未按题目要求输出ERROR。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "8 2\n",
+            "expected_output": "4",
+            "actual_output": "4",
+            "stderr": "",
+            "elapsed_ms": 369
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "runtime_error",
+            "passed": false,
+            "input": "8 0\n",
+            "expected_output": "ERROR",
+            "actual_output": "",
+            "stderr": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat Main.main(Main.java:7)\n",
+            "elapsed_ms": 351
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-009-A",
+        "question_id": "PG-009",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确读取日期字符串，使用 split 方法按 '-' 分割并输出年份，通过了所有测试用例，满足题意。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "2026-05-27\n",
+            "expected_output": "2026",
+            "actual_output": "2026",
+            "stderr": "",
+            "elapsed_ms": 359
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1999-12-01\n",
+            "expected_output": "1999",
+            "actual_output": "1999",
+            "stderr": "",
+            "elapsed_ms": 406
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-009-B",
+        "question_id": "PG-009",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "学生代码未能正确提取年份，而是错误地提取了月份，导致所有测试用例均未通过。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "2026-05-27\n",
+            "expected_output": "2026",
+            "actual_output": "05",
+            "stderr": "",
+            "elapsed_ms": 404
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "1999-12-01\n",
+            "expected_output": "1999",
+            "actual_output": "12",
+            "stderr": "",
+            "elapsed_ms": 556
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-010-A",
+        "question_id": "PG-010",
+        "question_type": "programming",
+        "expected_status": "accepted",
+        "actual_status": "accepted",
+        "label": "correct",
+        "summary": "代码正确读取一行整数并输出其中的偶数，格式符合要求，已通过两个样例测试。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2 3 4\n",
+            "expected_output": "2 4",
+            "actual_output": "2 4",
+            "stderr": "",
+            "elapsed_ms": 422
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 3 5\n",
+            "expected_output": "",
+            "actual_output": "",
+            "stderr": "",
+            "elapsed_ms": 360
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-010-B",
+        "question_id": "PG-010",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "wrong_answer",
+        "label": "wrong",
+        "summary": "学生代码逻辑错误：将奇数存入列表并输出，而非偶数，导致所有测试用例均未通过。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "1 2 3 4\n",
+            "expected_output": "2 4",
+            "actual_output": "1 3",
+            "stderr": "",
+            "elapsed_ms": 353
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "wrong_answer",
+            "passed": false,
+            "input": "1 3 5\n",
+            "expected_output": "",
+            "actual_output": "1 3 5",
+            "stderr": "",
+            "elapsed_ms": 400
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E01-B",
+        "question_id": "PG-E01",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码通过测试用例，但存在硬编码样例输入和输出的严重问题，不符合题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2 3 4\n",
+            "expected_output": "10",
+            "actual_output": "10",
+            "stderr": "",
+            "elapsed_ms": 531
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "-2 5 7\n",
+            "expected_output": "10",
+            "actual_output": "10",
+            "stderr": "",
+            "elapsed_ms": 367
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E02-B",
+        "question_id": "PG-E02",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码只处理了固定三个整数，未按题目要求处理整行中任意数量的整数，不满足题意。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "3 8 1\n",
+            "expected_output": "8",
+            "actual_output": "8",
+            "stderr": "",
+            "elapsed_ms": 360
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "2 5 4\n",
+            "expected_output": "5",
+            "actual_output": "5",
+            "stderr": "",
+            "elapsed_ms": 354
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E03-B",
+        "question_id": "PG-E03",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码在整数除法后强转double，导致小数部分丢失，无法满足“保留两位小数”的精度要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "2 4 6\n",
+            "expected_output": "4.00",
+            "actual_output": "4.00",
+            "stderr": "",
+            "elapsed_ms": 357
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 3 5\n",
+            "expected_output": "3.00",
+            "actual_output": "3.00",
+            "stderr": "",
+            "elapsed_ms": 353
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E04-B",
+        "question_id": "PG-E04",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "学生代码直接调用了 Collections.sort()，违反了题目要求使用冒泡排序思想并体现相邻元素比较与交换过程的规定，属于算法实现约束违规。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "3 1 2\n",
+            "expected_output": "1 2 3",
+            "actual_output": "1 2 3",
+            "stderr": "",
+            "elapsed_ms": 387
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "5 -1 5\n",
+            "expected_output": "-1 5 5",
+            "actual_output": "-1 5 5",
+            "stderr": "",
+            "elapsed_ms": 466
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E05-B",
+        "question_id": "PG-E05",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码未处理除数为0的情况，直接进行除法运算，违反了题目明确要求的显式处理除数为0的边界条件。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "8 2\n",
+            "expected_output": "4",
+            "actual_output": "4",
+            "stderr": "",
+            "elapsed_ms": 428
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "9 3\n",
+            "expected_output": "3",
+            "actual_output": "3",
+            "stderr": "",
+            "elapsed_ms": 395
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E06-B",
+        "question_id": "PG-E06",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码未处理 n<=1 的情况，直接进入循环，导致 1、0、负数被错误判断为质数，不满足题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "2\n",
+            "expected_output": "YES",
+            "actual_output": "YES",
+            "stderr": "",
+            "elapsed_ms": 361
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "9\n",
+            "expected_output": "NO",
+            "actual_output": "NO",
+            "stderr": "",
+            "elapsed_ms": 372
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E07-B",
+        "question_id": "PG-E07",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码使用 contains 方法判断单词是否包含子串 'java'，而非精确匹配完整单词，违反了题目要求（只统计完整单词 java，不能把 javascript 等包含 java 的单词算入）。虽然通过了当前样例，但存在逻辑错误，可能误判如 'javascript' 等单词。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java python java\n",
+            "expected_output": "2",
+            "actual_output": "2",
+            "stderr": "",
+            "elapsed_ms": 373
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java java java\n",
+            "expected_output": "3",
+            "actual_output": "3",
+            "stderr": "",
+            "elapsed_ms": 370
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E08-B",
+        "question_id": "PG-E08",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码使用 TreeSet 对输入整数进行去重，但 TreeSet 会按自然顺序排序，破坏了题目要求的“按首次出现顺序输出”，导致输出顺序错误。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2 2 3\n",
+            "expected_output": "1 2 3",
+            "actual_output": "1 2 3",
+            "stderr": "",
+            "elapsed_ms": 370
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "5 5 6\n",
+            "expected_output": "5 6",
+            "actual_output": "5 6",
+            "stderr": "",
+            "elapsed_ms": 373
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E09-B",
+        "question_id": "PG-E09",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码使用 Collections.sort() 对字符串列表进行排序，默认按字典序排序，而非按数值升序排序，违反了题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2 3\n",
+            "expected_output": "1 2 3",
+            "actual_output": "1 2 3",
+            "stderr": "",
+            "elapsed_ms": 364
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "4 5 6\n",
+            "expected_output": "4 5 6",
+            "actual_output": "4 5 6",
+            "stderr": "",
+            "elapsed_ms": 350
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E10-B",
+        "question_id": "PG-E10",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码未忽略大小写比较，不满足题目核心要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "level\n",
+            "expected_output": "YES",
+            "actual_output": "YES",
+            "stderr": "",
+            "elapsed_ms": 385
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java\n",
+            "expected_output": "NO",
+            "actual_output": "NO",
+            "stderr": "",
+            "elapsed_ms": 447
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E11-B",
+        "question_id": "PG-E11",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "accepted",
+        "label": "edge_wrong",
+        "summary": "代码正确实现了统计元音字母（忽略大小写）的功能，通过了所有测试用例，且无硬编码、边界遗漏或危险实现。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "education\n",
+            "expected_output": "5",
+            "actual_output": "5",
+            "stderr": "",
+            "elapsed_ms": 357
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "java\n",
+            "expected_output": "2",
+            "actual_output": "2",
+            "stderr": "",
+            "elapsed_ms": 493
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E12-B",
+        "question_id": "PG-E12",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码未正确处理逗号前后可能存在的空格，导致输入如'1, 2, 3'时抛出NumberFormatException，不满足题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1,2,3\n",
+            "expected_output": "6",
+            "actual_output": "6",
+            "stderr": "",
+            "elapsed_ms": 537
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "10,-5,7\n",
+            "expected_output": "12",
+            "actual_output": "12",
+            "stderr": "",
+            "elapsed_ms": 361
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E13-B",
+        "question_id": "PG-E13",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码硬编码了样例输入和输出，没有根据实际输入动态判断偶数，违反了题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2 3 4\n",
+            "expected_output": "2 4",
+            "actual_output": "2 4",
+            "stderr": "",
+            "elapsed_ms": 443
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 3 5\n",
+            "expected_output": "",
+            "actual_output": "",
+            "stderr": "",
+            "elapsed_ms": 444
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E14-B",
+        "question_id": "PG-E14",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码通过样例但存在硬编码样例输入和输出，未实现通用括号匹配逻辑，违反题目要求。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "()()\n",
+            "expected_output": "YES",
+            "actual_output": "YES",
+            "stderr": "",
+            "elapsed_ms": 446
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "(()\n",
+            "expected_output": "NO",
+            "actual_output": "NO",
+            "stderr": "",
+            "elapsed_ms": 392
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      },
+      {
+        "sample_id": "PG-E15-B",
+        "question_id": "PG-E15",
+        "question_type": "programming",
+        "expected_status": "wrong_answer",
+        "actual_status": "ai_rejected",
+        "label": "edge_wrong",
+        "summary": "代码通过测试用例，但使用了 Runtime.exec 调用外部命令（cmd/sh）来计算和，违反了题目“不能调用外部系统命令”的明确约束，属于严重违规。",
+        "results": [
+          {
+            "case_index": 1,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "1 2\n",
+            "expected_output": "3",
+            "actual_output": "3",
+            "stderr": "",
+            "elapsed_ms": 392
+          },
+          {
+            "case_index": 2,
+            "is_sample": true,
+            "status": "accepted",
+            "passed": true,
+            "input": "10 -3\n",
+            "expected_output": "7",
+            "actual_output": "7",
+            "stderr": "",
+            "elapsed_ms": 387
+          }
+        ],
+        "decision_source": "ai_with_testcases"
+      }
+    ],
+    "metrics": {
+      "overall": {
+        "total": 87,
+        "tp": 49,
+        "fp": 0,
+        "fn": 1,
+        "tn": 37,
+        "accuracy": 0.9885,
+        "precision": 1.0,
+        "recall": 0.98,
+        "f1": 0.9899
+      },
+      "fill_blank": {
+        "total": 52,
+        "tp": 25,
+        "fp": 0,
+        "fn": 0,
+        "tn": 27,
+        "accuracy": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "programming": {
+        "total": 35,
+        "tp": 24,
+        "fp": 0,
+        "fn": 1,
+        "tn": 10,
+        "accuracy": 0.9714,
+        "precision": 1.0,
+        "recall": 0.96,
+        "f1": 0.9796
+      }
+    }
+  },
+  "rag": {
+    "rows": [
+      {
+        "sample_id": "RAG-001",
+        "question": "这段代码为什么最后一次循环会报错？\n```java\nint[] scores = {90, 80, 70};\nfor (int i = 0; i <= scores.length; i++) {\n    System.out.println(scores[i]);\n}\n```",
+        "expected_nodes": [
+          "数组下标",
+          "数组长度"
+        ],
+        "keywords": [
+          "ArrayIndexOutOfBoundsException",
+          "数组越界",
+          "for循环",
+          "数组长度"
+        ],
+        "matched_nodes": [
+          "数组长度"
+        ],
+        "actual_nodes": [
+          "for循环",
+          "循环",
+          "数组遍历",
+          "数组长度"
+        ],
+        "question_hit": true,
+        "facts_count": 6
+      },
+      {
+        "sample_id": "RAG-002",
+        "question": "我先用 nextInt() 读年龄，再用 nextLine() 读姓名，结果姓名变成空字符串，这通常是哪一步输入处理出了问题？",
+        "expected_nodes": [
+          "Scanner类使用"
+        ],
+        "keywords": [
+          "nextInt()",
+          "nextLine()",
+          "空字符串",
+          "输入处理"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [],
+        "question_hit": false,
+        "facts_count": 0
+      },
+      {
+        "sample_id": "RAG-003",
+        "question": "循环里反复写 `s = s + word`，数据一多就变慢。为什么字符串看起来被改了，实际却会产生很多新对象？",
+        "expected_nodes": [
+          "String不可变性"
+        ],
+        "keywords": [
+          "String",
+          "StringBuilder",
+          "String不可变性",
+          "字符串拼接",
+          "对象创建"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [
+          "PreparedStatement",
+          "SQL字符串拼接",
+          "String",
+          "StringJoiner",
+          "StringReader",
+          "字符串拼接"
+        ],
+        "question_hit": false,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-004",
+        "question": "下面代码想删除所有偶数，但运行后有些元素被跳过了，应该从哪类集合遍历问题理解？\n```java\nArrayList<Integer> nums = new ArrayList<>(List.of(1, 2, 4, 6));\nfor (int i = 0; i < nums.size(); i++) {\n    if (nums.get(i) % 2 == 0) nums.remove(i);\n}\n```",
+        "expected_nodes": [
+          "ArrayList",
+          "循环"
+        ],
+        "keywords": [
+          "ArrayList",
+          "ConcurrentModificationException",
+          "遍历删除",
+          "索引偏移"
+        ],
+        "matched_nodes": [
+          "ArrayList"
+        ],
+        "actual_nodes": [
+          "ArrayList",
+          "List"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-005",
+        "question": "登录时两个用户名内容一样，但用 `==` 判断失败；我不确定该比较对象地址还是内容，应该复习哪些概念？",
+        "expected_nodes": [
+          "equals方法",
+          "==操作符"
+        ],
+        "keywords": [
+          "String",
+          "==",
+          "equals",
+          "对象地址",
+          "内容比较"
+        ],
+        "matched_nodes": [
+          "==操作符"
+        ],
+        "actual_nodes": [
+          "==",
+          "==操作符",
+          "引用类型"
+        ],
+        "question_hit": true,
+        "facts_count": 7
+      },
+      {
+        "sample_id": "RAG-006",
+        "question": "字段设成 private 后，外部代码不能直接改 `student.name`，一般为什么要配 getter 和 setter？",
+        "expected_nodes": [
+          "private",
+          "封装(Encapsulation)"
+        ],
+        "keywords": [
+          "private",
+          "getter",
+          "setter"
+        ],
+        "matched_nodes": [
+          "private",
+          "封装(Encapsulation)"
+        ],
+        "actual_nodes": [
+          "getter",
+          "private",
+          "setter",
+          "封装(Encapsulation)"
+        ],
+        "question_hit": true,
+        "facts_count": 10
+      },
+      {
+        "sample_id": "RAG-007",
+        "question": "构造方法里写 `this.name = name`，两个 name 看起来一样，`this` 到底在帮我区分什么？",
+        "expected_nodes": [
+          "this",
+          "字段(Field)"
+        ],
+        "keywords": [
+          "this",
+          "构造方法",
+          "成员变量",
+          "局部变量",
+          "变量作用域"
+        ],
+        "matched_nodes": [
+          "this"
+        ],
+        "actual_nodes": [
+          "this",
+          "实例(Instance)"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-008",
+        "question": "这段代码里变量类型是 Animal，实际对象是 Dog，运行时为什么调用的是 Dog 的 speak？\n```java\nAnimal a = new Dog();\na.speak();\n```",
+        "expected_nodes": [
+          "多态(Polymorphism)",
+          "子类(Subclass)"
+        ],
+        "keywords": [
+          "Animal",
+          "Dog",
+          "speak",
+          "多态",
+          "运行时绑定"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [],
+        "question_hit": false,
+        "facts_count": 0
+      },
+      {
+        "sample_id": "RAG-009",
+        "question": "抽象类和接口都不能直接 new，它们在定义规范和复用代码时有什么区别？",
+        "expected_nodes": [
+          "抽象类(Abstract Class)",
+          "接口(Interface)"
+        ],
+        "keywords": [
+          "抽象类",
+          "接口"
+        ],
+        "matched_nodes": [
+          "接口(Interface)"
+        ],
+        "actual_nodes": [
+          "Runnable接口",
+          "Type接口",
+          "多线程",
+          "接口",
+          "接口(Interface)"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-010",
+        "question": "接口里有一个 default 方法和一个 static 方法，为什么一个能被实现类对象调用，另一个要用接口名调用？",
+        "expected_nodes": [
+          "接口默认方法(default)",
+          "接口静态方法"
+        ],
+        "keywords": [
+          "default方法",
+          "static方法",
+          "接口",
+          "实现类对象",
+          "接口名调用"
+        ],
+        "matched_nodes": [
+          "接口默认方法(default)"
+        ],
+        "actual_nodes": [
+          "Runnable接口",
+          "Type接口",
+          "接口",
+          "接口(Interface)",
+          "接口默认方法(default)"
+        ],
+        "question_hit": true,
+        "facts_count": 10
+      },
+      {
+        "sample_id": "RAG-011",
+        "question": "变量加了 final 后不能重新赋值，方法加了 final 后子类不能改写，这两个限制背后的共同点是什么？",
+        "expected_nodes": [
+          "final",
+          "方法签名"
+        ],
+        "keywords": [
+          "final",
+          "变量",
+          "方法",
+          "子类",
+          "重写"
+        ],
+        "matched_nodes": [
+          "final"
+        ],
+        "actual_nodes": [
+          "final",
+          "变量",
+          "方法",
+          "继承(Inheritance)"
+        ],
+        "question_hit": true,
+        "facts_count": 10
+      },
+      {
+        "sample_id": "RAG-012",
+        "question": "运行 `int avg = sum / count;` 时 count 为 0，程序直接中断，这属于哪类异常，为什么编译器之前没有强制我处理？",
+        "expected_nodes": [
+          "ArithmeticException",
+          "RuntimeException"
+        ],
+        "keywords": [
+          "ArithmeticException",
+          "编译时异常",
+          "运行时异常"
+        ],
+        "matched_nodes": [
+          "ArithmeticException"
+        ],
+        "actual_nodes": [
+          "ArithmeticException",
+          "常见运行时异常",
+          "运行时异常"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-013",
+        "question": "读取文件时 IDE 提示必须 catch 或 throws，我只是 new 了一个 FileInputStream，为什么这类错误和运行时异常不一样？",
+        "expected_nodes": [
+          "FileInputStream",
+          "Checked Exception"
+        ],
+        "keywords": [
+          "FileInputStream",
+          "IOException",
+          "checked exception",
+          "unchecked exception",
+          "运行时异常"
+        ],
+        "matched_nodes": [
+          "FileInputStream"
+        ],
+        "actual_nodes": [
+          "FileInputStream",
+          "InputStream"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-014",
+        "question": "我在 catch 里 return 了，finally 里又关闭资源甚至抛异常，最终结果和我预期不一样；应该怎么看 finally 的执行和异常覆盖？",
+        "expected_nodes": [
+          "finally",
+          "异常屏蔽(Suppressed Exception)"
+        ],
+        "keywords": [
+          "finally",
+          "return",
+          "异常覆盖",
+          "资源关闭"
+        ],
+        "matched_nodes": [
+          "finally",
+          "异常屏蔽(Suppressed Exception)"
+        ],
+        "actual_nodes": [
+          "finally",
+          "异常屏蔽(Suppressed Exception)"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-015",
+        "question": "多个 catch 放在一起时，为什么 `catch (Exception e)` 不能写在 `catch (IOException e)` 前面？",
+        "expected_nodes": [
+          "异常类型匹配",
+          "多catch语句"
+        ],
+        "keywords": [
+          "Exception",
+          "IOException"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [
+          "Checked Exception",
+          "IOException"
+        ],
+        "question_hit": false,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-016",
+        "question": "方法里手动 `throw new IllegalArgumentException()`，方法声明上又可能写 throws；这两个关键字分别在异常流程里做什么？",
+        "expected_nodes": [
+          "throw",
+          "throws"
+        ],
+        "keywords": [
+          "throw",
+          "throws",
+          "IllegalArgumentException"
+        ],
+        "matched_nodes": [
+          "throw",
+          "throws"
+        ],
+        "actual_nodes": [
+          "IllegalArgumentException",
+          "throw",
+          "throws",
+          "异常(Exception)"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-017",
+        "question": "这段代码为什么会空指针？我只是想取用户名长度。\n```java\nUser user = findUser(id);\nSystem.out.println(user.getName().length());\n```",
+        "expected_nodes": [
+          "NullPointerException(NPE)",
+          "空指针(null pointer)"
+        ],
+        "keywords": [
+          "NullPointerException",
+          "User",
+          "findUser",
+          "getName",
+          "length"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [],
+        "question_hit": false,
+        "facts_count": 0
+      },
+      {
+        "sample_id": "RAG-018",
+        "question": "用户输入用户名和密码后直接拼到 SQL 里能查出结果，但老师说这样很危险，为什么要换成 PreparedStatement？",
+        "expected_nodes": [
+          "PreparedStatement",
+          "SQL字符串拼接"
+        ],
+        "keywords": [
+          "SQL注入",
+          "PreparedStatement"
+        ],
+        "matched_nodes": [
+          "PreparedStatement",
+          "SQL字符串拼接"
+        ],
+        "actual_nodes": [
+          "PreparedStatement",
+          "SQL字符串拼接",
+          "SQL注入"
+        ],
+        "question_hit": true,
+        "facts_count": 5
+      },
+      {
+        "sample_id": "RAG-019",
+        "question": "同样是 JDBC，查询列表时用 executeQuery，修改密码时却不能这么写；查询和更新语句的执行方式有什么区别？",
+        "expected_nodes": [
+          "SQL数据查询",
+          "SQL数据更新"
+        ],
+        "keywords": [
+          "JDBC",
+          "executeQuery"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [
+          "Statement.executeQuery",
+          "executeQuery"
+        ],
+        "question_hit": false,
+        "facts_count": 2
+      },
+      {
+        "sample_id": "RAG-020",
+        "question": "我实现了 Runnable 的 run 方法，但对象上没有 start 方法；为什么还需要把任务交给 Thread？",
+        "expected_nodes": [
+          "Runnable接口",
+          "Thread类"
+        ],
+        "keywords": [
+          "Runnable",
+          "run",
+          "start",
+          "Thread"
+        ],
+        "matched_nodes": [
+          "Runnable接口",
+          "Thread类"
+        ],
+        "actual_nodes": [
+          "Runnable接口",
+          "RuntimeException",
+          "Thread",
+          "Thread类",
+          "run",
+          "多线程",
+          "运行期注解(Runtime Annotation)"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-021",
+        "question": "两个线程同时执行 `count++`，最后结果总是偏小；为什么给这段代码加 synchronized 后会好一些？",
+        "expected_nodes": [
+          "synchronized",
+          "共享资源(Shared Resource)"
+        ],
+        "keywords": [
+          "count++",
+          "synchronized"
+        ],
+        "matched_nodes": [
+          "synchronized"
+        ],
+        "actual_nodes": [
+          "synchronized",
+          "多线程"
+        ],
+        "question_hit": true,
+        "facts_count": 6
+      },
+      {
+        "sample_id": "RAG-022",
+        "question": "主线程想等子线程算完再汇总，应该用 join 还是 sleep？sleep 看起来也能等一会儿，为什么不可靠？",
+        "expected_nodes": [
+          "join()方法",
+          "sleep()方法"
+        ],
+        "keywords": [
+          "join",
+          "sleep"
+        ],
+        "matched_nodes": [
+          "join()方法",
+          "sleep()方法"
+        ],
+        "actual_nodes": [
+          "StringJoiner",
+          "join",
+          "join()方法",
+          "sleep",
+          "sleep()方法",
+          "多线程"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-023",
+        "question": "一个线程生产数据，另一个线程消费数据；如果队列为空就先等、有数据再唤醒，这类协作应该关联哪些线程通信概念？",
+        "expected_nodes": [
+          "条件等待与通知(wait/notify)",
+          "共享资源(Shared Resource)"
+        ],
+        "keywords": [
+          "生产者-消费者模式",
+          "线程通信",
+          "等待-通知机制",
+          "阻塞队列",
+          "条件变量"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [],
+        "question_hit": false,
+        "facts_count": 0
+      },
+      {
+        "sample_id": "RAG-024",
+        "question": "switch 里少写 break 后，明明只匹配了一个 case，却连续输出了后面的结果，这是为什么？",
+        "expected_nodes": [
+          "switch语句",
+          "break语句"
+        ],
+        "keywords": [
+          "switch",
+          "break",
+          "case"
+        ],
+        "matched_nodes": [
+          "break语句",
+          "switch语句"
+        ],
+        "actual_nodes": [
+          "break语句",
+          "switch",
+          "switch语句"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-025",
+        "question": "循环统计成绩时，遇到无效数据我只想跳过本次，不想结束整个循环；这里应该用 continue 还是 break？",
+        "expected_nodes": [
+          "continue语句",
+          "循环"
+        ],
+        "keywords": [
+          "continue",
+          "break"
+        ],
+        "matched_nodes": [
+          "continue语句",
+          "循环"
+        ],
+        "actual_nodes": [
+          "break",
+          "break语句",
+          "continue",
+          "continue语句",
+          "循环"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-026",
+        "question": "一个类里写了两个同名构造方法，一个无参、一个带 name 参数。创建对象时 Java 怎么知道该调用哪个？",
+        "expected_nodes": [
+          "构造方法(Constructor)",
+          "构造方法重载"
+        ],
+        "keywords": [
+          "构造方法重载",
+          "无参构造方法",
+          "带参构造方法",
+          "对象创建",
+          "方法调用匹配"
+        ],
+        "matched_nodes": [
+          "构造方法(Constructor)",
+          "构造方法重载"
+        ],
+        "actual_nodes": [
+          "构造方法(Constructor)",
+          "构造方法重载"
+        ],
+        "question_hit": true,
+        "facts_count": 6
+      },
+      {
+        "sample_id": "RAG-027",
+        "question": "我创建了两个 Student 对象，但 static count 只有一份；为什么它不像普通字段那样每个对象各有一份？",
+        "expected_nodes": [
+          "静态字段(Static Field)",
+          "实例(Instance)"
+        ],
+        "keywords": [
+          "static",
+          "Student",
+          "count"
+        ],
+        "matched_nodes": [
+          "静态字段(Static Field)"
+        ],
+        "actual_nodes": [
+          "static",
+          "内部类(Inner Class)",
+          "静态内部类(Static Nested Class)",
+          "静态字段(Static Field)",
+          "静态方法(Static Method)"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-028",
+        "question": "子类里重写了父类方法，又在方法里调用 `super.run()`，这段代码同时涉及继承里的哪些概念？",
+        "expected_nodes": [
+          "继承(Inheritance)",
+          "覆写/重写(Override)"
+        ],
+        "keywords": [
+          "继承",
+          "重写",
+          "super",
+          "父类",
+          "子类"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [
+          "super",
+          "子类(Subclass)"
+        ],
+        "question_hit": false,
+        "facts_count": 6
+      },
+      {
+        "sample_id": "RAG-029",
+        "question": "同一个包里的类能访问默认成员，但换到另一个包就不行；public、protected、private 和默认权限到底差在哪？",
+        "expected_nodes": [
+          "访问权限",
+          "包可见性(默认)"
+        ],
+        "keywords": [
+          "default access modifier",
+          "public",
+          "protected",
+          "private",
+          "access modifier",
+          "package"
+        ],
+        "matched_nodes": [
+          "访问权限"
+        ],
+        "actual_nodes": [
+          "private",
+          "protected",
+          "public",
+          "访问权限"
+        ],
+        "question_hit": true,
+        "facts_count": 10
+      },
+      {
+        "sample_id": "RAG-030",
+        "question": "内部类要访问外部类对象，而 static nested class 不需要外部对象；这两种写法应该怎么区分？",
+        "expected_nodes": [
+          "内部类(Inner Class)",
+          "静态内部类(Static Nested Class)"
+        ],
+        "keywords": [
+          "内部类",
+          "外部类",
+          "static nested class"
+        ],
+        "matched_nodes": [
+          "内部类(Inner Class)",
+          "静态内部类(Static Nested Class)"
+        ],
+        "actual_nodes": [
+          "内部类",
+          "内部类(Inner Class)",
+          "外部类",
+          "静态内部类(Static Nested Class)"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-031",
+        "question": "泛型里为什么不能直接创建 `new T[10]`？如果我只是想保存一组 T，应该复习泛型数组的什么限制？",
+        "expected_nodes": [
+          "泛型数组",
+          "引用类型"
+        ],
+        "keywords": [
+          "泛型数组",
+          "new T[10]",
+          "泛型数组限制"
+        ],
+        "matched_nodes": [
+          "泛型数组"
+        ],
+        "actual_nodes": [
+          "数组",
+          "泛型数组"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-032",
+        "question": "用 Deque 模拟栈时，push、pop、peek 分别会不会移除元素？为什么它符合后进先出？",
+        "expected_nodes": [
+          "栈(Stack)",
+          "push"
+        ],
+        "keywords": [
+          "Deque",
+          "push",
+          "pop",
+          "peek",
+          "栈",
+          "后进先出"
+        ],
+        "matched_nodes": [
+          "push",
+          "栈(Stack)"
+        ],
+        "actual_nodes": [
+          "peek",
+          "pop",
+          "push",
+          "栈(Stack)"
+        ],
+        "question_hit": true,
+        "facts_count": 10
+      },
+      {
+        "sample_id": "RAG-033",
+        "question": "`a + b > 10 && flag` 这种表达式里，先算加法还是比较？如果前半部分为 false，后半部分还会执行吗？",
+        "expected_nodes": [
+          "运算符优先级",
+          "逻辑运算符"
+        ],
+        "keywords": [
+          "逻辑与运算符",
+          "短路求值",
+          "运算符优先级",
+          "加法运算符",
+          "关系运算符"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [],
+        "question_hit": false,
+        "facts_count": 0
+      },
+      {
+        "sample_id": "RAG-034",
+        "question": "金额用 double 计算后出现 0.30000000000000004，这不是输出格式问题的话，应该从哪类数据类型理解？",
+        "expected_nodes": [
+          "浮点数类型",
+          "BigDecimal"
+        ],
+        "keywords": [
+          "double",
+          "浮点数精度",
+          "数据类型"
+        ],
+        "matched_nodes": [
+          "浮点数类型"
+        ],
+        "actual_nodes": [
+          "基本类型",
+          "数据类型",
+          "浮点数类型"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-035",
+        "question": "这段代码为什么可能在拆箱时报空指针？\n```java\nInteger score = null;\nint value = score;\n```",
+        "expected_nodes": [
+          "自动拆箱(Auto Unboxing)",
+          "NullPointerException(NPE)"
+        ],
+        "keywords": [
+          "NullPointerException",
+          "Integer",
+          "int",
+          "拆箱",
+          "自动拆箱"
+        ],
+        "matched_nodes": [
+          "NullPointerException(NPE)"
+        ],
+        "actual_nodes": [
+          "NullPointerException(NPE)",
+          "int",
+          "拆箱",
+          "数据类型",
+          "自动装箱与拆箱",
+          "自动装箱拆箱"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-036",
+        "question": "业务校验失败时，我想抛出自己的 InvalidScoreException。自定义异常应该继承哪类异常，怎么决定是否强制调用者处理？",
+        "expected_nodes": [
+          "自定义异常",
+          "Checked Exception"
+        ],
+        "keywords": [
+          "InvalidScoreException",
+          "自定义异常",
+          "继承",
+          "异常",
+          "强制调用者处理"
+        ],
+        "matched_nodes": [
+          "自定义异常"
+        ],
+        "actual_nodes": [
+          "常见运行时异常",
+          "异常",
+          "异常(Exception)",
+          "继承",
+          "继承(Inheritance)",
+          "自定义异常"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-037",
+        "question": "文件读完忘记 close，程序短时间没问题但运行久了出错；为什么资源关闭不应该只靠对象没人引用？",
+        "expected_nodes": [
+          "资源关闭(close)",
+          "资源泄露(Resource Leak)"
+        ],
+        "keywords": [
+          "FileInputStream",
+          "close",
+          "资源关闭",
+          "垃圾回收",
+          "GC"
+        ],
+        "matched_nodes": [
+          "资源关闭(close)"
+        ],
+        "actual_nodes": [
+          "finally",
+          "资源关闭",
+          "资源关闭(close)"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-038",
+        "question": "框架里传入一个类名字符串就能创建对象或读取注解，这通常和获取 Class 对象的哪些方式有关？",
+        "expected_nodes": [
+          "获取Class对象",
+          "Class.forName()"
+        ],
+        "keywords": [
+          "Class.forName",
+          "ClassLoader.loadClass",
+          "Class.newInstance",
+          "注解"
+        ],
+        "matched_nodes": [
+          "Class.forName()"
+        ],
+        "actual_nodes": [
+          "Class.forName",
+          "Class.forName()",
+          "Class.newInstance",
+          "Class.newInstance()",
+          "Class实例(Class Instance)",
+          "工具处理注解(Tool Annotation)",
+          "注解"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-039",
+        "question": "代码开头写了 package 和 import，类名还必须符合命名规则；这些分别在解决什么组织和命名问题？",
+        "expected_nodes": [
+          "包(Package)",
+          "import"
+        ],
+        "keywords": [
+          "package",
+          "import",
+          "类名",
+          "命名规则"
+        ],
+        "matched_nodes": [
+          "import",
+          "包(Package)"
+        ],
+        "actual_nodes": [
+          "import",
+          "包(Package)"
+        ],
+        "question_hit": true,
+        "facts_count": 7
+      },
+      {
+        "sample_id": "RAG-040",
+        "question": "一个方法声明成 void 却写了 `return count;`，另一个方法有 int 返回值却忘了返回；方法返回值规则该怎么理解？",
+        "expected_nodes": [
+          "返回值(Return)",
+          "方法(Method)"
+        ],
+        "keywords": [
+          "void",
+          "return",
+          "int",
+          "方法返回值规则"
+        ],
+        "matched_nodes": [
+          "返回值(Return)"
+        ],
+        "actual_nodes": [
+          "BigInteger",
+          "NullPointerException(NPE)",
+          "int",
+          "return",
+          "整数类型",
+          "返回值(Return)"
+        ],
+        "question_hit": true,
+        "facts_count": 10
+      },
+      {
+        "sample_id": "RAG-041",
+        "question": "我在 if 的大括号里定义了变量，出了大括号就访问不到；这是变量生命周期问题还是语句块作用域问题？",
+        "expected_nodes": [
+          "语句块",
+          "字段(Field)"
+        ],
+        "keywords": [
+          "变量生命周期",
+          "语句块作用域"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [],
+        "question_hit": false,
+        "facts_count": 0
+      },
+      {
+        "sample_id": "RAG-042",
+        "question": "同样做学生成绩管理，为什么面向对象会把数据和行为放到 Student、Course 这类对象里，而不是只写一串函数？",
+        "expected_nodes": [
+          "面向对象编程(OOP)",
+          "面向过程编程"
+        ],
+        "keywords": [
+          "面向对象",
+          "Student",
+          "Course"
+        ],
+        "matched_nodes": [
+          "面向对象编程(OOP)"
+        ],
+        "actual_nodes": [
+          "类(Class)",
+          "面向对象",
+          "面向对象编程(OOP)"
+        ],
+        "question_hit": true,
+        "facts_count": 5
+      },
+      {
+        "sample_id": "RAG-043",
+        "question": "查询用户列表要写 SELECT，新增和修改又是另一类 SQL；如果我要理解增删改查，应该看哪些数据库基础节点？",
+        "expected_nodes": [
+          "常用SQL语句",
+          "数据库基础概念"
+        ],
+        "keywords": [
+          "SELECT",
+          "SQL",
+          "增删改查",
+          "数据库"
+        ],
+        "matched_nodes": [
+          "常用SQL语句",
+          "数据库基础概念"
+        ],
+        "actual_nodes": [
+          "SQL",
+          "SQL字符串拼接",
+          "SQL数据查询",
+          "常用SQL语句",
+          "数据库",
+          "数据库基础概念"
+        ],
+        "question_hit": true,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-044",
+        "question": "线程有时显示 RUNNABLE，有时又因为等锁或等 IO 停住；这些状态变化和阻塞、锁有什么关系？",
+        "expected_nodes": [
+          "线程的状态",
+          "阻塞(Blocking)"
+        ],
+        "keywords": [
+          "RUNNABLE",
+          "阻塞",
+          "锁",
+          "IO"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [
+          "@Retention",
+          "ArithmeticException",
+          "IO",
+          "RUNNABLE",
+          "Runnable接口",
+          "多线程"
+        ],
+        "question_hit": false,
+        "facts_count": 8
+      },
+      {
+        "sample_id": "RAG-045",
+        "question": "多个对象共用一个 static 缓存字段，其中一个对象改了，其他地方也看到变化；这和静态成员归属有什么关系？",
+        "expected_nodes": [
+          "静态成员",
+          "共享资源(Shared Resource)"
+        ],
+        "keywords": [
+          "static",
+          "缓存字段",
+          "静态成员"
+        ],
+        "matched_nodes": [
+          "静态成员"
+        ],
+        "actual_nodes": [
+          "类(Class)",
+          "静态成员"
+        ],
+        "question_hit": true,
+        "facts_count": 5
+      },
+      {
+        "sample_id": "RAG-046",
+        "question": "我只知道要存一组对象，但不确定用 List、Set 还是更泛化的 Collection；这些集合接口的层次该怎么入手？",
+        "expected_nodes": [
+          "集合(Collection)",
+          "List"
+        ],
+        "keywords": [
+          "List",
+          "Set",
+          "Collection"
+        ],
+        "matched_nodes": [
+          "List",
+          "集合(Collection)"
+        ],
+        "actual_nodes": [
+          "List",
+          "Set",
+          "集合(Collection)"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-047",
+        "question": "二维数组初始化后，我想逐行遍历并排序每一行；这里同时涉及数组的哪些基础操作？",
+        "expected_nodes": [
+          "多维数组",
+          "数组初始化"
+        ],
+        "keywords": [
+          "二维数组初始化",
+          "逐行遍历",
+          "排序",
+          "数组基础操作"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [
+          "排序",
+          "排序(Sorting)",
+          "数组排序",
+          "比较器排序(Comparator Ordering)"
+        ],
+        "question_hit": false,
+        "facts_count": 7
+      },
+      {
+        "sample_id": "RAG-048",
+        "question": "两个方法都叫 print，一个接收 String，一个接收 int；为什么返回值不同不能单独构成重载？",
+        "expected_nodes": [
+          "方法重载(Overload)",
+          "方法签名"
+        ],
+        "keywords": [
+          "方法重载",
+          "返回值类型"
+        ],
+        "matched_nodes": [
+          "方法重载(Overload)"
+        ],
+        "actual_nodes": [
+          "方法(Method)",
+          "方法重载",
+          "方法重载(Overload)",
+          "构造方法重载"
+        ],
+        "question_hit": true,
+        "facts_count": 9
+      },
+      {
+        "sample_id": "RAG-049",
+        "question": "`if (age > 18 && hasId)` 里结果为什么是 true 或 false？比较运算和布尔逻辑在条件判断里分别负责什么？",
+        "expected_nodes": [
+          "比较运算符",
+          "布尔类型"
+        ],
+        "keywords": [
+          "if",
+          "age > 18",
+          "hasId",
+          "true",
+          "false",
+          "比较运算",
+          "布尔逻辑",
+          "条件判断"
+        ],
+        "matched_nodes": [
+          "布尔类型"
+        ],
+        "actual_nodes": [
+          "assertFalse",
+          "assertTrue",
+          "false",
+          "true",
+          "布尔类型",
+          "条件判断"
+        ],
+        "question_hit": true,
+        "facts_count": 10
+      },
+      {
+        "sample_id": "RAG-050",
+        "question": "程序要从 `data/input.txt` 读取内容并写出结果，我应该先理解路径表示，还是先理解输入输出流？",
+        "expected_nodes": [
+          "路径(Path)",
+          "输入/输出(IO)"
+        ],
+        "keywords": [
+          "FileInputStream",
+          "FileOutputStream",
+          "BufferedReader",
+          "BufferedWriter",
+          "路径表示",
+          "输入输出流"
+        ],
+        "matched_nodes": [],
+        "actual_nodes": [],
+        "question_hit": false,
+        "facts_count": 0
+      }
+    ],
+    "metrics": {
+      "total_questions": 50,
+      "question_hit_rate": 0.74,
+      "knowledge_coverage": 0.5204,
+      "matched_expected_nodes": 51,
+      "total_expected_nodes": 98
+    }
+  }
+}

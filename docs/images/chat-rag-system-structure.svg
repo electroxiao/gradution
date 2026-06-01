@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="650" viewBox="0 0 1800 650" role="img" aria-labelledby="title desc">
+  <title id="title">学生端图谱增强答疑系统结构图</title>
+  <desc id="desc">依据 ChatPage、chat API、chat_service 与 rag_engine 的真实代码流程绘制的系统结构图。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#2f2f2f"/>
+    </marker>
+    <marker id="softArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b8b8b8"/>
+    </marker>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .bg { fill: #ffffff; }
+      .panel { fill: #f7f7f7; stroke: #eeeeee; stroke-width: 1; }
+      .panel-title { fill: #dcebfa; }
+      .title-text { font-family: "Times New Roman", SimSun, serif; font-size: 31px; font-weight: 700; font-style: italic; }
+      .cn-title { font-family: "Microsoft YaHei", SimHei, sans-serif; font-size: 21px; font-weight: 700; }
+      .label { font-family: "Microsoft YaHei", SimHei, sans-serif; font-size: 17px; font-weight: 700; fill: #111; }
+      .small { font-family: "Microsoft YaHei", SimHei, sans-serif; font-size: 14px; fill: #111; }
+      .tiny { font-family: "Microsoft YaHei", SimHei, sans-serif; font-size: 12px; fill: #111; }
+      .mono { font-family: Consolas, "Courier New", monospace; font-size: 13px; font-weight: 700; fill: #fff; }
+      .mono-dark { font-family: Consolas, "Courier New", monospace; font-size: 13px; font-weight: 700; fill: #111; }
+      .step { fill: #ffffff; stroke: #111; stroke-width: 2; }
+      .subhead { fill: #d2d2d2; }
+      .green { fill: #effbe8; }
+      .yellow { fill: #fff1a8; stroke: #222; stroke-width: 2; }
+      .dark { fill: #444; }
+      .trace { fill: #ffe2d6; }
+      .store { fill: #eef8e8; stroke: #4f7f4f; stroke-dasharray: 6 5; stroke-width: 2; }
+      .dash { stroke: #888; stroke-width: 3; stroke-dasharray: 12 10; }
+      .line { stroke: #222; stroke-width: 2.4; fill: none; marker-end: url(#arrow); }
+      .soft-line { stroke: #b8b8b8; stroke-width: 18; fill: none; marker-end: url(#softArrow); opacity: .9; }
+      .orange-line { stroke: #ff7a1a; stroke-width: 2; stroke-dasharray: 8 7; fill: none; marker-end: url(#arrow); }
+      .red-line { stroke: #d20f0f; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1800" height="650"/>
+
+  <!-- Big section arrows -->
+  <path class="soft-line" d="M 310 326 L 350 326"/>
+  <path class="soft-line" d="M 1025 326 L 1068 326"/>
+  <path class="soft-line" d="M 1450 326 L 1495 326"/>
+
+  <!-- Panel 1 -->
+  <g transform="translate(22 42)">
+    <rect class="panel-title" x="0" y="0" width="292" height="58" rx="14"/>
+    <text class="title-text" x="146" y="39" text-anchor="middle">Instruction</text>
+    <rect class="panel" x="0" y="70" width="292" height="540"/>
+    <text class="label" x="18" y="101">Student Question</text>
+    <g transform="translate(20 130)">
+      <rect class="green" x="78" y="-10" width="188" height="105" rx="8"/>
+      <text class="small" x="96" y="16" font-weight="700">“为什么 ArrayList</text>
+      <text class="small" x="96" y="39" font-weight="700">会越界？这段 Java</text>
+      <text class="small" x="96" y="62" font-weight="700">代码应该怎么排查？”</text>
+      <rect x="6" y="22" width="44" height="32" rx="6" fill="#fff" stroke="#333" stroke-width="2"/>
+      <circle cx="18" cy="38" r="2.8" fill="#333"/>
+      <circle cx="28" cy="38" r="2.8" fill="#333"/>
+      <circle cx="38" cy="38" r="2.8" fill="#333"/>
+      <path d="M23 54 l-8 15 l24 -15" fill="#fff" stroke="#333" stroke-width="2"/>
+    </g>
+    <line class="dash" x1="0" y1="254" x2="292" y2="254"/>
+    <text class="label" x="18" y="290">Structured Request</text>
+    <g transform="translate(20 320)">
+      <rect class="green" x="78" y="-10" width="188" height="110" rx="8"/>
+      <text class="mono-dark" x="96" y="18">{</text>
+      <text class="mono-dark" x="107" y="41">content,</text>
+      <text class="mono-dark" x="107" y="64">use_knowledge_graph:</text>
+      <text class="mono-dark" x="107" y="87">true</text>
+      <text class="mono-dark" x="96" y="110">}</text>
+      <rect x="8" y="18" width="38" height="48" rx="5" fill="#fff" stroke="#333" stroke-width="2"/>
+      <path d="M18 34 h18 M18 46 h18 M18 58 h11" stroke="#333" stroke-width="2"/>
+      <path d="M37 66 l9 -10" stroke="#333" stroke-width="3"/>
+      <path d="M43 54 l3 2 l2 -11" fill="none" stroke="#333" stroke-width="2"/>
+    </g>
+    <rect class="trace" x="24" y="492" width="244" height="78" rx="4"/>
+    <text class="small" x="39" y="518" font-weight="700">frontend/src/pages/ChatPage.vue</text>
+    <text class="small" x="39" y="542">输入框旁可切换知识图谱检索</text>
+    <text class="small" x="39" y="564">登录态由 authStorage 提供</text>
+  </g>
+
+  <!-- Panel 2 -->
+  <g transform="translate(328 42)">
+    <rect class="panel-title" x="0" y="0" width="740" height="58" rx="14"/>
+    <text class="title-text" x="370" y="39" text-anchor="middle">Graph-RAG Answer Generation by LLM</text>
+    <rect class="panel" x="0" y="70" width="740" height="540"/>
+
+    <rect class="subhead" x="18" y="88" width="155" height="48" rx="7"/>
+    <rect class="subhead" x="184" y="88" width="174" height="48" rx="7"/>
+    <rect class="subhead" x="370" y="88" width="174" height="48" rx="7"/>
+    <rect class="subhead" x="556" y="88" width="166" height="48" rx="7"/>
+    <text class="label" x="96" y="119" text-anchor="middle">Frontend API</text>
+    <text class="label" x="271" y="119" text-anchor="middle">FastAPI Route</text>
+    <text class="label" x="457" y="119" text-anchor="middle">Chat Service</text>
+    <text class="label" x="639" y="119" text-anchor="middle">RAG Engine</text>
+
+    <rect class="step" x="20" y="180" width="138" height="66" rx="8"/>
+    <text class="label" x="89" y="205" text-anchor="middle">streamMessage</text>
+    <text class="label" x="89" y="229" text-anchor="middle">Api()</text>
+    <path class="line" d="M158 213 L188 213"/>
+    <rect class="step" x="188" y="180" width="150" height="66" rx="8"/>
+    <text class="label" x="263" y="205" text-anchor="middle">POST /messages</text>
+    <text class="label" x="263" y="229" text-anchor="middle">/stream</text>
+    <path class="line" d="M338 213 L370 213"/>
+    <rect class="step" x="370" y="180" width="150" height="66" rx="8"/>
+    <text class="label" x="445" y="205" text-anchor="middle">stream_message</text>
+    <text class="label" x="445" y="229" text-anchor="middle">保存用户消息</text>
+    <path class="line" d="M520 213 L553 213"/>
+    <rect class="step" x="553" y="180" width="156" height="66" rx="8"/>
+    <text class="label" x="631" y="205" text-anchor="middle">图谱检索</text>
+    <text class="label" x="631" y="229" text-anchor="middle">关键词/路径</text>
+
+    <path class="line" d="M188 154 L640 154 L640 180"/>
+    <text class="label" x="382" y="148">Condition: use_knowledge_graph = true</text>
+
+    <g transform="translate(20 265)">
+      <rect class="dark" x="0" y="0" width="142" height="244"/>
+      <text class="mono" x="16" y="24">chat.js</text>
+      <text class="mono" x="16" y="48">fetch(.../stream)</text>
+      <text class="mono" x="16" y="72">parseSseEvent</text>
+      <text class="mono" x="16" y="96">onUserMessage</text>
+      <text class="mono" x="16" y="120">onGraphTrace</text>
+      <text class="mono" x="16" y="144">onAssistantDelta</text>
+      <text class="mono" x="16" y="168">onAssistantDone</text>
+      <rect class="yellow" x="112" y="14" width="22" height="32"/>
+      <path d="M117 25 l6 7 l-6 7" fill="none" stroke="#333" stroke-width="2"/>
+    </g>
+    <g transform="translate(188 265)">
+      <rect class="dark" x="0" y="0" width="150" height="244"/>
+      <text class="mono" x="14" y="24">chat.py</text>
+      <text class="mono" x="14" y="48">StreamingResponse</text>
+      <text class="mono" x="14" y="72">MessageCreateRequest</text>
+      <text class="mono" x="14" y="96">use_knowledge_graph</text>
+      <text class="mono" x="14" y="120">get_current_user</text>
+      <text class="mono" x="14" y="144">get_db</text>
+      <rect class="yellow" x="120" y="14" width="22" height="32"/>
+      <path d="M125 25 l6 7 l-6 7" fill="none" stroke="#333" stroke-width="2"/>
+    </g>
+    <g transform="translate(370 265)">
+      <rect class="dark" x="0" y="0" width="150" height="244"/>
+      <text class="mono" x="14" y="24">chat_service.py</text>
+      <text class="mono" x="14" y="48">_build_history()</text>
+      <text class="mono" x="14" y="72">get_openai_client()</text>
+      <text class="mono" x="14" y="96">get_neo4j_driver()</text>
+      <text class="mono" x="14" y="120">_sse_event()</text>
+      <text class="mono" x="14" y="144">ChatMessage</text>
+      <rect class="yellow" x="120" y="14" width="22" height="32"/>
+      <path d="M125 25 l6 7 l-6 7" fill="none" stroke="#333" stroke-width="2"/>
+    </g>
+    <g transform="translate(553 265)">
+      <rect class="dark" x="0" y="0" width="156" height="244"/>
+      <text class="mono" x="14" y="24">rag_engine.py</text>
+      <text class="mono" x="14" y="48">extract_keywords</text>
+      <text class="mono" x="14" y="72">query_seed_nodes</text>
+      <text class="mono" x="14" y="96">query_subgraph</text>
+      <text class="mono" x="14" y="120">select_paths</text>
+      <text class="mono" x="14" y="144">dependency_chain</text>
+      <text class="mono" x="14" y="168">ask_deepseek_stream</text>
+      <rect class="yellow" x="126" y="14" width="22" height="32"/>
+      <path d="M131 25 l6 7 l-6 7" fill="none" stroke="#333" stroke-width="2"/>
+    </g>
+  </g>
+
+  <!-- Panel 3 -->
+  <g transform="translate(1084 42)">
+    <rect class="panel-title" x="0" y="0" width="392" height="58" rx="14"/>
+    <text class="title-text" x="196" y="39" text-anchor="middle">Tracing, Storage &amp; Repair</text>
+    <rect class="panel" x="0" y="70" width="392" height="540"/>
+
+    <text class="label" x="22" y="101">Neo4j KG</text>
+    <text class="label" x="160" y="101">DeepSeek / LLM</text>
+    <text class="label" x="280" y="101">Fallback</text>
+
+    <g transform="translate(22 116)">
+      <circle cx="43" cy="43" r="40" fill="#f5c785"/>
+      <circle cx="43" cy="43" r="25" fill="#fff" stroke="#5579a6" stroke-width="2"/>
+      <circle cx="43" cy="18" r="5" fill="#fff" stroke="#5579a6" stroke-width="2"/>
+      <line x1="43" y1="23" x2="43" y2="32" stroke="#5579a6" stroke-width="2"/>
+      <rect x="30" y="36" width="26" height="23" rx="4" fill="#d9eefc" stroke="#5579a6" stroke-width="2"/>
+      <circle cx="37" cy="47" r="3" fill="#5579a6"/>
+      <circle cx="50" cy="47" r="3" fill="#5579a6"/>
+      <line x1="25" y1="45" x2="13" y2="45" stroke="#5579a6" stroke-width="2"/>
+      <line x1="62" y1="45" x2="74" y2="45" stroke="#5579a6" stroke-width="2"/>
+    </g>
+    <path class="line" d="M108 159 L158 159"/>
+    <rect class="trace" x="160" y="116" width="104" height="86"/>
+    <text class="tiny" x="173" y="143" font-weight="700">关键词抽取</text>
+    <text class="tiny" x="173" y="166">JSON list</text>
+    <text class="tiny" x="173" y="188">失败用原问题兜底</text>
+    <path class="line" d="M264 159 L311 159"/>
+    <rect class="yellow" x="313" y="122" width="44" height="58"/>
+    <path d="M326 142 l9 9 l-9 9" fill="none" stroke="#333" stroke-width="2"/>
+    <path class="line" d="M65 201 L65 248"/>
+
+    <rect class="step" x="22" y="248" width="135" height="60" rx="8"/>
+    <text class="label" x="90" y="273" text-anchor="middle">种子召回</text>
+    <text class="small" x="90" y="295" text-anchor="middle">seed facts</text>
+    <path class="line" d="M157 278 L176 278"/>
+    <rect class="step" x="176" y="248" width="136" height="60" rx="8"/>
+    <text class="label" x="244" y="273" text-anchor="middle">路径选择</text>
+    <text class="small" x="244" y="295" text-anchor="middle">selected_path</text>
+    <path class="line" d="M244 308 L244 352"/>
+
+    <rect class="trace" x="80" y="352" width="230" height="82"/>
+    <text class="small" x="98" y="379" font-weight="700">graph_trace SSE</text>
+    <text class="small" x="98" y="404">facts + reasoning_trace</text>
+    <text class="small" x="98" y="426">retrieval_trace 提前回传</text>
+    <path class="red-line" d="M80 394 C40 394 40 304 65 304"/>
+
+    <rect class="store" x="28" y="462" width="334" height="82" rx="4"/>
+    <text class="small" x="48" y="488" font-weight="700">MySQL chat_messages</text>
+    <text class="small" x="48" y="512">content / facts_json / reasoning_trace_json</text>
+    <text class="small" x="48" y="536">retrieval_trace_json 用于历史回显</text>
+    <path class="line" d="M244 434 L244 462"/>
+  </g>
+
+  <!-- Panel 4 -->
+  <g transform="translate(1492 42)">
+    <rect class="panel-title" x="0" y="0" width="286" height="58" rx="14"/>
+    <text class="title-text" x="143" y="39" text-anchor="middle">Output Display</text>
+    <rect class="panel" x="0" y="70" width="286" height="540"/>
+
+    <text class="label" x="20" y="101">Frontend Output</text>
+    <rect class="store" x="22" y="118" width="146" height="280" rx="4"/>
+    <text class="mono-dark" x="50" y="150">ChatPage.vue</text>
+    <rect x="38" y="171" width="20" height="20" fill="#d8dde5"/>
+    <text class="small" x="68" y="187">图谱检索状态</text>
+    <rect x="38" y="205" width="20" height="20" fill="#d8dde5"/>
+    <text class="small" x="68" y="221">SelectedPathGraph</text>
+    <rect x="38" y="239" width="20" height="20" fill="#e8f6e3"/>
+    <text class="small" x="68" y="255">相关节点信息</text>
+    <rect x="38" y="273" width="20" height="20" fill="#ffe2d6"/>
+    <text class="small" x="68" y="289">检索/推理轨迹</text>
+    <rect x="38" y="307" width="20" height="20" fill="#d8dde5"/>
+    <text class="small" x="68" y="323">Markdown回答</text>
+    <rect x="38" y="341" width="20" height="20" fill="#fff1a8"/>
+    <text class="small" x="68" y="357">assistant_done</text>
+
+    <text class="label" x="188" y="101">User View</text>
+    <g filter="url(#shadow)">
+      <rect x="182" y="144" width="94" height="48" rx="6" fill="#f8f8f8" stroke="#d3d3d3"/>
+      <text class="tiny" x="229" y="173" text-anchor="middle">检索状态</text>
+      <rect x="182" y="216" width="94" height="56" rx="6" fill="#f8f8f8" stroke="#d3d3d3"/>
+      <text class="tiny" x="229" y="243" text-anchor="middle">路径图</text>
+      <text class="tiny" x="229" y="260" text-anchor="middle">节点证据</text>
+      <rect x="182" y="296" width="94" height="56" rx="6" fill="#f8f8f8" stroke="#d3d3d3"/>
+      <text class="tiny" x="229" y="323" text-anchor="middle">流式回答</text>
+      <text class="tiny" x="229" y="340" text-anchor="middle">assistant_delta</text>
+    </g>
+    <path class="orange-line" d="M168 181 L182 168"/>
+    <path class="orange-line" d="M168 247 L182 244"/>
+    <path class="orange-line" d="M168 315 L182 323"/>
+
+    <rect class="trace" x="22" y="430" width="242" height="82"/>
+    <text class="small" x="40" y="456" font-weight="700">后台知识点记录</text>
+    <text class="small" x="40" y="480">Thread -> record_turn_knowledge_events()</text>
+    <text class="small" x="40" y="504">写入 chat_knowledge_events</text>
+    <rect class="step" x="22" y="535" width="242" height="48" rx="7"/>
+    <text class="small" x="143" y="555" text-anchor="middle" font-weight="700">边界：不直接写入薄弱点</text>
+    <text class="small" x="143" y="575" text-anchor="middle">user_weak_points / knowledge_states</text>
+  </g>
+
+  <!-- Cross-panel data labels -->
+  <text class="label" x="1044" y="300" text-anchor="middle">SSE</text>
+  <text class="small" x="1044" y="324" text-anchor="middle">user_message</text>
+  <text class="small" x="1044" y="346" text-anchor="middle">graph_trace</text>
+  <text class="small" x="1044" y="368" text-anchor="middle">assistant_delta</text>
+  <text class="small" x="1044" y="390" text-anchor="middle">assistant_done</text>
+
+  <text class="label" x="1476" y="300" text-anchor="middle">Persist</text>
+  <text class="small" x="1476" y="324" text-anchor="middle">traces</text>
+  <text class="small" x="1476" y="346" text-anchor="middle">answer</text>
+</svg>

@@ -121,10 +121,10 @@ def _query_seed_nodes(driver, question, keywords, limit_per_kw=3, max_total=4):
     MATCH (n:Knowledge)
     WITH n,
          CASE
-             WHEN toLower(n.name) = toLower($kw) THEN 4
-             WHEN toLower(n.name) CONTAINS toLower($kw) THEN 3
-             WHEN toLower(coalesce(n.desc, "")) CONTAINS toLower($kw) THEN 2
-             ELSE 0
+             WHEN toLower(n.name) = toLower($kw) THEN 1.0
+             WHEN toLower(n.name) CONTAINS toLower($kw) THEN 0.75
+             WHEN toLower(coalesce(n.desc, "")) CONTAINS toLower($kw) THEN 0.5
+             ELSE 0.0
          END AS match_score
     WHERE match_score > 0
     RETURN n.name AS name, coalesce(n.desc, "无描述") AS `desc`, match_score
@@ -135,13 +135,13 @@ def _query_seed_nodes(driver, question, keywords, limit_per_kw=3, max_total=4):
         for keyword in keywords:
             for record in session.run(query, kw=keyword, lim=limit_per_kw):
                 match_score = float(record["match_score"])
-                match_type = "exact_name" if match_score >= 4 else "name_contains" if match_score >= 3 else "desc_match"
+                match_type = "exact_name" if match_score >= 1.0 else "name_contains" if match_score >= 0.75 else "desc_match"
                 seeds.append(
                     {
                         "name": record["name"],
                         "desc": record["desc"],
                         "keyword": keyword,
-                        "match_score": match_score / 4.0,
+                        "match_score": match_score,
                         "match_type": match_type,
                     }
                 )
@@ -178,10 +178,10 @@ def _query_subgraph_nodes(driver, question, keywords, seeds, max_nodes=18):
     keyword_query = """
     MATCH (n:Knowledge)
     WITH n, CASE
-             WHEN any(kw IN $keywords WHERE toLower(n.name) = toLower(kw)) THEN 4
-             WHEN any(kw IN $keywords WHERE toLower(n.name) CONTAINS toLower(kw)) THEN 3
-             WHEN any(kw IN $keywords WHERE toLower(coalesce(n.desc, "")) CONTAINS toLower(kw)) THEN 2
-             ELSE 0 END AS match_score
+             WHEN any(kw IN $keywords WHERE toLower(n.name) = toLower(kw)) THEN 1.0
+             WHEN any(kw IN $keywords WHERE toLower(n.name) CONTAINS toLower(kw)) THEN 0.75
+             WHEN any(kw IN $keywords WHERE toLower(coalesce(n.desc, "")) CONTAINS toLower(kw)) THEN 0.5
+             ELSE 0.0 END AS match_score
     WHERE match_score > 0
     RETURN n.name AS name, coalesce(n.desc, "无描述") AS desc, match_score
     ORDER BY match_score DESC, n.name ASC LIMIT $lim
@@ -198,7 +198,7 @@ def _query_subgraph_nodes(driver, question, keywords, seeds, max_nodes=18):
         for record in session.run(keyword_query, keywords=keywords, lim=max(max_nodes * 2, 20)):
             name = record["name"]
             desc = record["desc"]
-            score = 0.6 * (float(record["match_score"]) / 4.0) + 0.4 * _token_overlap_score(question, f"{name} {desc}")
+            score = 0.6 * float(record["match_score"]) + 0.4 * _token_overlap_score(question, f"{name} {desc}")
             if name not in nodes or score > nodes[name]["score"]:
                 nodes[name] = {"name": name, "desc": desc, "score": score, "source": "keyword"}
 
