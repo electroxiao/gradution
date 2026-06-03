@@ -114,6 +114,122 @@ def _query_dependency_chain_evidence(driver, keyword):
     return chains
 
 
+def _format_neighborhood_path(path_nodes, relations):
+    if not path_nodes:
+        return ""
+    parts = [path_nodes[0].get("name", "未知节点")]
+    for index, relation in enumerate(relations):
+        target = path_nodes[index + 1].get("name", "未知节点") if index + 1 < len(path_nodes) else "未知节点"
+        parts.append(f"-> ({relation or 'RELATED'}) -> {target}")
+    return " ".join(parts)
+
+
+def _query_keyword_neighborhood(driver, keywords, max_depth=2, max_seed_nodes=60, max_related_nodes=120, max_paths=120):
+    fn_started_at = _now()
+    keywords = [str(keyword).strip() for keyword in keywords or [] if str(keyword).strip()]
+    if not keywords:
+        return []
+
+    depth = max(1, min(int(max_depth or 2), 3))
+    seed_query = """
+    WITH $keywords AS keywords
+    MATCH (seed:Knowledge)
+    WHERE any(kw IN keywords WHERE toLower(seed.name) CONTAINS toLower(kw))
+    RETURN DISTINCT seed.name AS seed,
+           coalesce(seed.desc, "无描述") AS seed_desc
+    ORDER BY seed.name
+    """
+    node_query = f"""
+    UNWIND $seed_names AS seed_name
+    MATCH (seed:Knowledge {{name: seed_name}})
+    MATCH (seed)-[:DEPENDS_ON*0..{depth}]-(node:Knowledge)
+    RETURN DISTINCT node.name AS name,
+           coalesce(node.desc, "无描述") AS desc
+    ORDER BY node.name
+    """
+    edge_query = """
+    UNWIND $node_names AS node_name
+    MATCH (src:Knowledge {name: node_name})-[r:DEPENDS_ON]-(nbr:Knowledge)
+    WHERE nbr.name IN $node_names
+      AND (src.name IN $seed_names OR nbr.name IN $seed_names)
+    RETURN src.name AS seed,
+           src.name AS source,
+           coalesce(src.desc, "无描述") AS source_desc,
+           type(r) AS relation,
+           CASE WHEN startNode(r) = src THEN "out" ELSE "in" END AS direction,
+           nbr.name AS target,
+           coalesce(nbr.desc, "无描述") AS target_desc
+    """
+
+    seed_facts = {}
+    related_nodes = {}
+    path_facts = []
+    keyword_label = ", ".join(keywords)
+
+    with driver.session(database=DB_NAME) as session:
+        for record in session.run(seed_query, keywords=keywords):
+            seed_name = record["seed"]
+            seed_desc = record["seed_desc"]
+            seed_facts[seed_name] = {
+                "type": "seed",
+                "seed": seed_name,
+                "keyword": keyword_label,
+                "desc": seed_desc,
+                "score": 1.0,
+                "match_type": "keyword_match",
+            }
+
+        seed_names = list(seed_facts.keys())[:max_seed_nodes]
+        if len(seed_facts) > max_seed_nodes:
+            seed_facts = {name: seed_facts[name] for name in seed_names}
+        if not seed_names:
+            _log_timing("_query_keyword_neighborhood", fn_started_at, f"keywords={len(keywords)} seeds=0")
+            return []
+
+        node_names = []
+        for record in session.run(node_query, seed_names=seed_names):
+            name = record["name"]
+            node_names.append(name)
+            if name not in seed_facts and len(related_nodes) < max_related_nodes:
+                related_nodes[name] = {
+                    "type": "related_node",
+                    "name": name,
+                    "desc": record["desc"],
+                }
+
+        for record in session.run(edge_query, node_names=node_names, seed_names=seed_names):
+            if record["source"] not in seed_facts and record["target"] not in seed_facts:
+                continue
+            if len(path_facts) >= max_paths:
+                break
+            path_text = _format_path_text([record])
+            path_facts.append(
+                {
+                    "type": "path",
+                    "seed": record.get("seed", record["source"]),
+                    "hop": 1,
+                    "source": record["source"],
+                    "relation": record["relation"],
+                    "direction": record["direction"],
+                    "target": record["target"],
+                    "target_desc": record["target_desc"],
+                    "score": 1.0,
+                    "path_text": path_text,
+                }
+            )
+
+    result = []
+    result.extend(seed_facts.values())
+    result.extend(related_nodes.values())
+    result.extend(_dedupe_dicts(path_facts, ("seed", "path_text", "target")))
+    _log_timing(
+        "_query_keyword_neighborhood",
+        fn_started_at,
+        f"keywords={len(keywords)} seeds={len(seed_facts)} related={len(related_nodes)} paths={len(path_facts)}",
+    )
+    return result
+
+
 def _query_seed_nodes(driver, question, keywords, limit_per_kw=3, max_total=4):
     fn_started_at = _now()
     seeds = []
@@ -364,13 +480,13 @@ def _select_paths_from_subgraph(client, question, candidate_paths, top_k=3):
 
 def query_graph_with_reasoning(driver, client, question, keywords=None, max_depth=2, width=3, reasoning_trace=None, retrieval_trace=None):
     fn_started_at = _now()
-    print("\n[Step 2] 正在检索图谱依赖链并分析子图...")
+    print("\n[Step 2] 正在按关键词检索两跳知识子图...")
 
     if keywords is None:
         keywords = extract_keywords_with_llm(client, question, history=[], trace=reasoning_trace)
     if not keywords:
         keywords = [question]
-    keywords = _normalize_keywords(question, keywords, limit=max(3, width))
+    keywords = _normalize_keywords(question, keywords, limit=max(len(keywords), max(8, width)))
     _append_trace(
         reasoning_trace,
         "reasoning",
@@ -380,105 +496,45 @@ def query_graph_with_reasoning(driver, client, question, keywords=None, max_dept
         stage="keyword_normalization",
     )
 
-    evidence = []
-    seeds = _query_seed_nodes(driver, question, keywords, limit_per_kw=max(2, width), max_total=max(2, min(width, 3)))
-    if not seeds:
+    evidence = _query_keyword_neighborhood(driver, keywords, max_depth=max_depth)
+    seed_count = len([fact for fact in evidence if isinstance(fact, dict) and fact.get("type") == "seed"])
+    related_count = len([fact for fact in evidence if isinstance(fact, dict) and fact.get("type") == "related_node"])
+    path_count = len([fact for fact in evidence if isinstance(fact, dict) and fact.get("type") == "path"])
+
+    if not seed_count:
         _log_timing("query_graph_with_reasoning.total", fn_started_at, "no_seeds")
-        _append_trace(retrieval_trace, "retrieval", "种子召回", "未召回到可用种子节点", stage="seed_recall")
+        _append_trace(retrieval_trace, "retrieval", "两跳子图检索", "未召回到可用知识点节点", stage="keyword_neighborhood")
         return []
-
-    for seed in seeds[:width]:
-        evidence.append(
-            {
-                "type": "seed",
-                "seed": seed["name"],
-                "keyword": seed["keyword"],
-                "desc": seed["desc"],
-                "score": seed["match_score"],
-                "match_type": seed["match_type"],
-            }
-        )
-
-    subgraph_nodes = _query_subgraph_nodes(driver, question, keywords, seeds, max_nodes=max(width * max_depth * 3, 12))
-    node_map = {node["name"]: node for node in subgraph_nodes}
-    subgraph_edges = _query_edges_between_nodes(driver, list(node_map.keys()))
-    candidate_paths = _enumerate_subgraph_paths(
-        [seed["name"] for seed in seeds[:width]],
-        subgraph_edges,
-        node_map,
-        max_depth=max_depth,
-        max_paths=max(width * 8, 16),
-    )
-    selected_paths = _select_paths_from_subgraph(client, question, candidate_paths, top_k=1)
-
-    selected_path_fact = None
-    selected_path_dependency_chains = []
-    for path in selected_paths:
-        last_row = path["path"][-1] if path["path"] else None
-        if not last_row:
-            continue
-        selected_path_fact = {
-            "type": "selected_path",
-            "seed": path["seed"],
-            "hop": len(path["path"]),
-            "source": last_row["source"],
-            "relation": last_row["relation"],
-            "direction": last_row["direction"],
-            "target": last_row["target"],
-            "target_desc": last_row["target_desc"],
-            "score": path.get("llm_score", path.get("score", 0.0)),
-            "path_text": path["path_text"],
-            "reason": path.get("selection_reason", ""),
-        }
-        evidence.append(selected_path_fact)
-        evidence.append(
-            {
-                "type": "path",
-                "seed": path["seed"],
-                "hop": len(path["path"]),
-                "source": last_row["source"],
-                "relation": last_row["relation"],
-                "direction": last_row["direction"],
-                "target": last_row["target"],
-                "target_desc": last_row["target_desc"],
-                "score": path.get("llm_score", path.get("score", 0.0)),
-                "path_text": path["path_text"],
-            }
-        )
-        for chain in _query_dependency_chain_evidence(driver, last_row["target"]):
-            selected_path_dependency_chains.append(chain)
-            evidence.append(chain)
-
-    if selected_path_fact:
-        evidence.append(
-            {
-                "type": "weak_point",
-                "node_name": selected_path_fact["target"],
-                "reason": "该节点位于已选图谱路径末端，可作为本轮问题暴露出的重点概念。",
-            }
-        )
 
     evidence.append(
         {
             "type": "summary",
-            "text": f"subgraph_nodes={len(subgraph_nodes)}, subgraph_edges={len(subgraph_edges)}, candidate_paths={len(candidate_paths)}, selected_paths={len(selected_paths)}",
+            "text": f"keywords={len(keywords)}, seed_nodes={seed_count}, related_nodes={related_count}, paths={path_count}, max_depth={max_depth}",
         }
+    )
+    _append_trace(
+        retrieval_trace,
+        "retrieval",
+        "两跳子图检索",
+        f"命中 {seed_count} 个知识点，扩展 {related_count} 个相关节点，得到 {path_count} 条两跳内路径",
+        details=keywords,
+        stage="keyword_neighborhood",
     )
     _append_trace(
         reasoning_trace,
         "reasoning",
-        "子图路径推理",
-        "先召回相关子图，再由大模型一次性选择最优路径",
+        "关键词驱动子图检索",
+        "根据关键词命中知识点，并提取命中节点两跳范围内的局部子图",
         details=[
-            f"nodes={len(subgraph_nodes)}",
-            f"edges={len(subgraph_edges)}",
-            f"candidate_paths={len(candidate_paths)}",
-            f"selected_paths={len(selected_paths)}",
+            f"seed_nodes={seed_count}",
+            f"related_nodes={related_count}",
+            f"paths={path_count}",
+            f"max_depth={max_depth}",
         ],
-        stage="subgraph_reasoning",
+        stage="keyword_neighborhood",
     )
 
-    result = _dedupe_dicts(evidence, ("type", "path_text", "seed", "target", "text", "node_name"))
+    result = _dedupe_dicts(evidence, ("type", "path_text", "seed", "target", "text", "name"))
     _log_timing("query_graph_with_reasoning.total", fn_started_at, f"facts={len(result)}")
     return result
 
@@ -501,7 +557,7 @@ def ask_deepseek_stream(client, user_input, context_knowledge, history=None):
         path_instruction = f"你必须优先围绕这条已选路径来解释问题：{selected_path_fact.get('path_text', '')}。这条路径被选中的原因是：{selected_path_fact.get('reason', '未提供')}。"
     else:
         knowledge_text = build_knowledge_text(context_knowledge)
-        path_instruction = "如果存在多条证据，请优先围绕最能解释根因的那条路径组织回答。"
+        path_instruction = "请综合命中的知识点、相关节点和两跳内关系来组织回答，优先解释与学生问题最直接相关的概念。"
 
     system_prompt = f"""
 你是一名 Java 智能辅导员。你的目标是通过根因分析引导学生理解问题。

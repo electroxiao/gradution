@@ -72,12 +72,23 @@ FILL_BLANK_EDGE_SUBMISSIONS = {
         {"suffix": "C", "answer": "keySet()", "expected_status": "accepted", "label": "edge_correct"},
         {"suffix": "D", "answer": "keys", "expected_status": "wrong_answer", "label": "edge_wrong"},
     ],
+    "FB-008": [
+        {"suffix": "C", "answer": "受检", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "编译时", "expected_status": "accepted", "label": "edge_correct"},
+    ],
     "FB-010": [
         {"suffix": "C", "answer": "参数列表", "expected_status": "accepted", "label": "edge_correct"},
         {"suffix": "D", "answer": "返回值和参数列表", "expected_status": "wrong_answer", "label": "edge_wrong"},
     ],
+    "FB-011": [
+        {"suffix": "C", "answer": "原始", "expected_status": "wrong_answer", "label": "edge_wrong"},
+    ],
     "FB-014": [
         {"suffix": "C", "answer": "Int()", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "nextInt", "expected_status": "wrong_answer", "label": "edge_wrong"},
+    ],
+    "FB-015": [
+        {"suffix": "C", "answer": "FileInputStream", "expected_status": "wrong_answer", "label": "edge_wrong"},
     ],
     "FB-016": [
         {"suffix": "C", "answer": "start()", "expected_status": "accepted", "label": "edge_correct"},

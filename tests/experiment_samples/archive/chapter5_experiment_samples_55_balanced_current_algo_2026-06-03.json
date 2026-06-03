@@ -21,35 +21,37 @@
   "rag_retrieval": [
     {
       "id": "RAG-001",
-      "question": "为什么数组下标从 0 开始，遍历时写 i <= arr.length 会报错？",
+      "question": "这段代码为什么最后一次循环会报错？\n```java\nint[] scores = {90, 80, 70};\nfor (int i = 0; i <= scores.length; i++) {\n    System.out.println(scores[i]);\n}\n```",
       "expected_nodes": [
+        "数组下标",
         "数组长度"
       ]
     },
     {
       "id": "RAG-002",
-      "question": "ArrayList 删除元素时为什么普通 for 循环会跳过一些元素？",
+      "question": "我先用 nextInt() 读年龄，再用 nextLine() 读姓名，结果姓名变成空字符串，这通常是哪一步输入处理出了问题？",
       "expected_nodes": [
-        "ArrayList"
+        "Scanner类使用"
       ]
     },
     {
       "id": "RAG-003",
-      "question": "String 拼接很多次为什么建议使用 StringJoiner 或其他方式？",
+      "question": "循环里反复写 `s = s + word`，数据一多就变慢。为什么字符串看起来被改了，实际却会产生很多新对象？",
       "expected_nodes": [
-        "StringJoiner"
+        "String不可变性"
       ]
     },
     {
       "id": "RAG-004",
-      "question": "HashMap 里 key 重复时 value 会发生什么变化？",
+      "question": "下面代码想删除所有偶数，但运行后有些元素被跳过了，应该从哪类集合遍历问题理解？\n```java\nArrayList<Integer> nums = new ArrayList<>(List.of(1, 2, 4, 6));\nfor (int i = 0; i < nums.size(); i++) {\n    if (nums.get(i) % 2 == 0) nums.remove(i);\n}\n```",
       "expected_nodes": [
-        "HashMap"
+        "ArrayList",
+        "循环"
       ]
     },
     {
       "id": "RAG-005",
-      "question": "为什么重写 equals 方法时还要关注 == 操作符的区别？",
+      "question": "登录时两个用户名内容一样，但用 `==` 判断失败；我不确定该比较对象地址还是内容，应该复习哪些概念？",
       "expected_nodes": [
         "equals方法",
         "==操作符"
@@ -57,153 +59,397 @@
     },
     {
       "id": "RAG-006",
-      "question": "Checked Exception 和 RuntimeException 有什么区别，什么时候必须 throws？",
+      "question": "字段设成 private 后，外部代码不能直接改 `student.name`，一般为什么要配 getter 和 setter？",
       "expected_nodes": [
-        "Checked Exception",
-        "RuntimeException"
+        "private",
+        "封装(Encapsulation)"
       ]
     },
     {
       "id": "RAG-007",
-      "question": "try-catch-finally 中 finally 一定会执行吗？它适合做什么？",
+      "question": "构造方法里写 `this.name = name`，两个 name 看起来一样，`this` 到底在帮我区分什么？",
       "expected_nodes": [
-        "finally"
+        "this",
+        "字段(Field)"
       ]
     },
     {
       "id": "RAG-008",
-      "question": "接口默认方法和接口静态方法分别怎么调用？",
+      "question": "这段代码里变量类型是 Animal，实际对象是 Dog，运行时为什么调用的是 Dog 的 speak？\n```java\nAnimal a = new Dog();\na.speak();\n```",
       "expected_nodes": [
-        "接口默认方法(default)",
-        "接口静态方法"
+        "多态(Polymorphism)",
+        "子类(Subclass)"
       ]
     },
     {
       "id": "RAG-009",
-      "question": "泛型为什么不能写 List<int>，只能写 List<Integer>？",
-      "expected_nodes": [
-        "泛型不能用基本类型"
-      ]
-    },
-    {
-      "id": "RAG-010",
-      "question": "方法重载到底看返回值还是参数列表？",
-      "expected_nodes": [
-        "方法重载(Overload)"
-      ]
-    },
-    {
-      "id": "RAG-011",
-      "question": "多态中父类引用指向子类对象时，调用的是哪个方法？",
-      "expected_nodes": [
-        "多态(Polymorphism)"
-      ]
-    },
-    {
-      "id": "RAG-012",
-      "question": "抽象类和接口都不能直接实例化，它们的区别是什么？",
+      "question": "抽象类和接口都不能直接 new，它们在定义规范和复用代码时有什么区别？",
       "expected_nodes": [
         "抽象类(Abstract Class)",
         "接口(Interface)"
       ]
     },
     {
-      "id": "RAG-013",
-      "question": "Scanner 读取整数后再读取字符串为什么会读到空行？",
+      "id": "RAG-012",
+      "question": "运行 `int avg = sum / count;` 时 count 为 0，程序直接中断，这属于哪类异常，为什么编译器之前没有强制我处理？",
       "expected_nodes": [
-        "Scanner类使用"
+        "ArithmeticException",
+        "RuntimeException"
+      ]
+    },
+    {
+      "id": "RAG-013",
+      "question": "读取文件时 IDE 提示必须 catch 或 throws，我只是 new 了一个 FileInputStream，为什么这类错误和运行时异常不一样？",
+      "expected_nodes": [
+        "FileInputStream",
+        "Checked Exception"
       ]
     },
     {
       "id": "RAG-014",
-      "question": "用 FileInputStream 读文件时为什么需要处理 IOException？",
+      "question": "我在 catch 里 return 了，finally 里又关闭资源甚至抛异常，最终结果和我预期不一样；应该怎么看 finally 的执行和异常覆盖？",
       "expected_nodes": [
-        "IOException"
+        "finally",
+        "异常屏蔽(Suppressed Exception)"
       ]
     },
     {
       "id": "RAG-015",
-      "question": "Buffered 或 FilterInputStream 属于什么设计思想？",
+      "question": "多个 catch 放在一起时，为什么 `catch (Exception e)` 不能写在 `catch (IOException e)` 前面？",
       "expected_nodes": [
-        "Filter模式(装饰器模式)"
-      ]
-    },
-    {
-      "id": "RAG-016",
-      "question": "Thread 和 Runnable 的关系是什么，为什么 Runnable 不能直接 start？",
-      "expected_nodes": [
-        "Thread类",
-        "Runnable接口"
+        "异常类型匹配",
+        "多catch语句"
       ]
     },
     {
       "id": "RAG-017",
-      "question": "synchronized 为什么可以保护共享变量？",
+      "question": "这段代码为什么会空指针？我只是想取用户名长度。\n```java\nUser user = findUser(id);\nSystem.out.println(user.getName().length());\n```",
       "expected_nodes": [
-        "synchronized"
+        "NullPointerException(NPE)",
+        "空指针(null pointer)"
       ]
     },
     {
       "id": "RAG-018",
-      "question": "LocalDateTime 和 ZonedDateTime 处理时区有什么区别？",
-      "expected_nodes": [
-        "LocalDateTime",
-        "ZonedDateTime"
-      ]
-    },
-    {
-      "id": "RAG-019",
-      "question": "BigDecimal 为什么适合做金额计算，和浮点数有什么不同？",
-      "expected_nodes": [
-        "BigDecimal",
-        "浮点数类型"
-      ]
-    },
-    {
-      "id": "RAG-020",
-      "question": "反射中 Class.forName 和 obj.getClass 有什么区别？",
-      "expected_nodes": [
-        "Class.forName()",
-        "obj.getClass()"
-      ]
-    },
-    {
-      "id": "RAG-021",
-      "question": "运行期注解为什么要设置 RetentionPolicy.RUNTIME？",
-      "expected_nodes": [
-        "RetentionPolicy",
-        "运行期注解(Runtime Annotation)"
-      ]
-    },
-    {
-      "id": "RAG-022",
-      "question": "JUnit 的 @BeforeEach 和 @AfterEach 适合放什么逻辑？",
-      "expected_nodes": [
-        "@BeforeEach",
-        "@AfterEach"
-      ]
-    },
-    {
-      "id": "RAG-023",
-      "question": "PreparedStatement 为什么比 SQL 字符串拼接更安全？",
+      "question": "用户输入用户名和密码后直接拼到 SQL 里能查出结果，但老师说这样很危险，为什么要换成 PreparedStatement？",
       "expected_nodes": [
         "PreparedStatement",
         "SQL字符串拼接"
       ]
     },
     {
-      "id": "RAG-024",
-      "question": "PriorityQueue 为什么常被说成用堆实现？",
+      "id": "RAG-020",
+      "question": "我实现了 Runnable 的 run 方法，但对象上没有 start 方法；为什么还需要把任务交给 Thread？",
       "expected_nodes": [
-        "PriorityQueue堆(Heap)"
+        "Runnable接口",
+        "Thread类"
+      ]
+    },
+    {
+      "id": "RAG-021",
+      "question": "两个线程同时执行 `count++`，最后结果总是偏小；为什么给这段代码加 synchronized 后会好一些？",
+      "expected_nodes": [
+        "synchronized",
+        "共享资源(Shared Resource)"
       ]
     },
     {
       "id": "RAG-025",
-      "question": "正则表达式里的分组和重复匹配分别解决什么问题？",
+      "question": "循环统计成绩时，遇到无效数据我只想跳过本次，不想结束整个循环；这里应该用 continue 还是 break？",
       "expected_nodes": [
-        "分组匹配(group match)",
-        "重复匹配(repetition match)"
+        "continue语句",
+        "循环"
+      ]
+    },
+    {
+      "id": "RAG-026",
+      "question": "一个类里写了两个同名构造方法，一个无参、一个带 name 参数。创建对象时 Java 怎么知道该调用哪个？",
+      "expected_nodes": [
+        "构造方法(Constructor)",
+        "构造方法重载"
+      ]
+    },
+    {
+      "id": "RAG-027",
+      "question": "我创建了两个 Student 对象，但 static count 只有一份；为什么它不像普通字段那样每个对象各有一份？",
+      "expected_nodes": [
+        "静态字段(Static Field)",
+        "实例(Instance)"
+      ]
+    },
+    {
+      "id": "RAG-028",
+      "question": "子类里重写了父类方法，又在方法里调用 `super.run()`，这段代码同时涉及继承里的哪些概念？",
+      "expected_nodes": [
+        "继承(Inheritance)",
+        "覆写/重写(Override)"
+      ]
+    },
+    {
+      "id": "RAG-029",
+      "question": "同一个包里的类能访问默认成员，但换到另一个包就不行；public、protected、private 和默认权限到底差在哪？",
+      "expected_nodes": [
+        "访问权限",
+        "包可见性(默认)"
+      ]
+    },
+    {
+      "id": "RAG-030",
+      "question": "内部类要访问外部类对象，而 static nested class 不需要外部对象；这两种写法应该怎么区分？",
+      "expected_nodes": [
+        "内部类(Inner Class)",
+        "静态内部类(Static Nested Class)"
+      ]
+    },
+    {
+      "id": "RAG-031",
+      "question": "泛型里为什么不能直接创建 `new T[10]`？如果我只是想保存一组 T，应该复习泛型数组的什么限制？",
+      "expected_nodes": [
+        "泛型数组",
+        "引用类型"
+      ]
+    },
+    {
+      "id": "RAG-033",
+      "question": "`a + b > 10 && flag` 这种表达式里，先算加法还是比较？如果前半部分为 false，后半部分还会执行吗？",
+      "expected_nodes": [
+        "运算符优先级",
+        "逻辑运算符"
+      ]
+    },
+    {
+      "id": "RAG-034",
+      "question": "金额用 double 计算后出现 0.30000000000000004，这不是输出格式问题的话，应该从哪类数据类型理解？",
+      "expected_nodes": [
+        "浮点数类型",
+        "BigDecimal"
+      ]
+    },
+    {
+      "id": "RAG-035",
+      "question": "这段代码为什么可能在拆箱时报空指针？\n```java\nInteger score = null;\nint value = score;\n```",
+      "expected_nodes": [
+        "自动拆箱(Auto Unboxing)",
+        "NullPointerException(NPE)"
+      ]
+    },
+    {
+      "id": "RAG-036",
+      "question": "业务校验失败时，我想抛出自己的 InvalidScoreException。自定义异常应该继承哪类异常，怎么决定是否强制调用者处理？",
+      "expected_nodes": [
+        "自定义异常",
+        "Checked Exception"
+      ]
+    },
+    {
+      "id": "RAG-037",
+      "question": "文件读完忘记 close，程序短时间没问题但运行久了出错；为什么资源关闭不应该只靠对象没人引用？",
+      "expected_nodes": [
+        "资源关闭(close)",
+        "资源泄露(Resource Leak)"
+      ]
+    },
+    {
+      "id": "RAG-038",
+      "question": "框架里传入一个类名字符串就能创建对象或读取注解，这通常和获取 Class 对象的哪些方式有关？",
+      "expected_nodes": [
+        "获取Class对象",
+        "Class.forName()"
+      ]
+    },
+    {
+      "id": "RAG-039",
+      "question": "代码开头写了 package 和 import，类名还必须符合命名规则；这些分别在解决什么组织和命名问题？",
+      "expected_nodes": [
+        "包(Package)",
+        "import"
+      ]
+    },
+    {
+      "id": "RAG-040",
+      "question": "一个方法声明成 void 却写了 `return count;`，另一个方法有 int 返回值却忘了返回；方法返回值规则该怎么理解？",
+      "expected_nodes": [
+        "返回值(Return)",
+        "方法(Method)"
+      ]
+    },
+    {
+      "id": "RAG-042",
+      "question": "同样做学生成绩管理，为什么面向对象会把数据和行为放到 Student、Course 这类对象里，而不是只写一串函数？",
+      "expected_nodes": [
+        "面向对象编程(OOP)",
+        "面向过程编程"
+      ]
+    },
+    {
+      "id": "RAG-043",
+      "question": "查询用户列表要写 SELECT，新增和修改又是另一类 SQL；如果我要理解增删改查，应该看哪些数据库基础节点？",
+      "expected_nodes": [
+        "常用SQL语句",
+        "数据库基础概念"
+      ]
+    },
+    {
+      "id": "RAG-044",
+      "question": "线程有时显示 RUNNABLE，有时又因为等锁或等 IO 停住；这些状态变化和阻塞、锁有什么关系？",
+      "expected_nodes": [
+        "线程的状态",
+        "阻塞(Blocking)"
+      ]
+    },
+    {
+      "id": "RAG-045",
+      "question": "多个对象共用一个 static 缓存字段，其中一个对象改了，其他地方也看到变化；这和静态成员归属有什么关系？",
+      "expected_nodes": [
+        "静态成员",
+        "共享资源(Shared Resource)"
+      ]
+    },
+    {
+      "id": "RAG-046",
+      "question": "我只知道要存一组对象，但不确定用 List、Set 还是更泛化的 Collection；这些集合接口的层次该怎么入手？",
+      "expected_nodes": [
+        "集合(Collection)",
+        "List"
+      ]
+    },
+    {
+      "id": "RAG-047",
+      "question": "二维数组初始化后，我想逐行遍历并排序每一行；这里同时涉及数组的哪些基础操作？",
+      "expected_nodes": [
+        "多维数组",
+        "数组初始化"
+      ]
+    },
+    {
+      "id": "RAG-048",
+      "question": "两个方法都叫 print，一个接收 String，一个接收 int；为什么返回值不同不能单独构成重载？",
+      "expected_nodes": [
+        "方法重载(Overload)",
+        "方法签名"
+      ]
+    },
+    {
+      "id": "RAG-049",
+      "question": "`if (age > 18 && hasId)` 里结果为什么是 true 或 false？比较运算和布尔逻辑在条件判断里分别负责什么？",
+      "expected_nodes": [
+        "比较运算符",
+        "布尔类型"
+      ]
+    },
+    {
+      "id": "RAG-050",
+      "question": "订单金额用 `0.1 + 0.2` 计算后结果不是精确的 `0.3`，这类小数计算应该关联哪些知识点？",
+      "expected_nodes": [
+        "浮点数类型"
+      ]
+    },
+    {
+      "id": "RAG-051",
+      "question": "一个线程往队列里放数据，另一个线程取数据；队列为空时取数据的一方应该先等待，有数据后再继续，这涉及哪些线程协作知识？",
+      "expected_nodes": [
+        "条件等待与通知(wait/notify)",
+        "共享资源(Shared Resource)"
+      ]
+    },
+    {
+      "id": "RAG-052",
+      "question": "方法参数叫 `name`，对象里也有一个 `name`，赋值时怎样区分当前对象自己的字段？",
+      "expected_nodes": [
+        "this",
+        "字段(Field)"
+      ]
+    },
+    {
+      "id": "RAG-053",
+      "question": "父类型变量保存了子类型对象，运行时调用结果却按子类型的方法执行，这和哪些面向对象知识有关？",
+      "expected_nodes": [
+        "多态(Polymorphism)",
+        "子类(Subclass)"
+      ]
+    },
+    {
+      "id": "RAG-054",
+      "question": "一个类只规定方法长什么样，另一个类还保存了可复用的公共代码；这两种抽象方式该怎么区分？",
+      "expected_nodes": [
+        "抽象类(Abstract Class)",
+        "接口(Interface)"
+      ]
+    },
+    {
+      "id": "RAG-055",
+      "question": "用户名明明内容一样，判断结果却是 false。代码里比较的是对象位置还是文本内容？",
+      "expected_nodes": [
+        "equals方法",
+        "==操作符"
+      ]
+    },
+    {
+      "id": "RAG-056",
+      "question": "一个方法名字相同，但传入参数个数不同；编译器如何判断该执行哪一个版本？",
+      "expected_nodes": [
+        "方法重载(Overload)"
+      ]
+    },
+    {
+      "id": "RAG-057",
+      "question": "文件打开后没有关闭，短时间能跑，运行久了开始出问题；这和哪类资源管理知识有关？",
+      "expected_nodes": [
+        "资源关闭(close)",
+        "资源泄露(Resource Leak)"
+      ]
+    },
+    {
+      "id": "RAG-058",
+      "question": "多个对象都能看到同一个缓存值，其中一个地方改了，其他地方也跟着变，这和成员归属有什么关系？",
+      "expected_nodes": [
+        "静态成员",
+        "静态字段(Static Field)"
+      ]
+    },
+    {
+      "id": "RAG-059",
+      "question": "这段代码为什么会输出 `B` 里的内容？\n```java\nclass A { void show() { System.out.println(\"A\"); } }\nclass B extends A { void show() { System.out.println(\"B\"); } }\nA obj = new B();\nobj.show();\n```",
+      "expected_nodes": [
+        "多态(Polymorphism)",
+        "覆写/重写(Override)"
+      ]
+    },
+    {
+      "id": "RAG-060",
+      "question": "这段代码为什么编译不过？\n```java\nvoid print(int value) { }\nint print(int value) { return value; }\n```",
+      "expected_nodes": [
+        "方法重载(Overload)"
+      ]
+    },
+    {
+      "id": "RAG-061",
+      "question": "这段代码为什么可能直接报错？\n```java\nString name = null;\nSystem.out.println(name.length());\n```",
+      "expected_nodes": [
+        "NullPointerException(NPE)",
+        "空指针(null pointer)"
+      ]
+    },
+    {
+      "id": "RAG-062",
+      "question": "这段代码为什么 `finally` 里的内容仍然会执行？\n```java\ntry {\n    return 1;\n} catch (Exception e) {\n    return 2;\n} finally {\n    System.out.println(\"close\");\n}\n```",
+      "expected_nodes": [
+        "finally"
+      ]
+    },
+    {
+      "id": "RAG-063",
+      "question": "这段代码为什么第二个 `catch` 没有机会执行？\n```java\ntry {\n    readFile();\n} catch (Exception e) {\n    System.out.println(\"error\");\n} catch (IOException e) {\n    System.out.println(\"io\");\n}\n```",
+      "expected_nodes": [
+        "多catch语句",
+        "异常类型匹配"
+      ]
+    },
+    {
+      "id": "RAG-064",
+      "question": "这段代码运行后输入姓名的位置被跳过了，为什么程序没有等我输入第二行？\n```java\nint age = sc.nextInt();\nString name = sc.nextLine();\n```",
+      "expected_nodes": [
+        "Scanner类使用"
       ]
     }
   ],
@@ -440,18 +686,6 @@
             "answer": "Runtime",
             "expected_status": "wrong_answer",
             "label": "wrong"
-          },
-          {
-            "id": "FB-008-C",
-            "answer": "受检",
-            "expected_status": "accepted",
-            "label": "edge_correct"
-          },
-          {
-            "id": "FB-008-D",
-            "answer": "编译时",
-            "expected_status": "accepted",
-            "label": "edge_correct"
           }
         ]
       },
@@ -541,12 +775,6 @@
             "answer": "引用",
             "expected_status": "wrong_answer",
             "label": "wrong"
-          },
-          {
-            "id": "FB-011-C",
-            "answer": "原始",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
           }
         ]
       },
@@ -628,12 +856,6 @@
             "answer": "Int()",
             "expected_status": "accepted",
             "label": "edge_correct"
-          },
-          {
-            "id": "FB-014-D",
-            "answer": "nextInt",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
           }
         ]
       },
@@ -660,12 +882,6 @@
             "answer": "String",
             "expected_status": "wrong_answer",
             "label": "wrong"
-          },
-          {
-            "id": "FB-015-C",
-            "answer": "FileInputStream",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
           }
         ]
       },

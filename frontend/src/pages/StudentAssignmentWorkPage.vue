@@ -49,7 +49,12 @@
 
       <div class="resize-handle" @pointerdown="startProblemResize" />
 
-      <section v-if="activeQuestion" ref="editorPane" class="editor-pane" :class="{ 'has-result': lastResult }">
+      <section
+        v-if="activeQuestion"
+        ref="editorPane"
+        class="editor-pane"
+        :class="{ 'has-result': lastResult, 'has-late-note': isAssignmentOverdue }"
+      >
         <header class="editor-toolbar">
           <div>
             <h2>{{ answerPaneTitle }}</h2>
@@ -738,7 +743,7 @@ function startResultResize(event) {
   function handleMove(moveEvent) {
     const nextHeight = startHeight - (moveEvent.clientY - startY);
     const maxHeight = getMaxResultPaneHeight();
-    resultPaneHeight.value = Math.min(Math.max(nextHeight, 160), maxHeight);
+    resultPaneHeight.value = Math.min(Math.max(nextHeight, 220), maxHeight);
   }
 
   function handleUp() {
@@ -1021,7 +1026,11 @@ button:disabled {
 }
 
 .editor-pane.has-result {
-  grid-template-rows: auto auto minmax(0, 1fr) 8px minmax(160px, var(--result-pane-height, 50%));
+  grid-template-rows: auto minmax(0, 1fr) 8px minmax(220px, var(--result-pane-height, 50%));
+}
+
+.editor-pane.has-result.has-late-note {
+  grid-template-rows: auto auto minmax(0, 1fr) 8px minmax(220px, var(--result-pane-height, 50%));
 }
 
 .editor-toolbar,
@@ -1619,7 +1628,11 @@ textarea {
   }
 
   .editor-pane.has-result {
-    grid-template-rows: auto minmax(0, 1fr) 8px minmax(160px, var(--result-pane-height, 50%));
+    grid-template-rows: auto minmax(0, 1fr) 8px minmax(220px, var(--result-pane-height, 50%));
+  }
+
+  .editor-pane.has-result.has-late-note {
+    grid-template-rows: auto auto minmax(0, 1fr) 8px minmax(220px, var(--result-pane-height, 50%));
   }
 }
 

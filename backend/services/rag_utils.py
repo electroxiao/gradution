@@ -146,6 +146,8 @@ def format_fact_for_display(fact):
     fact_type = fact.get("type")
     if fact_type == "seed":
         return f"【种子实体】{fact.get('seed')} (match={fact.get('match_type', 'unknown')}, score={fact.get('score', 0):.2f}): {fact.get('desc', '无描述')}"
+    if fact_type == "related_node":
+        return f"【相关节点】{fact.get('name', '未知节点')}: {fact.get('desc', '无描述')}"
     if fact_type == "path":
         return f"【ToG路径 hop={fact.get('hop', '?')}】{fact.get('path_text', '')} (score={fact.get('score', 0):.2f}, relation={fact.get('relation_score', 0):.2f}, entity={fact.get('entity_score', 0):.2f})"
     if fact_type == "selected_path":
