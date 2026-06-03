@@ -212,58 +212,82 @@
       {
         "id": "FB-001",
         "question_type": "fill_blank",
-        "title": "Java 数组的第一个元素下标是 填空。",
-        "prompt": "Java 数组的第一个元素下标是 ____。",
-        "answer": "0",
-        "explanation": "考查数组下标从 0 开始。",
+        "title": "HashMap 中 key 重复时，新的 value 会填空旧的 value。",
+        "prompt": "HashMap 中 key 重复时，新的 value 会____旧的 value。",
+        "answer": "覆盖",
+        "explanation": "HashMap 的同一 key 只能关联一个当前 value。",
         "expected_nodes": [
-          "数组下标"
+          "HashMap"
         ],
         "submissions": [
           {
             "id": "FB-001-A",
-            "answer": "0",
+            "answer": "覆盖",
             "expected_status": "accepted",
             "label": "correct"
           },
           {
             "id": "FB-001-B",
-            "answer": "1",
+            "answer": "追加",
             "expected_status": "wrong_answer",
             "label": "wrong"
+          },
+          {
+            "id": "FB-001-C",
+            "answer": "替换",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-001-D",
+            "answer": "保留",
+            "expected_status": "wrong_answer",
+            "label": "edge_wrong"
           }
         ]
       },
       {
         "id": "FB-002",
         "question_type": "fill_blank",
-        "title": "获取数组 arr 长度的表达式是 arr.填空。",
-        "prompt": "获取数组 arr 长度的表达式是 arr.____。",
-        "answer": "length",
-        "explanation": "数组使用 length 属性表示长度。",
+        "title": "String 对象创建后内容不能被修改，这体现了 String 的填空。",
+        "prompt": "String 对象创建后内容不能被修改，这体现了 String 的____。",
+        "answer": "不可变性",
+        "explanation": "String 是不可变对象。",
         "expected_nodes": [
-          "数组长度"
+          "String不可变性"
         ],
         "submissions": [
           {
             "id": "FB-002-A",
-            "answer": "length",
+            "answer": "不可变性",
             "expected_status": "accepted",
             "label": "correct"
           },
           {
             "id": "FB-002-B",
-            "answer": "size()",
+            "answer": "可变性",
             "expected_status": "wrong_answer",
             "label": "wrong"
+          },
+          {
+            "id": "FB-002-C",
+            "answer": "不可变",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-002-D",
+            "answer": "immutable",
+            "expected_status": "accepted",
+            "label": "edge_correct"
           }
         ]
       },
       {
         "id": "FB-003",
         "question_type": "fill_blank",
-        "title": "用于比较两个字符串内容是否相同的方法是 填空。",
-        "prompt": "用于比较两个字符串内容是否相同的方法是 ____。",
+        "title": "Java 中比较字符串内容是否相同应使用填空方法。",
+        "prompt": "Java 中比较字符串内容是否相同应使用____方法。",
         "answer": "equals",
         "explanation": "字符串内容比较应使用 equals 方法。",
         "expected_nodes": [
@@ -291,7 +315,7 @@
           },
           {
             "id": "FB-003-D",
-            "answer": "== 或 equals 都可以",
+            "answer": "compareTo",
             "expected_status": "wrong_answer",
             "label": "edge_wrong"
           }
@@ -300,29 +324,41 @@
       {
         "id": "FB-004",
         "question_type": "fill_blank",
-        "title": "String 对象创建后内容不能被修改，这体现了 String 的填空。",
-        "prompt": "String 对象创建后内容不能被修改，这体现了 String 的____。",
-        "answer": "不可变性",
-        "explanation": "String 是不可变对象。",
+        "title": "Scanner 调用 nextInt() 后继续读取整行字符串时，常见问题是残留的填空会被读取。",
+        "prompt": "Scanner 调用 nextInt() 后继续读取整行字符串时，常见问题是残留的____会被读取。",
+        "answer": "换行符",
+        "explanation": "nextInt() 不会消费行尾换行符。",
         "expected_nodes": [
-          "String不可变性"
+          "Scanner类使用"
         ],
         "submissions": [
           {
             "id": "FB-004-A",
-            "answer": "不可变性",
+            "answer": "换行符",
             "expected_status": "accepted",
             "label": "correct"
           },
           {
             "id": "FB-004-B",
-            "answer": "可变性",
+            "answer": "空格",
             "expected_status": "wrong_answer",
             "label": "wrong"
           },
           {
             "id": "FB-004-C",
-            "answer": "不可变",
+            "answer": "回车",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-004-D",
+            "answer": "行尾换行",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-004-E",
+            "answer": "缓冲区残留",
             "expected_status": "accepted",
             "label": "edge_correct"
           }
@@ -331,494 +367,233 @@
       {
         "id": "FB-005",
         "question_type": "fill_blank",
-        "title": "ArrayList 获取指定位置元素的方法是 填空。",
-        "prompt": "ArrayList 获取指定位置元素的方法是 ____。",
-        "answer": "get",
-        "explanation": "ArrayList 通过 get(index) 获取元素。",
-        "expected_nodes": [
-          "ArrayList"
-        ],
-        "submissions": [
-          {
-            "id": "FB-005-A",
-            "answer": "get",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-005-B",
-            "answer": "put",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-006",
-        "question_type": "fill_blank",
-        "title": "HashMap 中用于获取所有键集合的方法是 填空。",
-        "prompt": "HashMap 中用于获取所有键集合的方法是 ____。",
-        "answer": "keySet",
-        "explanation": "keySet 返回键集合。",
-        "expected_nodes": [
-          "HashMap",
-          "keySet()"
-        ],
-        "submissions": [
-          {
-            "id": "FB-006-A",
-            "answer": "keySet",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-006-B",
-            "answer": "values",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          },
-          {
-            "id": "FB-006-C",
-            "answer": "keySet()",
-            "expected_status": "accepted",
-            "label": "edge_correct"
-          },
-          {
-            "id": "FB-006-D",
-            "answer": "keys",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-007",
-        "question_type": "fill_blank",
-        "title": "try-catch 后无论是否发生异常都通常会执行的代码块是 填空。",
-        "prompt": "try-catch 后无论是否发生异常都通常会执行的代码块是 ____。",
-        "answer": "finally",
-        "explanation": "finally 常用于资源清理。",
+        "title": "finally 代码块常用于释放文件、数据库连接等填空。",
+        "prompt": "finally 代码块常用于释放文件、数据库连接等____。",
+        "answer": "资源",
+        "explanation": "finally 常用于释放外部资源。",
         "expected_nodes": [
           "finally",
           "try-catch"
         ],
         "submissions": [
           {
+            "id": "FB-005-A",
+            "answer": "资源",
+            "expected_status": "accepted",
+            "label": "correct"
+          },
+          {
+            "id": "FB-005-B",
+            "answer": "变量",
+            "expected_status": "wrong_answer",
+            "label": "wrong"
+          },
+          {
+            "id": "FB-005-C",
+            "answer": "系统资源",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-005-D",
+            "answer": "外部资源",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          }
+        ]
+      },
+      {
+        "id": "FB-006",
+        "question_type": "fill_blank",
+        "title": "PreparedStatement 相比字符串拼接 SQL，主要可以降低填空风险。",
+        "prompt": "PreparedStatement 相比字符串拼接 SQL，主要可以降低____风险。",
+        "answer": "SQL注入",
+        "explanation": "PreparedStatement 通过参数绑定降低 SQL 注入风险。",
+        "expected_nodes": [
+          "PreparedStatement",
+          "SQL字符串拼接"
+        ],
+        "submissions": [
+          {
+            "id": "FB-006-A",
+            "answer": "SQL注入",
+            "expected_status": "accepted",
+            "label": "correct"
+          },
+          {
+            "id": "FB-006-B",
+            "answer": "空指针异常",
+            "expected_status": "wrong_answer",
+            "label": "wrong"
+          },
+          {
+            "id": "FB-006-C",
+            "answer": "注入攻击",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-006-D",
+            "answer": "SQL injection",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          }
+        ]
+      },
+      {
+        "id": "FB-007",
+        "question_type": "fill_blank",
+        "title": "重写 equals 方法后，通常还应同步重写填空方法。",
+        "prompt": "重写 equals 方法后，通常还应同步重写____方法。",
+        "answer": "hashCode",
+        "explanation": "equals 与 hashCode 需要保持一致性。",
+        "expected_nodes": [
+          "equals方法",
+          "hashCode方法"
+        ],
+        "submissions": [
+          {
             "id": "FB-007-A",
-            "answer": "finally",
+            "answer": "hashCode",
             "expected_status": "accepted",
             "label": "correct"
           },
           {
             "id": "FB-007-B",
-            "answer": "final",
+            "answer": "toString",
             "expected_status": "wrong_answer",
             "label": "wrong"
+          },
+          {
+            "id": "FB-007-C",
+            "answer": "hashCode()",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-007-D",
+            "answer": "clone",
+            "expected_status": "wrong_answer",
+            "label": "edge_wrong"
           }
         ]
       },
       {
         "id": "FB-008",
         "question_type": "fill_blank",
-        "title": "需要调用者显式处理或声明抛出的异常称为 填空 Exception。",
-        "prompt": "需要调用者显式处理或声明抛出的异常称为 ____ Exception。",
-        "answer": "Checked",
-        "explanation": "Checked Exception 需要处理或 throws。",
+        "title": "ArrayList 删除遍历中的元素时，普通正向 for 循环容易因为下标移动而填空元素。",
+        "prompt": "ArrayList 删除遍历中的元素时，普通正向 for 循环容易因为下标移动而____元素。",
+        "answer": "跳过",
+        "explanation": "删除元素后后续元素前移，正向遍历容易跳过检查。",
         "expected_nodes": [
-          "Checked Exception",
-          "throws"
+          "ArrayList"
         ],
         "submissions": [
           {
             "id": "FB-008-A",
-            "answer": "Checked",
+            "answer": "跳过",
             "expected_status": "accepted",
             "label": "correct"
           },
           {
             "id": "FB-008-B",
-            "answer": "Runtime",
+            "answer": "重复",
             "expected_status": "wrong_answer",
             "label": "wrong"
           },
           {
             "id": "FB-008-C",
-            "answer": "受检",
+            "answer": "漏掉",
             "expected_status": "accepted",
             "label": "edge_correct"
           },
           {
             "id": "FB-008-D",
-            "answer": "编译时",
+            "answer": "跳过检查",
             "expected_status": "accepted",
             "label": "edge_correct"
+          },
+          {
+            "id": "FB-008-E",
+            "answer": "漏删",
+            "expected_status": "wrong_answer",
+            "label": "edge_wrong"
           }
         ]
       },
       {
         "id": "FB-009",
         "question_type": "fill_blank",
-        "title": "类实现接口时使用的关键字是 填空。",
-        "prompt": "类实现接口时使用的关键字是 ____。",
-        "answer": "implements",
-        "explanation": "Java 使用 implements 实现接口。",
+        "title": "BigDecimal 表示金额时，使用字符串构造可以减少二进制填空带来的精度问题。",
+        "prompt": "BigDecimal 表示金额时，使用字符串构造可以减少二进制____带来的精度问题。",
+        "answer": "浮点数",
+        "explanation": "字符串构造能避免 double 二进制浮点误差进入 BigDecimal。",
         "expected_nodes": [
-          "接口(Interface)"
+          "BigDecimal",
+          "浮点数类型"
         ],
         "submissions": [
           {
             "id": "FB-009-A",
-            "answer": "implements",
+            "answer": "浮点数",
             "expected_status": "accepted",
             "label": "correct"
           },
           {
             "id": "FB-009-B",
-            "answer": "extends",
+            "answer": "整数",
             "expected_status": "wrong_answer",
             "label": "wrong"
+          },
+          {
+            "id": "FB-009-C",
+            "answer": "浮点",
+            "expected_status": "accepted",
+            "label": "edge_correct"
+          },
+          {
+            "id": "FB-009-D",
+            "answer": "小数",
+            "expected_status": "wrong_answer",
+            "label": "edge_wrong"
           }
         ]
       },
       {
         "id": "FB-010",
         "question_type": "fill_blank",
-        "title": "方法重载主要依据方法名和填空列表进行区分。",
-        "prompt": "方法重载主要依据方法名和____列表进行区分。",
-        "answer": "参数",
-        "explanation": "重载匹配依据参数列表。",
+        "title": "Runnable 描述线程要执行的任务，真正启动新线程需要交给填空对象。",
+        "prompt": "Runnable 描述线程要执行的任务，真正启动新线程需要交给____对象。",
+        "answer": "Thread",
+        "explanation": "Runnable 只描述任务，Thread 负责启动线程。",
         "expected_nodes": [
-          "方法重载(Overload)",
-          "参数(Parameter)"
+          "Runnable接口",
+          "Thread类"
         ],
         "submissions": [
           {
             "id": "FB-010-A",
-            "answer": "参数",
+            "answer": "Thread",
             "expected_status": "accepted",
             "label": "correct"
           },
           {
             "id": "FB-010-B",
-            "answer": "返回值",
+            "answer": "Scanner",
             "expected_status": "wrong_answer",
             "label": "wrong"
           },
           {
             "id": "FB-010-C",
-            "answer": "参数列表",
+            "answer": "Thread类",
             "expected_status": "accepted",
             "label": "edge_correct"
           },
           {
             "id": "FB-010-D",
-            "answer": "返回值和参数列表",
+            "answer": "Runnable",
             "expected_status": "wrong_answer",
             "label": "edge_wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-011",
-        "question_type": "fill_blank",
-        "title": "泛型类型参数不能直接使用 int 等填空类型。",
-        "prompt": "泛型类型参数不能直接使用 int 等____类型。",
-        "answer": "基本",
-        "explanation": "泛型不能直接使用基本类型。",
-        "expected_nodes": [
-          "泛型不能用基本类型",
-          "基本类型"
-        ],
-        "submissions": [
-          {
-            "id": "FB-011-A",
-            "answer": "基本",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-011-B",
-            "answer": "引用",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          },
-          {
-            "id": "FB-011-C",
-            "answer": "原始",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-012",
-        "question_type": "fill_blank",
-        "title": "创建当前日期对象常用 LocalDate.填空()。",
-        "prompt": "创建当前日期对象常用 LocalDate.____()。",
-        "answer": "now",
-        "explanation": "LocalDate.now() 获取当前日期。",
-        "expected_nodes": [
-          "LocalDate"
-        ],
-        "submissions": [
-          {
-            "id": "FB-012-A",
-            "answer": "now",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-012-B",
-            "answer": "today",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-013",
-        "question_type": "fill_blank",
-        "title": "金额精确计算通常优先使用 填空 类。",
-        "prompt": "金额精确计算通常优先使用 ____ 类。",
-        "answer": "BigDecimal",
-        "explanation": "BigDecimal 适合十进制精确计算。",
-        "expected_nodes": [
-          "BigDecimal"
-        ],
-        "submissions": [
-          {
-            "id": "FB-013-A",
-            "answer": "BigDecimal",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-013-B",
-            "answer": "double",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-014",
-        "question_type": "fill_blank",
-        "title": "Scanner 读取整数常用的方法是 next填空()。",
-        "prompt": "Scanner 读取整数常用的方法是 next____()。",
-        "answer": "Int",
-        "explanation": "nextInt() 用于读取整数。",
-        "expected_nodes": [
-          "Scanner类使用"
-        ],
-        "submissions": [
-          {
-            "id": "FB-014-A",
-            "answer": "Int",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-014-B",
-            "answer": "String",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          },
-          {
-            "id": "FB-014-C",
-            "answer": "Int()",
-            "expected_status": "accepted",
-            "label": "edge_correct"
-          },
-          {
-            "id": "FB-014-D",
-            "answer": "nextInt",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-015",
-        "question_type": "fill_blank",
-        "title": "按字节读取文件可以使用 填空InputStream。",
-        "prompt": "按字节读取文件可以使用 ____InputStream。",
-        "answer": "File",
-        "explanation": "FileInputStream 用于文件字节输入。",
-        "expected_nodes": [
-          "FileInputStream",
-          "字节流"
-        ],
-        "submissions": [
-          {
-            "id": "FB-015-A",
-            "answer": "File",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-015-B",
-            "answer": "String",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          },
-          {
-            "id": "FB-015-C",
-            "answer": "FileInputStream",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-016",
-        "question_type": "fill_blank",
-        "title": "启动线程应调用 Thread 对象的 填空() 方法。",
-        "prompt": "启动线程应调用 Thread 对象的 ____() 方法。",
-        "answer": "start",
-        "explanation": "start() 会启动新线程。",
-        "expected_nodes": [
-          "Thread类",
-          "多线程"
-        ],
-        "submissions": [
-          {
-            "id": "FB-016-A",
-            "answer": "start",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-016-B",
-            "answer": "run",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          },
-          {
-            "id": "FB-016-C",
-            "answer": "start()",
-            "expected_status": "accepted",
-            "label": "edge_correct"
-          },
-          {
-            "id": "FB-016-D",
-            "answer": "run()",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-017",
-        "question_type": "fill_blank",
-        "title": "Runnable 表示线程要执行的填空，本身不能直接启动线程。",
-        "prompt": "Runnable 表示线程要执行的____，本身不能直接启动线程。",
-        "answer": "任务",
-        "explanation": "Runnable 只描述任务。",
-        "expected_nodes": [
-          "Runnable接口"
-        ],
-        "submissions": [
-          {
-            "id": "FB-017-A",
-            "answer": "任务",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-017-B",
-            "answer": "线程",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-018",
-        "question_type": "fill_blank",
-        "title": "HashSet 通常不保存重复填空。",
-        "prompt": "HashSet 通常不保存重复____。",
-        "answer": "元素",
-        "explanation": "Set 语义是不重复集合。",
-        "expected_nodes": [
-          "HashSet",
-          "Set"
-        ],
-        "submissions": [
-          {
-            "id": "FB-018-A",
-            "answer": "元素",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-018-B",
-            "answer": "键值对",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          },
-          {
-            "id": "FB-018-C",
-            "answer": "值",
-            "expected_status": "accepted",
-            "label": "edge_correct"
-          },
-          {
-            "id": "FB-018-D",
-            "answer": "键",
-            "expected_status": "wrong_answer",
-            "label": "edge_wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-019",
-        "question_type": "fill_blank",
-        "title": "switch 分支中常用 填空 语句避免继续执行后续分支。",
-        "prompt": "switch 分支中常用 ____ 语句避免继续执行后续分支。",
-        "answer": "break",
-        "explanation": "break 用于跳出 switch。",
-        "expected_nodes": [
-          "switch语句",
-          "break语句"
-        ],
-        "submissions": [
-          {
-            "id": "FB-019-A",
-            "answer": "break",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-019-B",
-            "answer": "continue",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
-          }
-        ]
-      },
-      {
-        "id": "FB-020",
-        "question_type": "fill_blank",
-        "title": "JUnit 中标记测试方法的注解是 填空。",
-        "prompt": "JUnit 中标记测试方法的注解是 ____。",
-        "answer": "@Test",
-        "explanation": "@Test 标记测试方法。",
-        "expected_nodes": [
-          "JUnit",
-          "@Test"
-        ],
-        "submissions": [
-          {
-            "id": "FB-020-A",
-            "answer": "@Test",
-            "expected_status": "accepted",
-            "label": "correct"
-          },
-          {
-            "id": "FB-020-B",
-            "answer": "@Override",
-            "expected_status": "wrong_answer",
-            "label": "wrong"
           }
         ]
       }

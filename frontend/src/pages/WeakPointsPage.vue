@@ -530,7 +530,7 @@ async function selectWeakPoint(item) {
 function handleNodeSelect(nodeId) {
   selectedNodeId.value = nodeId;
   const node = findGraphNodeById(graphNodes.value, nodeId);
-  if (!node || !["recommended", "mastered"].includes(node.status)) return;
+  if (!node || !["weak", "recommended", "mastered"].includes(node.status)) return;
   clearQuizPanelCloseTimer();
   startSidePanelMotion("motion-opening");
   quizNodeId.value = nodeId;

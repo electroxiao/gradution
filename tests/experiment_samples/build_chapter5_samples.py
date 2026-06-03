@@ -37,66 +37,61 @@ RAG_SAMPLES = [
 
 
 FILL_BLANK_QUESTIONS = [
-    ("FB-001", "Java 数组的第一个元素下标是 ____。", "0", ["数组下标"], "考查数组下标从 0 开始。", "1"),
-    ("FB-002", "获取数组 arr 长度的表达式是 arr.____。", "length", ["数组长度"], "数组使用 length 属性表示长度。", "size()"),
-    ("FB-003", "用于比较两个字符串内容是否相同的方法是 ____。", "equals", ["equals方法", "字符串(String)"], "字符串内容比较应使用 equals 方法。", "=="),
-    ("FB-004", "String 对象创建后内容不能被修改，这体现了 String 的____。", "不可变性", ["String不可变性"], "String 是不可变对象。", "可变性"),
-    ("FB-005", "ArrayList 获取指定位置元素的方法是 ____。", "get", ["ArrayList"], "ArrayList 通过 get(index) 获取元素。", "put"),
-    ("FB-006", "HashMap 中用于获取所有键集合的方法是 ____。", "keySet", ["HashMap", "keySet()"], "keySet 返回键集合。", "values"),
-    ("FB-007", "try-catch 后无论是否发生异常都通常会执行的代码块是 ____。", "finally", ["finally", "try-catch"], "finally 常用于资源清理。", "final"),
-    ("FB-008", "需要调用者显式处理或声明抛出的异常称为 ____ Exception。", "Checked", ["Checked Exception", "throws"], "Checked Exception 需要处理或 throws。", "Runtime"),
-    ("FB-009", "类实现接口时使用的关键字是 ____。", "implements", ["接口(Interface)"], "Java 使用 implements 实现接口。", "extends"),
-    ("FB-010", "方法重载主要依据方法名和____列表进行区分。", "参数", ["方法重载(Overload)", "参数(Parameter)"], "重载匹配依据参数列表。", "返回值"),
-    ("FB-011", "泛型类型参数不能直接使用 int 等____类型。", "基本", ["泛型不能用基本类型", "基本类型"], "泛型不能直接使用基本类型。", "引用"),
-    ("FB-012", "创建当前日期对象常用 LocalDate.____()。", "now", ["LocalDate"], "LocalDate.now() 获取当前日期。", "today"),
-    ("FB-013", "金额精确计算通常优先使用 ____ 类。", "BigDecimal", ["BigDecimal"], "BigDecimal 适合十进制精确计算。", "double"),
-    ("FB-014", "Scanner 读取整数常用的方法是 next____()。", "Int", ["Scanner类使用"], "nextInt() 用于读取整数。", "String"),
-    ("FB-015", "按字节读取文件可以使用 ____InputStream。", "File", ["FileInputStream", "字节流"], "FileInputStream 用于文件字节输入。", "String"),
-    ("FB-016", "启动线程应调用 Thread 对象的 ____() 方法。", "start", ["Thread类", "多线程"], "start() 会启动新线程。", "run"),
-    ("FB-017", "Runnable 表示线程要执行的____，本身不能直接启动线程。", "任务", ["Runnable接口"], "Runnable 只描述任务。", "线程"),
-    ("FB-018", "HashSet 通常不保存重复____。", "元素", ["HashSet", "Set"], "Set 语义是不重复集合。", "键值对"),
-    ("FB-019", "switch 分支中常用 ____ 语句避免继续执行后续分支。", "break", ["switch语句", "break语句"], "break 用于跳出 switch。", "continue"),
-    ("FB-020", "JUnit 中标记测试方法的注解是 ____。", "@Test", ["JUnit", "@Test"], "@Test 标记测试方法。", "@Override"),
+    ("FB-001", "HashMap 中 key 重复时，新的 value 会____旧的 value。", "覆盖", ["HashMap"], "HashMap 的同一 key 只能关联一个当前 value。", "追加"),
+    ("FB-002", "String 对象创建后内容不能被修改，这体现了 String 的____。", "不可变性", ["String不可变性"], "String 是不可变对象。", "可变性"),
+    ("FB-003", "Java 中比较字符串内容是否相同应使用____方法。", "equals", ["equals方法", "字符串(String)"], "字符串内容比较应使用 equals 方法。", "=="),
+    ("FB-004", "Scanner 调用 nextInt() 后继续读取整行字符串时，常见问题是残留的____会被读取。", "换行符", ["Scanner类使用"], "nextInt() 不会消费行尾换行符。", "空格"),
+    ("FB-005", "finally 代码块常用于释放文件、数据库连接等____。", "资源", ["finally", "try-catch"], "finally 常用于释放外部资源。", "变量"),
+    ("FB-006", "PreparedStatement 相比字符串拼接 SQL，主要可以降低____风险。", "SQL注入", ["PreparedStatement", "SQL字符串拼接"], "PreparedStatement 通过参数绑定降低 SQL 注入风险。", "空指针异常"),
+    ("FB-007", "重写 equals 方法后，通常还应同步重写____方法。", "hashCode", ["equals方法", "hashCode方法"], "equals 与 hashCode 需要保持一致性。", "toString"),
+    ("FB-008", "ArrayList 删除遍历中的元素时，普通正向 for 循环容易因为下标移动而____元素。", "跳过", ["ArrayList"], "删除元素后后续元素前移，正向遍历容易跳过检查。", "重复"),
+    ("FB-009", "BigDecimal 表示金额时，使用字符串构造可以减少二进制____带来的精度问题。", "浮点数", ["BigDecimal", "浮点数类型"], "字符串构造能避免 double 二进制浮点误差进入 BigDecimal。", "整数"),
+    ("FB-010", "Runnable 描述线程要执行的任务，真正启动新线程需要交给____对象。", "Thread", ["Runnable接口", "Thread类"], "Runnable 只描述任务，Thread 负责启动线程。", "Scanner"),
 ]
 
 
 FILL_BLANK_EDGE_SUBMISSIONS = {
+    "FB-001": [
+        {"suffix": "C", "answer": "替换", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "保留", "expected_status": "wrong_answer", "label": "edge_wrong"},
+    ],
+    "FB-002": [
+        {"suffix": "C", "answer": "不可变", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "immutable", "expected_status": "accepted", "label": "edge_correct"},
+    ],
     "FB-003": [
         {"suffix": "C", "answer": "equals()", "expected_status": "accepted", "label": "edge_correct"},
-        {"suffix": "D", "answer": "== 或 equals 都可以", "expected_status": "wrong_answer", "label": "edge_wrong"},
+        {"suffix": "D", "answer": "compareTo", "expected_status": "wrong_answer", "label": "edge_wrong"},
     ],
     "FB-004": [
-        {"suffix": "C", "answer": "不可变", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "C", "answer": "回车", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "行尾换行", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "E", "answer": "缓冲区残留", "expected_status": "accepted", "label": "edge_correct"},
+    ],
+    "FB-005": [
+        {"suffix": "C", "answer": "系统资源", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "外部资源", "expected_status": "accepted", "label": "edge_correct"},
     ],
     "FB-006": [
-        {"suffix": "C", "answer": "keySet()", "expected_status": "accepted", "label": "edge_correct"},
-        {"suffix": "D", "answer": "keys", "expected_status": "wrong_answer", "label": "edge_wrong"},
+        {"suffix": "C", "answer": "注入攻击", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "SQL injection", "expected_status": "accepted", "label": "edge_correct"},
+    ],
+    "FB-007": [
+        {"suffix": "C", "answer": "hashCode()", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "clone", "expected_status": "wrong_answer", "label": "edge_wrong"},
     ],
     "FB-008": [
-        {"suffix": "C", "answer": "受检", "expected_status": "accepted", "label": "edge_correct"},
-        {"suffix": "D", "answer": "编译时", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "C", "answer": "漏掉", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "跳过检查", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "E", "answer": "漏删", "expected_status": "wrong_answer", "label": "edge_wrong"},
+    ],
+    "FB-009": [
+        {"suffix": "C", "answer": "浮点", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "小数", "expected_status": "wrong_answer", "label": "edge_wrong"},
     ],
     "FB-010": [
-        {"suffix": "C", "answer": "参数列表", "expected_status": "accepted", "label": "edge_correct"},
-        {"suffix": "D", "answer": "返回值和参数列表", "expected_status": "wrong_answer", "label": "edge_wrong"},
-    ],
-    "FB-011": [
-        {"suffix": "C", "answer": "原始", "expected_status": "wrong_answer", "label": "edge_wrong"},
-    ],
-    "FB-014": [
-        {"suffix": "C", "answer": "Int()", "expected_status": "accepted", "label": "edge_correct"},
-        {"suffix": "D", "answer": "nextInt", "expected_status": "wrong_answer", "label": "edge_wrong"},
-    ],
-    "FB-015": [
-        {"suffix": "C", "answer": "FileInputStream", "expected_status": "wrong_answer", "label": "edge_wrong"},
-    ],
-    "FB-016": [
-        {"suffix": "C", "answer": "start()", "expected_status": "accepted", "label": "edge_correct"},
-        {"suffix": "D", "answer": "run()", "expected_status": "wrong_answer", "label": "edge_wrong"},
-    ],
-    "FB-018": [
-        {"suffix": "C", "answer": "值", "expected_status": "accepted", "label": "edge_correct"},
-        {"suffix": "D", "answer": "键", "expected_status": "wrong_answer", "label": "edge_wrong"},
+        {"suffix": "C", "answer": "Thread类", "expected_status": "accepted", "label": "edge_correct"},
+        {"suffix": "D", "answer": "Runnable", "expected_status": "wrong_answer", "label": "edge_wrong"},
     ],
 }
 
