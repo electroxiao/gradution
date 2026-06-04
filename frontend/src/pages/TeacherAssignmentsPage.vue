@@ -272,7 +272,7 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .assignment-page {
   display: grid;
-  gap: 14px;
+  gap: 11px;
   font-size: var(--compact-body);
 }
 
@@ -314,15 +314,15 @@ function handleApiError(error, fallbackMessage) {
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 9px;
 }
 
 .summary-item {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 98px;
-  padding: 18px;
+  min-height: 78px;
+  padding: 14px 18px;
 }
 
 .summary-icon {

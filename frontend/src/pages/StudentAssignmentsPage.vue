@@ -212,14 +212,14 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .student-page {
   display: grid;
-  gap: 14px;
+  gap: 11px;
   font-size: var(--compact-body);
 }
 
 .summary-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 9px;
 }
 
 .summary-card,
@@ -236,8 +236,8 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 98px;
-  padding: 18px;
+  min-height: 78px;
+  padding: 10px 18px;
 }
 
 .summary-copy span,

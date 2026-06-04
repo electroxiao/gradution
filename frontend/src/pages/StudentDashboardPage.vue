@@ -232,7 +232,7 @@ function handleApiError(error, fallbackMessage, target) {
 <style scoped>
 .dashboard-page {
   display: grid;
-  gap: 14px;
+  gap: 11px;
   font-size: var(--compact-body);
 }
 
@@ -243,7 +243,7 @@ function handleApiError(error, fallbackMessage, target) {
 .summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 9px;
 }
 
 .summary-card,
@@ -260,8 +260,8 @@ function handleApiError(error, fallbackMessage, target) {
   align-items: center;
   column-gap: 14px;
   row-gap: 6px;
-  min-height: 98px;
-  padding: 18px;
+  min-height: 78px;
+  padding: 10px 18px;
 }
 
 .summary-card > span:not(.summary-icon) {
@@ -341,7 +341,7 @@ function handleApiError(error, fallbackMessage, target) {
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.52fr) minmax(280px, 0.88fr);
-  gap: 14px;
+  gap: 11px;
   align-items: stretch;
 }
 

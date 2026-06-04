@@ -37,7 +37,7 @@
       <div class="rank-panel">
         <div class="panel-head">
           <div>
-            <h3>薄弱点热点排行</h3>
+            <h3>薄弱点统计</h3>
           </div>
         </div>
 
@@ -59,7 +59,7 @@
       <div class="rank-panel">
         <div class="panel-head">
           <div>
-            <h3>班级提问热点排行</h3>
+            <h3>班级提问统计</h3>
           </div>
         </div>
 
@@ -160,14 +160,14 @@ function handleApiError(error, fallbackMessage) {
 
 <style scoped>
 .dashboard-page {
-  gap: 14px;
+  gap: 11px;
   font-size: var(--compact-body);
 }
 
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 9px;
 }
 
 .rank-panels {
@@ -190,8 +190,8 @@ function handleApiError(error, fallbackMessage) {
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 98px;
-  padding: 18px;
+  min-height: 78px;
+  padding: 14px 18px;
 }
 
 .metric-icon {

@@ -726,7 +726,7 @@ function handleApiError(error, fallbackMessage) {
   --weak-list-panel-width: 260px;
   --weak-scrollbar-width: 4px;
   --weak-scrollbar-edge-offset: 2px;
-  gap: 14px;
+  gap: 11px;
   font-size: var(--compact-body);
 }
 
@@ -747,7 +747,7 @@ function handleApiError(error, fallbackMessage) {
 .summary-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 11px;
 }
 
 .summary-card,
@@ -764,12 +764,12 @@ function handleApiError(error, fallbackMessage) {
   align-items: center;
   column-gap: 14px;
   row-gap: 6px;
-  min-height: 98px;
-  padding: 18px;
+  min-height: 78px;
+  padding: 10px 18px;
 }
 
 .summary-row > .skeleton-card {
-  min-height: 98px;
+  min-height: 78px;
 }
 
 .summary-card strong {
@@ -840,7 +840,7 @@ function handleApiError(error, fallbackMessage) {
 .weak-workbench {
   display: grid;
   grid-template-columns: var(--weak-list-panel-width) minmax(420px, 1fr) minmax(280px, auto);
-  gap: 14px;
+  gap: 11px;
   align-items: start;
 }
 

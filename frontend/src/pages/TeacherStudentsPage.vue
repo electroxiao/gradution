@@ -864,19 +864,19 @@ function handleApiError(error, fallbackMessage) {
 
 .student-profile {
   display: grid;
-  gap: 14px;
+  gap: 11px;
   min-width: 0;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 13px;
+  gap: 10px;
 }
 
 .summary-card {
-  min-height: 98px;
-  padding: 18px;
+  min-height: 78px;
+  padding: 14px 18px;
   display: flex;
   gap: 14px;
   align-items: center;
