@@ -42,12 +42,21 @@
               <strong>系统提示</strong>
             </div>
 
-            <div v-if="message.role === 'assistant' && hasGraphTrace(message)" class="graph-status-box">
-              <span class="graph-status-dot" :class="{ active: message.facts?.length }" />
-              <span>{{ graphStatusText(message) }}</span>
+            <div class="message-body" :class="message.role === 'user' ? 'user-body' : message.role === 'system' ? 'system-body' : 'assistant-body'">
+              <MarkdownContent v-if="message.role === 'assistant' && message.content" :content="message.content" :animate-updates="message.streaming" />
+              <span v-else-if="message.role === 'assistant'" class="assistant-placeholder" aria-hidden="true" />
+              <p v-if="message.role !== 'assistant'" class="plain-text">{{ message.content }}</p>
             </div>
 
-            <SelectedPathGraph v-if="message.role === 'assistant'" :facts="message.facts || []" />
+            <div v-if="message.role === 'assistant' && hasGraphTrace(message)" class="graph-summary">
+              <div class="graph-status-box">
+                <span class="graph-status-dot" :class="{ active: message.facts?.length }" />
+                <span>{{ graphStatusText(message) }}</span>
+              </div>
+              <p v-if="representativeGraphPath(message)" class="graph-path-line">
+                {{ representativeGraphPath(message) }}
+              </p>
+            </div>
 
             <details
               v-if="message.role === 'assistant' && (message.reasoning_trace?.length || message.retrieval_trace?.length)"
@@ -71,12 +80,6 @@
                 </ul>
               </div>
             </details>
-
-            <div class="message-body" :class="message.role === 'user' ? 'user-body' : message.role === 'system' ? 'system-body' : 'assistant-body'">
-              <MarkdownContent v-if="message.role === 'assistant' && message.content" :content="message.content" :animate-updates="message.streaming" />
-              <span v-else-if="message.role === 'assistant'" class="assistant-placeholder" aria-hidden="true" />
-              <p v-if="message.role !== 'assistant'" class="plain-text">{{ message.content }}</p>
-            </div>
           </div>
         </article>
 
@@ -136,7 +139,6 @@ import {
 } from "../api/chat";
 import AnimatedTitle from "../components/AnimatedTitle.vue";
 import MarkdownContent from "../components/MarkdownContent.vue";
-import SelectedPathGraph from "../components/SelectedPathGraph.vue";
 import SessionSidebar from "../components/SessionSidebar.vue";
 import { useAuthStore } from "../stores/auth";
 
@@ -185,6 +187,29 @@ function graphStatusText(message) {
     return "知识图谱检索完成，但未召回到可用节点";
   }
   return "知识图谱检索完成，展开下方可查看检索过程";
+}
+
+function representativeGraphPath(message) {
+  const facts = Array.isArray(message?.facts) ? message.facts : [];
+  const pathFact = facts.find((fact) => fact?.type === "selected_path" && (fact.path_text || fact.source || fact.target))
+    || facts.find((fact) => fact?.type === "path" && (fact.path_text || fact.source || fact.target));
+  if (!pathFact) return "";
+  return simplifyGraphPath(pathFact.path_text) || compactGraphPath(pathFact.source, pathFact.target);
+}
+
+function simplifyGraphPath(pathText) {
+  if (!pathText) return "";
+  const nodes = pathText
+    .split("->")
+    .map((part) => part.trim())
+    .filter((part) => part && !part.startsWith("("));
+  if (nodes.length < 2) return "";
+  return nodes.join(" -> ");
+}
+
+function compactGraphPath(source, target) {
+  if (!source || !target) return "";
+  return `${source} -> ${target}`;
 }
 
 onMounted(async () => {
@@ -710,6 +735,14 @@ async function scrollToBottom({ force = false } = {}) {
   white-space: pre-wrap;
 }
 
+.graph-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 2px;
+}
+
 .graph-status-box {
   display: inline-flex;
   align-items: center;
@@ -736,6 +769,19 @@ async function scrollToBottom({ force = false } = {}) {
 
 .graph-status-dot.active {
   background: #2563eb;
+}
+
+.graph-path-line {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 2px solid #2563eb;
+  background: #f8fafc;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .trace-box {
