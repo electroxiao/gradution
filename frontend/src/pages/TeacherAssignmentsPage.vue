@@ -272,7 +272,11 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .assignment-page {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 11px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   font-size: var(--compact-body);
 }
 
@@ -397,8 +401,11 @@ function handleApiError(error, fallbackMessage) {
 
 .assignment-panel {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 14px;
+  min-height: 0;
   padding: 16px;
+  overflow: hidden;
 }
 
 .list-head {
@@ -510,9 +517,11 @@ function handleApiError(error, fallbackMessage) {
 
 .assignment-table {
   display: grid;
+  align-content: start;
   width: 100%;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  overflow: auto;
   border: 1px solid var(--app-line);
   border-radius: 8px;
   background: #fff;

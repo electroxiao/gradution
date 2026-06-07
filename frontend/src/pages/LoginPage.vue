@@ -85,10 +85,12 @@ async function submit() {
 
 <style scoped>
 .auth-page {
+  height: 100vh;
   min-height: 100vh;
   padding: 32px;
   display: grid;
   place-items: center;
+  overflow: auto;
   background:
     radial-gradient(circle at top left, rgba(47, 103, 246, 0.1), transparent 26%),
     linear-gradient(180deg, #f7f9fc 0%, #f3f6fb 100%);

@@ -1,5 +1,12 @@
 <template>
-  <div class="console-shell teacher-shell" :class="{ collapsed: collapseSidebar, 'auto-collapsed': autoCollapseSidebar }">
+  <div
+    class="console-shell teacher-shell"
+    :class="{
+      collapsed: collapseSidebar,
+      'auto-collapsed': autoCollapseSidebar,
+      'students-portrait-route': route.path === '/teacher/students',
+    }"
+  >
     <aside class="console-sidebar">
       <div class="sidebar-top">
         <div class="console-brand">
@@ -103,8 +110,10 @@ function scheduleGraphPreload() {
   --app-radius-sm: 6px;
   display: grid;
   grid-template-columns: var(--sidebar-current-width) minmax(0, 1fr);
+  height: 100vh;
   min-height: 100vh;
   background: var(--app-bg);
+  overflow: hidden;
   transition: grid-template-columns 0.28s ease;
 }
 
@@ -228,16 +237,24 @@ function scheduleGraphPreload() {
 
 .console-main {
   min-width: 0;
+  min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   background: var(--app-bg);
+  overflow: hidden;
 }
 
 .console-content {
   min-width: 0;
+  min-height: 0;
   padding: 14px 24px 24px;
   font-size: var(--compact-body);
   background: var(--app-bg);
+  overflow: auto;
+}
+
+.console-shell.students-portrait-route .console-content {
+  overflow: hidden;
 }
 
 .console-shell.collapsed .console-sidebar {

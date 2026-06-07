@@ -76,6 +76,7 @@ export function normalizeQuestion(question = {}) {
     explanation: question.explanation || "",
     starter_code: question.starter_code || "",
     knowledge_node_ids: Array.isArray(question.knowledge_node_ids) ? question.knowledge_node_ids.map(Number) : [],
+    knowledge_nodes: Array.isArray(question.knowledge_nodes) ? question.knowledge_nodes : [],
     language: "java",
     grading_mode: question.grading_mode || "testcase",
     ai_review_level: question.ai_review_level || "light",

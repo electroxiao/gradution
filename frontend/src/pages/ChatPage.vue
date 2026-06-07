@@ -48,7 +48,7 @@
               <p v-if="message.role !== 'assistant'" class="plain-text">{{ message.content }}</p>
             </div>
 
-            <div v-if="message.role === 'assistant' && hasGraphTrace(message)" class="graph-summary">
+            <div v-if="message.role === 'assistant' && shouldShowGraphSummary(message)" class="graph-summary">
               <div class="graph-status-box">
                 <span class="graph-status-dot" :class="{ active: message.facts?.length }" />
                 <span>{{ graphStatusText(message) }}</span>
@@ -59,7 +59,7 @@
             </div>
 
             <details
-              v-if="message.role === 'assistant' && (message.reasoning_trace?.length || message.retrieval_trace?.length)"
+              v-if="message.role === 'assistant' && shouldShowGraphDetails(message)"
               class="trace-box"
             >
               <summary>查看检索过程</summary>
@@ -177,6 +177,14 @@ function hasGraphTrace(message) {
       || message?.reasoning_trace?.length
       || message?.retrieval_trace?.length,
   );
+}
+
+function shouldShowGraphSummary(message) {
+  return !message?.streaming && hasGraphTrace(message);
+}
+
+function shouldShowGraphDetails(message) {
+  return !message?.streaming && Boolean(message?.reasoning_trace?.length || message?.retrieval_trace?.length);
 }
 
 function graphStatusText(message) {

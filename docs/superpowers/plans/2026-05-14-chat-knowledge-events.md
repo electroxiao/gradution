@@ -7,10 +7,10 @@ Chat answers can use the restored knowledge-graph RAG path before generation. Af
 ## Current Architecture
 
 - `backend/services/chat_service.py` saves the user message, optionally runs graph retrieval, emits `graph_trace`, streams the assistant answer, saves the assistant message, and starts a background extraction thread.
-- `backend/services/rag_engine.py` extracts graph keywords, queries Neo4j, selects a relevant path, formats RAG facts, and streams graph-enhanced tutoring answers.
+- `backend/services/rag_engine.py` extracts graph keywords, queries Neo4j, organizes graph facts, and streams graph-enhanced tutoring answers.
 - `backend/services/chat_knowledge_event_service.py` extracts candidates from the completed turn and matches them against existing graph-backed `knowledge_nodes`.
 - `backend/models/chat.py` stores RAG facts and traces on `ChatMessage`, and stores matched consultation events in `ChatKnowledgeEvent`.
-- `frontend/src/pages/ChatPage.vue` provides the graph retrieval toggle and displays graph status, selected path, related nodes, and retrieval traces.
+- `frontend/src/pages/ChatPage.vue` provides the graph retrieval toggle and displays graph status, related nodes, and retrieval traces.
 - Student and teacher pages present chat consultation knowledge points separately from assignment weak points.
 
 ## Data Rules
@@ -27,7 +27,7 @@ Chat answers can use the restored knowledge-graph RAG path before generation. Af
 1. Validate the session and user.
 2. Save the user `ChatMessage`.
 3. Build recent conversation history.
-4. If `use_knowledge_graph` is enabled, extract keywords, query Neo4j, select a path, and emit `graph_trace`.
+4. If `use_knowledge_graph` is enabled, extract keywords, query Neo4j, organize graph facts, and emit `graph_trace`.
 5. Stream a graph-enhanced answer when RAG facts exist; otherwise stream a direct LLM tutoring answer.
 6. Save the assistant `ChatMessage` with optional `facts_json`, `reasoning_trace_json`, and `retrieval_trace_json`.
 7. Commit and emit `assistant_done`.
@@ -45,7 +45,7 @@ Chat answers can use the restored knowledge-graph RAG path before generation. Af
 
 - Use the current user message, assistant answer, and limited previous context.
 - Ask the LLM for Java knowledge-point candidates.
-- Provide the formal `knowledge_nodes` list to the extraction prompt.
+- Provide the existing `knowledge_nodes` list to the extraction prompt.
 - Store only candidates whose `node_id` and `node_name` match an existing node.
 - Skip unmatched candidates and duplicate events.
 

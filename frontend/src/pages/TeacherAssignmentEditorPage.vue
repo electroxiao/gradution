@@ -200,10 +200,6 @@
             <div class="field knowledge-search-field">
               <span>知识点</span>
               <div class="knowledge-search-row">
-                <select v-model="selectedKnowledgeChapter" class="knowledge-chapter-select" @change="handleKnowledgeChapterChange">
-                  <option value="">全部章节</option>
-                  <option v-for="chapter in knowledgeChapterOptions" :key="chapter" :value="chapter">{{ chapter }}</option>
-                </select>
                 <div class="knowledge-search-box">
                   <input
                     v-model="knowledgeSearchKeyword"
@@ -397,6 +393,50 @@
                 </label>
               </section>
 
+              <section class="editor-section question-knowledge-section">
+                <div class="sub-head">
+                  <h3>题目知识点</h3>
+                </div>
+                <div class="question-knowledge-control">
+                  <div class="knowledge-search-box question-knowledge-search">
+                    <input
+                      v-model="activeKnowledgeSearchKeyword"
+                      placeholder="搜索并绑定当前题目的知识点"
+                      @input="handleActiveKnowledgeSearchInput"
+                      @focus="handleActiveKnowledgeSearchInput"
+                      @blur="deferHideActiveKnowledgeSuggestions"
+                      @keydown.enter.prevent="selectFirstActiveKnowledgeSuggestion"
+                    />
+                    <div v-if="showActiveKnowledgeSuggestions && activeKnowledgeSuggestions.length" class="knowledge-search-dropdown question-knowledge-dropdown">
+                      <button
+                        v-for="node in activeKnowledgeSuggestions"
+                        :key="node.id"
+                        type="button"
+                        class="knowledge-search-item"
+                        @mousedown.prevent="addActiveQuestionKnowledgeNode(node)"
+                      >
+                        <strong>{{ node.name }}</strong>
+                        <small v-if="node.chapter">{{ node.chapter }}</small>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="activeQuestionKnowledgeNodes.length" class="knowledge-tags question-knowledge-tags" aria-label="当前题目已绑定知识点">
+                    <button
+                      v-for="node in activeQuestionKnowledgeNodes"
+                      :key="node.id"
+                      type="button"
+                      class="knowledge-tag"
+                      :title="`移除 ${node.name}`"
+                      @click="removeActiveQuestionKnowledgeNode(node.id)"
+                    >
+                      {{ node.name }}
+                      <span aria-hidden="true"><X :size="12" /></span>
+                    </button>
+                  </div>
+                  <p v-else class="question-knowledge-empty">未绑定知识点，学生答错该题时不会写入对应薄弱点。</p>
+                </div>
+              </section>
+
               <div v-if="activeQuestion.question_type === 'multiple_choice'" class="editor-section option-editor">
                 <div class="sub-head">
                   <h3>C. 选项设置（单选）</h3>
@@ -515,7 +555,7 @@ import {
   updateTeacherAssignmentApi,
   updateTeacherAssignmentQuestionsApi,
 } from "../api/assignments";
-import { getTeacherGraphApi, listTeacherStudentsApi } from "../api/teacher";
+import { getTeacherGraphApi, listTeacherKnowledgeNodesApi, listTeacherStudentsApi } from "../api/teacher";
 import PageHeader from "../components/PageHeader.vue";
 import {
   createEmptyTestCase,
@@ -563,13 +603,17 @@ const knowledgeSearchKeyword = ref("");
 const knowledgeSuggestions = ref([]);
 const selectedKnowledgeNodes = ref([]);
 const showKnowledgeSuggestions = ref(false);
-const selectedKnowledgeChapter = ref("");
 const knowledgeChapterOptions = ref([]);
+const activeKnowledgeSearchKeyword = ref("");
+const activeKnowledgeSuggestions = ref([]);
+const showActiveKnowledgeSuggestions = ref(false);
+const knowledgeNodeRefMap = ref(new Map());
 const generateCounts = ref({ multiple_choice: 5, fill_blank: 3, programming: 1 });
 let questionSettleTimer = null;
 let questionFlightAnimation = null;
 let questionDragPointerOffset = null;
 let knowledgeSuggestTimer = null;
+let activeKnowledgeSuggestTimer = null;
 const form = ref({
   title: "",
   status: "published",
@@ -592,6 +636,20 @@ const assignedStudentCount = computed(() =>
   students.value.filter((student) => form.value.class_names.includes(student.class_name)).length,
 );
 const activeQuestion = computed(() => form.value.questions[activeQuestionIndex.value] || null);
+const activeQuestionKnowledgeNodes = computed(() => {
+  if (!activeQuestion.value) return [];
+  const ids = Array.isArray(activeQuestion.value.knowledge_node_ids) ? activeQuestion.value.knowledge_node_ids.map(Number) : [];
+  const inlineNodes = Array.isArray(activeQuestion.value.knowledge_nodes) ? activeQuestion.value.knowledge_nodes : [];
+  const inlineMap = new Map(
+    inlineNodes
+      .map(normalizeKnowledgeNodeRef)
+      .filter(Boolean)
+      .map((node) => [Number(node.id), node]),
+  );
+  return ids
+    .map((id) => knowledgeNodeRefMap.value.get(Number(id)) || inlineMap.get(Number(id)) || { id, name: `知识点 ${id}` })
+    .filter((node) => node?.id);
+});
 const verticalDragDirection = () => "vertical";
 
 onMounted(async () => {
@@ -607,10 +665,17 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   clearQuestionSettleState();
   if (knowledgeSuggestTimer) clearTimeout(knowledgeSuggestTimer);
+  if (activeKnowledgeSuggestTimer) clearTimeout(activeKnowledgeSuggestTimer);
 });
 
 watch(() => activeQuestion.value?.question_type, () => {
   if (activeQuestion.value) normalizeQuestionByType(activeQuestion.value);
+});
+
+watch(activeQuestionIndex, () => {
+  activeKnowledgeSearchKeyword.value = "";
+  activeKnowledgeSuggestions.value = [];
+  showActiveKnowledgeSuggestions.value = false;
 });
 
 async function loadStudents() {
@@ -672,6 +737,7 @@ function addQuestion(source = {}) {
     explanation: source.explanation || "",
     starter_code: source.starter_code || "",
     knowledge_node_ids: source.knowledge_node_ids || [],
+    knowledge_nodes: source.knowledge_nodes || [],
     grading_mode: source.grading_mode || "testcase",
     test_cases: source.test_cases || [],
   }));
@@ -931,7 +997,7 @@ function removeTestCase(question, index) {
 function handleKnowledgeSearchInput() {
   if (knowledgeSuggestTimer) clearTimeout(knowledgeSuggestTimer);
   const query = knowledgeSearchKeyword.value.trim();
-  if (!query && !selectedKnowledgeChapter.value) {
+  if (!query) {
     knowledgeSuggestions.value = [];
     showKnowledgeSuggestions.value = false;
     return;
@@ -943,7 +1009,7 @@ function handleKnowledgeSearchInput() {
 
 async function fetchKnowledgeSuggestions(query) {
   try {
-    const { data } = await getTeacherGraphApi({ keyword: query, chapter: selectedKnowledgeChapter.value, limit: 50 });
+    const { data } = await getTeacherGraphApi({ keyword: query, limit: 50 });
     knowledgeSuggestions.value = (data.nodes || []).filter(
       (node) => !selectedKnowledgeNodes.value.some((selected) => isSameKnowledgeNode(selected, node)),
     );
@@ -952,10 +1018,6 @@ async function fetchKnowledgeSuggestions(query) {
     knowledgeSuggestions.value = [];
     showKnowledgeSuggestions.value = false;
   }
-}
-
-function handleKnowledgeChapterChange() {
-  handleKnowledgeSearchInput();
 }
 
 function selectKnowledgeSuggestion(node) {
@@ -994,6 +1056,90 @@ function isSameKnowledgeNode(left, right) {
 function deferHideKnowledgeSuggestions() {
   setTimeout(() => {
     showKnowledgeSuggestions.value = false;
+  }, 120);
+}
+
+function normalizeKnowledgeNodeRef(node) {
+  if (!node) return null;
+  const id = Number(node.id ?? node.knowledge_node_id);
+  const name = String(node.name || node.node_name || "").trim();
+  if (!id || !name) return null;
+  return {
+    id,
+    name,
+    node_name: name,
+    chapter: node.chapter || "",
+  };
+}
+
+function cacheKnowledgeNodeRefs(nodes) {
+  const nextMap = new Map(knowledgeNodeRefMap.value);
+  for (const rawNode of nodes || []) {
+    const node = normalizeKnowledgeNodeRef(rawNode);
+    if (node) nextMap.set(Number(node.id), node);
+  }
+  knowledgeNodeRefMap.value = nextMap;
+}
+
+function handleActiveKnowledgeSearchInput() {
+  if (activeKnowledgeSuggestTimer) clearTimeout(activeKnowledgeSuggestTimer);
+  activeKnowledgeSuggestTimer = setTimeout(() => {
+    fetchActiveKnowledgeSuggestions(activeKnowledgeSearchKeyword.value.trim());
+  }, 180);
+}
+
+async function fetchActiveKnowledgeSuggestions(query) {
+  try {
+    const { data } = await listTeacherKnowledgeNodesApi({ keyword: query, limit: 50 });
+    const selectedIds = new Set(activeQuestion.value?.knowledge_node_ids?.map(Number) || []);
+    const nodes = (data || []).map(normalizeKnowledgeNodeRef).filter(Boolean);
+    cacheKnowledgeNodeRefs(nodes);
+    activeKnowledgeSuggestions.value = nodes.filter((node) => !selectedIds.has(Number(node.id)));
+    showActiveKnowledgeSuggestions.value = activeKnowledgeSuggestions.value.length > 0;
+  } catch (error) {
+    activeKnowledgeSuggestions.value = [];
+    showActiveKnowledgeSuggestions.value = false;
+  }
+}
+
+function selectFirstActiveKnowledgeSuggestion() {
+  if (activeKnowledgeSuggestions.value.length) {
+    addActiveQuestionKnowledgeNode(activeKnowledgeSuggestions.value[0]);
+  }
+}
+
+function addActiveQuestionKnowledgeNode(rawNode) {
+  if (!activeQuestion.value) return;
+  const node = normalizeKnowledgeNodeRef(rawNode);
+  if (!node) return;
+  cacheKnowledgeNodeRefs([node]);
+  const existingIds = new Set(activeQuestion.value.knowledge_node_ids?.map(Number) || []);
+  if (!existingIds.has(Number(node.id))) {
+    activeQuestion.value.knowledge_node_ids = [...existingIds, Number(node.id)];
+  }
+  const existingNodes = Array.isArray(activeQuestion.value.knowledge_nodes) ? activeQuestion.value.knowledge_nodes : [];
+  if (!existingNodes.some((item) => Number(item.id ?? item.knowledge_node_id) === Number(node.id))) {
+    activeQuestion.value.knowledge_nodes = [...existingNodes, node];
+  }
+  activeKnowledgeSearchKeyword.value = "";
+  activeKnowledgeSuggestions.value = [];
+  showActiveKnowledgeSuggestions.value = false;
+}
+
+function removeActiveQuestionKnowledgeNode(nodeId) {
+  if (!activeQuestion.value) return;
+  const normalizedId = Number(nodeId);
+  activeQuestion.value.knowledge_node_ids = (activeQuestion.value.knowledge_node_ids || [])
+    .map(Number)
+    .filter((id) => id !== normalizedId);
+  activeQuestion.value.knowledge_nodes = (activeQuestion.value.knowledge_nodes || []).filter(
+    (node) => Number(node.id ?? node.knowledge_node_id) !== normalizedId,
+  );
+}
+
+function deferHideActiveKnowledgeSuggestions() {
+  setTimeout(() => {
+    showActiveKnowledgeSuggestions.value = false;
   }, 120);
 }
 
@@ -2048,19 +2194,18 @@ textarea {
   align-content: start;
 }
 
+.ai-controls .field.mini > span {
+  color: #111827;
+  font-size: 15px;
+}
+
 .knowledge-search-field {
   position: relative;
   align-content: start;
 }
 
 .knowledge-search-row {
-  display: grid;
-  grid-template-columns: minmax(128px, 0.28fr) minmax(0, 1fr);
-  gap: 8px;
-}
-
-.knowledge-chapter-select {
-  min-height: 40px;
+  display: block;
 }
 
 .knowledge-search-box {
@@ -2152,6 +2297,25 @@ textarea {
 .knowledge-tag:hover {
   border-color: #9fb8ef;
   background: #edf4ff;
+}
+
+.question-knowledge-control {
+  display: grid;
+  gap: 10px;
+}
+
+.question-knowledge-search {
+  max-width: 520px;
+}
+
+.question-knowledge-dropdown {
+  max-height: 220px;
+}
+
+.question-knowledge-empty {
+  margin: 0;
+  color: #8b99ad;
+  font-size: 12px;
 }
 
 .count-stepper {

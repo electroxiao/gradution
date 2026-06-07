@@ -851,7 +851,7 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 14px;
-  height: calc(100vh - 38px);
+  height: 100%;
   min-height: 0;
   overflow: hidden;
   font-size: var(--compact-body);
@@ -1201,7 +1201,7 @@ button:disabled {
 
 .panel-card {
   min-height: 0;
-  padding: 12px;
+  padding: 12px 12px 6px;
   border-radius: 10px;
   background: #ffffff;
   border: 1px solid #ebf1f7;
@@ -1546,7 +1546,7 @@ button:disabled {
 @media (max-width: 900px) {
   .graph-page {
     height: auto;
-    min-height: calc(100vh - 38px);
+    min-height: 100%;
     overflow: visible;
   }
 

@@ -1,10 +1,10 @@
 <template>
-  <section class="students-page">
+  <section ref="pageRef" class="students-page">
     <PageHeader title="学生画像" title-tag="h2" />
 
     <p v-if="errorMessage" class="feedback error">{{ errorMessage }}</p>
 
-    <div class="students-workbench">
+    <div ref="workbenchRef" class="students-workbench">
       <aside class="student-list-panel">
         <div class="list-head">
           <h3>学生列表</h3>
@@ -100,59 +100,59 @@
       </aside>
 
       <section v-if="activeStudent" class="student-profile">
-        <section class="summary-grid">
-          <article class="summary-card weak-summary">
+        <section class="summary-grid" role="tablist" aria-label="学生画像分类">
+          <button
+            type="button"
+            class="summary-card weak-summary"
+            :class="{ active: activeTab === 'weak-points' }"
+            role="tab"
+            :aria-selected="activeTab === 'weak-points'"
+            @click="activeTab = 'weak-points'"
+          >
             <span class="summary-icon"><TriangleAlert :size="22" aria-hidden="true" /></span>
             <div>
               <p>当前薄弱点</p>
               <strong>{{ studentWeakPoints.length }} <small>个</small></strong>
             </div>
-          </article>
-          <article class="summary-card consultation-summary">
+          </button>
+          <button
+            type="button"
+            class="summary-card consultation-summary"
+            :class="{ active: activeTab === 'consultations' }"
+            role="tab"
+            :aria-selected="activeTab === 'consultations'"
+            @click="activeTab = 'consultations'"
+          >
             <span class="summary-icon"><MessageCircleQuestion :size="22" aria-hidden="true" /></span>
             <div>
               <p>最近提问知识点</p>
               <strong>{{ studentConsultations.length }} <small>个</small></strong>
             </div>
-          </article>
-          <article class="summary-card assignment-summary">
+          </button>
+          <button
+            type="button"
+            class="summary-card assignment-summary"
+            :class="{ active: activeTab === 'assignments' }"
+            role="tab"
+            :aria-selected="activeTab === 'assignments'"
+            @click="activeTab = 'assignments'"
+          >
             <span class="summary-icon"><ClipboardList :size="22" aria-hidden="true" /></span>
             <div>
               <p>未完成作业次数</p>
               <strong>{{ activeStudent.unfinished_assignment_count || 0 }} <small>次</small></strong>
             </div>
-          </article>
+          </button>
         </section>
 
-        <section class="portrait-card">
+        <section class="portrait-card" :class="`portrait-card-${activeTab}`">
           <div class="portrait-head">
-            <div>
-              <h3>{{ activeStudent.username }}</h3>
-              <p>{{ activeStudent.class_name || "未分班" }} · 学习画像</p>
-            </div>
+            <h3>{{ activeStudent.username }}</h3>
+            <p>{{ activeStudent.class_name || "未分班" }}</p>
             <span class="portrait-meta">最近更新 {{ portraitUpdatedAt }}</span>
           </div>
 
-          <div class="portrait-tabs" role="tablist" aria-label="学生画像分类">
-            <button
-              v-for="tab in portraitTabs"
-              :key="tab.value"
-              type="button"
-              :class="{ active: activeTab === tab.value }"
-              role="tab"
-              :aria-selected="activeTab === tab.value"
-              @click="activeTab = tab.value"
-            >
-              <component :is="tab.icon" :size="16" aria-hidden="true" />
-              <span>{{ tab.label }}</span>
-            </button>
-          </div>
-
           <section v-if="activeTab === 'weak-points'" class="tab-panel">
-            <div class="section-head">
-              <h4>薄弱知识点</h4>
-              <span>{{ studentWeakPoints.length }} 个待关注</span>
-            </div>
             <div v-if="!isPortraitLoading && studentWeakPoints.length" class="knowledge-list">
               <div v-for="item in studentWeakPoints" :key="item.id" class="knowledge-row portrait-row">
                 <div>
@@ -170,10 +170,6 @@
           </section>
 
           <section v-else-if="activeTab === 'assignments'" class="tab-panel">
-            <div class="section-head">
-              <h4>作业情况</h4>
-              <span>{{ studentAssignments.length }} 个作业</span>
-            </div>
             <div v-if="!isPortraitLoading && studentAssignments.length" class="assignment-list">
               <article v-for="assignment in studentAssignments" :key="assignment.assignment_id" class="assignment-row">
                 <div class="assignment-main">
@@ -206,10 +202,6 @@
           </section>
 
           <section v-else class="tab-panel consultation-panel">
-            <div class="section-head">
-              <h4>提问情况</h4>
-              <span>{{ studentConsultations.length }} 个知识点</span>
-            </div>
             <div v-if="!isPortraitLoading && studentConsultations.length" class="consultation-layout">
               <div class="consultation-list">
                 <button
@@ -300,7 +292,7 @@ import {
   SearchX,
   TriangleAlert,
 } from "lucide-vue-next";
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import {
@@ -314,7 +306,9 @@ import PageHeader from "../components/PageHeader.vue";
 import { clearAuthSession } from "../utils/authStorage";
 
 const router = useRouter();
-const pageSize = 10;
+const pageRef = ref(null);
+const workbenchRef = ref(null);
+const pageSize = ref(8);
 const students = ref([]);
 const activeStudentId = ref(null);
 const studentWeakPoints = ref([]);
@@ -336,12 +330,6 @@ const isPortraitLoading = ref(false);
 const isTurnsLoading = ref(false);
 let activeRequestId = 0;
 let activeTurnsRequestId = 0;
-
-const portraitTabs = [
-  { value: "weak-points", label: "薄弱点", icon: TriangleAlert },
-  { value: "assignments", label: "作业情况", icon: ClipboardList },
-  { value: "consultations", label: "提问情况", icon: MessageCircleQuestion },
-];
 
 const activeStudent = computed(() =>
   students.value.find((student) => student.id === activeStudentId.value) || null,
@@ -366,11 +354,11 @@ const filteredStudents = computed(() => {
     .sort(compareStudents);
 });
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredStudents.value.length / pageSize)));
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredStudents.value.length / pageSize.value)));
 
 const pagedStudents = computed(() => {
-  const start = (currentPage.value - 1) * pageSize;
-  return filteredStudents.value.slice(start, start + pageSize);
+  const start = (currentPage.value - 1) * pageSize.value;
+  return filteredStudents.value.slice(start, start + pageSize.value);
 });
 
 const sortLabel = computed(() => {
@@ -404,8 +392,20 @@ watch(filteredStudents, () => {
   }
 });
 
+watch(pageSize, () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value;
+  }
+});
+
 onMounted(async () => {
+  updateStudentPageSize();
+  window.addEventListener("resize", updateStudentPageSize);
   await loadStudents();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", updateStudentPageSize);
 });
 
 async function loadStudents() {
@@ -529,6 +529,20 @@ function goPage(page) {
   currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
 }
 
+function updateStudentPageSize() {
+  const bottomGap = 6;
+  const pageTop = pageRef.value?.getBoundingClientRect().top || 0;
+  const workbenchTop = workbenchRef.value?.getBoundingClientRect().top || 132;
+  const pageHeight = Math.max(window.innerHeight - pageTop - bottomGap, 280);
+  const panelHeight = Math.max(window.innerHeight - workbenchTop - bottomGap, 280);
+  const reservedHeight = 194;
+  const itemHeight = 52;
+  const nextPageSize = Math.floor((panelHeight - reservedHeight) / itemHeight);
+  pageRef.value?.style.setProperty("--students-page-height", `${pageHeight}px`);
+  workbenchRef.value?.style.setProperty("--students-workbench-height", `${panelHeight}px`);
+  pageSize.value = Math.min(Math.max(nextPageSize, 3), 14);
+}
+
 function formatDate(value) {
   if (!value) return "--";
   const date = new Date(value);
@@ -584,7 +598,12 @@ function handleApiError(error, fallbackMessage) {
 <style scoped>
 .students-page {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
+  height: var(--students-page-height, auto);
+  max-height: var(--students-page-height, none);
+  min-height: 0;
+  overflow: hidden;
   font-size: var(--compact-body);
 }
 
@@ -592,7 +611,11 @@ function handleApiError(error, fallbackMessage) {
   display: grid;
   grid-template-columns: minmax(238px, 286px) minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
+  height: var(--students-workbench-height, calc(100dvh - 132px));
+  min-height: 0;
+  max-height: var(--students-workbench-height, calc(100dvh - 132px));
+  overflow: hidden;
 }
 
 .student-list-panel,
@@ -606,7 +629,9 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .student-list-panel {
-  max-height: calc(100vh - 132px);
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
   padding: 14px 12px 12px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
@@ -864,22 +889,99 @@ function handleApiError(error, fallbackMessage) {
 
 .student-profile {
   display: grid;
-  gap: 11px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
   min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  align-items: end;
+  position: relative;
+  z-index: 2;
 }
 
 .summary-card {
+  position: relative;
   min-height: 78px;
   padding: 14px 18px;
   display: flex;
   gap: 14px;
   align-items: center;
+  border-radius: 20px 20px 10px 10px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 140ms var(--motion-ease),
+    filter 140ms var(--motion-ease),
+    opacity 140ms var(--motion-ease),
+    transform 140ms var(--motion-ease);
+  box-shadow: none;
+  filter: saturate(0.72) brightness(0.94);
+  opacity: 0.78;
+}
+
+.summary-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.summary-card:hover {
+  border-color: #c9d8ef;
+  box-shadow: none;
+  filter: saturate(0.88) brightness(0.98);
+  opacity: 0.9;
+}
+
+.summary-card.active {
+  transform: translateY(2px);
+  border-color: #dce7f6;
+  border-bottom-color: #ffffff;
+  border-radius: 22px 22px 0 0;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+}
+
+.summary-card.active::before,
+.summary-card.active::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  pointer-events: none;
+}
+
+.summary-card.active {
+  background-image: linear-gradient(#ffffff, #ffffff);
+  background-position: left bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 4px;
+}
+
+.summary-card.active::before {
+  left: -22px;
+  border-bottom-right-radius: 22px;
+  box-shadow: 8px 8px 0 8px #ffffff;
+}
+
+.summary-card.active::after {
+  right: -22px;
+  border-bottom-left-radius: 22px;
+  box-shadow: -8px 8px 0 8px #ffffff;
+}
+
+.weak-summary.active::before,
+.assignment-summary.active::after {
+  display: none;
 }
 
 .summary-icon {
@@ -1033,7 +1135,7 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .empty-profile {
-  min-height: 640px;
+  min-height: 0;
   padding: 24px;
 }
 
@@ -1047,16 +1149,34 @@ function handleApiError(error, fallbackMessage) {
 
 .portrait-card {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   padding: 18px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   border: 1px solid var(--app-line);
-  border-radius: 8px;
+  border-radius: 22px;
   background: #ffffff;
-  box-shadow: var(--app-shadow-strong);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.portrait-card-weak-points {
+  border-top-left-radius: 0;
+}
+
+.portrait-card-consultations {
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+}
+
+.portrait-card-assignments {
+  border-top-right-radius: 0;
 }
 
 .portrait-head {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 16px;
   align-items: center;
   padding-bottom: 14px;
@@ -1064,52 +1184,55 @@ function handleApiError(error, fallbackMessage) {
 }
 
 .portrait-head h3 {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--app-text);
   font-size: 20px;
   font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-.portrait-head p,
+.portrait-head p {
+  min-width: 0;
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .portrait-meta {
   margin: 0;
   color: var(--app-text-muted);
   font-size: 13px;
-}
-
-.portrait-tabs {
-  display: flex;
-  gap: 8px;
-  margin: 14px 0;
-  padding: 4px;
-  border: 1px solid #e6edf5;
-  border-radius: 8px;
-  background: #f8fafc;
-}
-
-.portrait-tabs button {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #4a6078;
-  font: inherit;
-  cursor: pointer;
-}
-
-.portrait-tabs button.active {
-  background: #ffffff;
-  color: var(--app-primary);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  white-space: nowrap;
 }
 
 .tab-panel {
-  min-height: 420px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 8px;
+  padding-bottom: 14px;
+  scrollbar-color: rgba(100, 116, 139, 0.38) transparent;
+  scrollbar-width: thin;
+}
+
+.tab-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tab-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.34);
+}
+
+.tab-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.52);
 }
 
 .section-head span {
@@ -1413,12 +1536,23 @@ function handleApiError(error, fallbackMessage) {
   text-align: center;
 }
 
+.students-page :where(h3, h4, h5, strong, b, em) {
+  font-weight: 400 !important;
+}
+
+.students-page :where(.weak-badge, .pagination-bar span, .status-pill, .open-link) {
+  font-weight: 400 !important;
+}
+
+.summary-card :where(p, strong, small) {
+  font-weight: 600 !important;
+}
+
 @media (max-width: 1180px) {
   .students-workbench {
     grid-template-columns: minmax(208px, 240px) minmax(0, 1fr);
   }
 
-  .summary-grid,
   .detail-grid,
   .consultation-layout,
   .assignment-row {
@@ -1427,8 +1561,43 @@ function handleApiError(error, fallbackMessage) {
 }
 
 @media (max-width: 760px) {
+  .students-page {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
   .students-workbench {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .student-list-panel,
+  .student-profile {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .student-list-panel {
+    height: auto;
+  }
+
+  .student-profile,
+  .portrait-card {
+    grid-template-rows: none;
+  }
+
+  .portrait-card {
+    height: auto;
+    overflow: visible;
+  }
+
+  .tab-panel {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .student-items,
@@ -1444,19 +1613,37 @@ function handleApiError(error, fallbackMessage) {
     white-space: normal;
   }
 
-  .portrait-head,
-  .portrait-tabs {
-    align-items: stretch;
+  .summary-grid {
+    gap: 6px;
   }
 
-  .portrait-head,
-  .portrait-tabs {
-    flex-direction: column;
+  .summary-card {
+    min-height: 68px;
+    padding: 10px;
+    gap: 8px;
   }
 
-  .portrait-tabs {
-    display: grid;
+  .summary-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .summary-card p {
+    font-size: 12px;
+  }
+
+  .summary-card strong {
+    font-size: 20px;
+  }
+
+  .portrait-head {
     grid-template-columns: 1fr;
+    gap: 6px;
+    align-items: start;
+  }
+
+  .portrait-meta {
+    white-space: normal;
   }
 
   .assignment-row,

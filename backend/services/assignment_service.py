@@ -46,6 +46,7 @@ from backend.schemas.assignment import (
     AssignmentUpdateRequest,
     QuestionBankItemResponse,
 )
+from backend.services import rag_engine
 from backend.services.chat_service import get_openai_client
 from backend.services.knowledge_progress_service import mark_node_weak
 from backend.services.neo4j_service import get_neo4j_driver
@@ -146,10 +147,13 @@ def generate_assignment_questions(db: Session, payload: AssignmentGenerateQuesti
     requested_total = payload.programming_count + payload.multiple_choice_count + payload.fill_blank_count
     if requested_total <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="至少需要生成一道题目。")
+    matched_knowledge_nodes = _match_assignment_requirement_knowledge_nodes(db, payload)
+    matched_knowledge_text = _format_assignment_knowledge_nodes(matched_knowledge_nodes)
     prompt = f"""
 你是一名 Java 课程作业设计助手。请根据教师要求一次生成多道作业题，支持编程题、选择题和填空题。
 
-知识点：{payload.knowledge_point or "未指定"}
+教师填写知识点：{payload.knowledge_point or "未指定"}
+自动匹配知识点：{matched_knowledge_text or "未匹配"}
 教师要求：{payload.requirement}
 
 数量：
@@ -196,7 +200,13 @@ JSON 格式：
             question_type = _normalize_question_type(raw.get("question_type"))
             title = str(raw.get("title") or f"题目 {index + 1}").strip()
             prompt_text = str(raw.get("prompt") or payload.requirement).strip()
-            knowledge_nodes = _recommend_assignment_knowledge_nodes(db, title, prompt_text, payload)
+            knowledge_nodes = _select_generated_question_knowledge_nodes(
+                db,
+                title,
+                prompt_text,
+                payload,
+                matched_knowledge_nodes,
+            )
             questions.append(
                 {
                     "title": title,
@@ -244,6 +254,116 @@ def _recommend_assignment_knowledge_nodes(
     explicit_terms = _explicit_assignment_knowledge_terms(payload)
     graph_node_names = _match_existing_graph_node_names(candidates, explicit_terms, limit=limit)
     return _ensure_assignment_knowledge_node_refs(db, graph_node_names)
+
+
+def _select_generated_question_knowledge_nodes(
+    db: Session,
+    title: str,
+    prompt: str,
+    payload: AssignmentGenerateQuestionRequest,
+    matched_knowledge_nodes: list[dict],
+    limit: int = 3,
+) -> list[dict]:
+    normalized_matches = _normalize_assignment_knowledge_node_refs(matched_knowledge_nodes)
+    if normalized_matches:
+        return normalized_matches[:limit]
+    return _recommend_assignment_knowledge_nodes(db, title, prompt, payload, limit=limit)
+
+
+def _normalize_assignment_knowledge_node_refs(nodes: list[dict]) -> list[dict]:
+    result = []
+    seen_ids = set()
+    seen_names = set()
+    for item in nodes or []:
+        node_id = item.get("id")
+        node_name = str(item.get("node_name") or item.get("name") or "").strip()
+        if not node_id or not node_name:
+            continue
+        dedupe_key = int(node_id) if str(node_id).isdigit() else node_id
+        if dedupe_key in seen_ids or node_name in seen_names:
+            continue
+        seen_ids.add(dedupe_key)
+        seen_names.add(node_name)
+        result.append({"id": node_id, "node_name": node_name})
+    return result
+
+
+def _match_assignment_requirement_knowledge_nodes(
+    db: Session,
+    payload: AssignmentGenerateQuestionRequest,
+    limit: int = 5,
+) -> list[dict]:
+    search_text = "\n".join(
+        item
+        for item in [
+            payload.knowledge_point.strip(),
+            payload.requirement.strip(),
+        ]
+        if item
+    )
+    if not search_text:
+        return []
+
+    explicit_terms = _explicit_assignment_knowledge_terms(payload)
+    keywords = []
+    try:
+        client = get_openai_client()
+        keywords = rag_engine.extract_keywords_with_llm(client, search_text, history=[])
+    except Exception:
+        keywords = []
+
+    graph_node_names = _match_assignment_requirement_graph_nodes(
+        search_text,
+        keywords=keywords,
+        explicit_terms=explicit_terms,
+        limit=limit,
+    )
+    return _ensure_assignment_knowledge_node_refs(db, graph_node_names)
+
+
+def _match_assignment_requirement_graph_nodes(
+    search_text: str,
+    keywords: list[str],
+    explicit_terms: list[str],
+    limit: int,
+) -> list[str]:
+    terms = []
+    for item in [
+        *keywords,
+        *explicit_terms,
+        *_extract_search_terms(search_text),
+    ]:
+        value = str(item or "").strip()
+        if value and value not in terms:
+            terms.append(value)
+    if not terms:
+        return []
+
+    try:
+        driver = get_neo4j_driver()
+        seeds = rag_engine._query_seed_nodes(
+            driver,
+            search_text,
+            terms,
+            limit_per_kw=3,
+            max_total=limit,
+        )
+        node_names = [seed["name"] for seed in seeds if seed.get("name")]
+        if node_names:
+            return node_names
+    except Exception:
+        pass
+
+    return _match_existing_graph_node_names(terms, explicit_terms, limit=limit)
+
+
+def _format_assignment_knowledge_nodes(nodes: list[dict]) -> str:
+    names = []
+    for item in nodes:
+        name = str(item.get("node_name") or item.get("name") or "").strip()
+        if name and name not in names:
+            names.append(name)
+    return "、".join(names)
 
 
 def _assignment_knowledge_search_terms(

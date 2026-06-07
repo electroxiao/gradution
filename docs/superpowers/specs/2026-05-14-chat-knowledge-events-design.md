@@ -30,8 +30,8 @@ The background extraction stores consultation events for student review and teac
 LLM chat, chat RAG, and consultation extraction have separate jobs:
 
 - The LLM handles immediate tutoring and natural-language conversation.
-- Chat RAG retrieves formal graph nodes and paths to ground the current answer.
-- The knowledge graph stores formal knowledge-point structure.
+- Chat RAG retrieves graph nodes and path evidence to ground the current answer.
+- The knowledge graph stores knowledge-point structure.
 - Assignment mistakes identify unmastered weak points through teacher-bound question knowledge nodes.
 - Targeted practice can mark a weak point as mastered after a correct answer.
 - Chat consultation events are learning traces for review and analytics.
@@ -78,7 +78,7 @@ The background task:
 
 1. Reads the current user message, assistant message, and limited previous context.
 2. Calls the LLM to extract Java knowledge-point candidates.
-3. Matches candidates against formal graph-backed `knowledge_nodes`.
+3. Matches candidates against graph-backed `knowledge_nodes`.
 4. Stores matched items as chat knowledge events.
 5. Skips unmatched candidates.
 
@@ -96,7 +96,7 @@ retrieval_trace_json
 
 These fields drive ChatPage history replay and graph-trace display.
 
-`chat_knowledge_events` records the formal graph knowledge points mentioned in a completed chat turn:
+`chat_knowledge_events` records the graph knowledge points mentioned in a completed chat turn:
 
 ```text
 id
@@ -118,7 +118,7 @@ This prevents duplicate rows if a background job retries.
 
 ## Extraction Rules
 
-Use an LLM for extraction, and store only formal existing knowledge nodes.
+Use an LLM for extraction, and store only existing knowledge nodes.
 
 Prompt requirements:
 
@@ -130,7 +130,7 @@ Prompt requirements:
 
 Matching requirements:
 
-- Match against existing `knowledge_nodes` mirrored from the formal graph.
+- Match against existing `knowledge_nodes` mirrored from the knowledge graph.
 - Store only candidates whose id and name agree with an existing node.
 - Skip candidates that cannot be matched confidently.
 
@@ -140,7 +140,7 @@ ChatPage:
 
 - Sends `use_knowledge_graph`, defaulting to enabled.
 - Handles `graph_trace` before or during answer streaming.
-- Shows graph retrieval status, selected path, related nodes, and expandable retrieval traces.
+- Shows graph retrieval status, related nodes, and expandable retrieval traces.
 - Records knowledge-point events in the background.
 
 Student view:
